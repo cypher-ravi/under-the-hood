@@ -38,9 +38,12 @@
   <header class="intro">
     <h1>Consistent Hashing</h1>
     <p class="lede">Servers and keys are hashed onto the same ring. Each key belongs to the first server clockwise from it. When a server joins or leaves, only the keys in its slice of the ring move. With plain <span class="mono">hash(key) mod N</span>, almost every key moves.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
   </header>
 
-  <section class="stage">
+  <section class="stage" id="simulation">
     <div class="panel canvas-panel">
       <svg id="ring" viewBox="0 0 440 440" role="img" aria-label="Hash ring showing servers and keys"></svg>
       <div class="legend">
@@ -84,7 +87,89 @@
     </div>
   </section>
 
-  <section class="notes">
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Six keys, three servers, one new server</h2>
+    <p class="kicker">Real hashes are 32-bit numbers. To keep the arithmetic readable, this example uses a ring numbered 0 to 99, so every hash is a number in that range.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Place the servers on the ring</h3>
+        <p>Hash each server's name and put it at that point. Say <span class="mono">A</span> lands at 20, <span class="mono">B</span> at 55 and <span class="mono">C</span> at 85.</p>
+      </div></li>
+      <li><div>
+        <h3>Place each key, then walk clockwise</h3>
+        <p>A key belongs to the first server at or after its position. If you pass 99, wrap around to 0. So <span class="mono">A</span> owns 86–20, <span class="mono">B</span> owns 21–55, and <span class="mono">C</span> owns 56–85.</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Key</th><th>Hash</th><th>Walk clockwise to</th><th>Owner</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">cat</td><td class="mono">12</td><td>20</td><td class="mono">A</td></tr>
+            <tr><td class="mono">dog</td><td class="mono">40</td><td>55</td><td class="mono">B</td></tr>
+            <tr><td class="mono">yak</td><td class="mono">50</td><td>55</td><td class="mono">B</td></tr>
+            <tr><td class="mono">emu</td><td class="mono">60</td><td>85</td><td class="mono">C</td></tr>
+            <tr><td class="mono">fox</td><td class="mono">70</td><td>85</td><td class="mono">C</td></tr>
+            <tr><td class="mono">gnu</td><td class="mono">90</td><td>wraps past 99 → 20</td><td class="mono">A</td></tr>
+          </tbody>
+        </table></div>
+      </div></li>
+      <li><div>
+        <h3>Add server D at position 65</h3>
+        <p><span class="mono">D</span> takes over only the arc from 56 to 65, which used to belong to <span class="mono">C</span>. The only key in that arc is <span class="mono">emu</span> (60). Every other key keeps its owner. <b>1 of 6 keys moves.</b></p>
+      </div></li>
+      <li><div>
+        <h3>Compare with <span class="mono">hash mod N</span></h3>
+        <p>The simple approach picks server number <span class="mono">hash % N</span>. Going from 3 to 4 servers changes the divisor for every key at once:</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Key</th><th>Hash</th><th>% 3 (A, B, C)</th><th>% 4 (A, B, C, D)</th><th>Moved?</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">cat</td><td class="mono">12</td><td class="mono">0 → A</td><td class="mono">0 → A</td><td class="okc">no</td></tr>
+            <tr><td class="mono">dog</td><td class="mono">40</td><td class="mono">1 → B</td><td class="mono">0 → A</td><td class="warn">yes</td></tr>
+            <tr><td class="mono">yak</td><td class="mono">50</td><td class="mono">2 → C</td><td class="mono">2 → C</td><td class="okc">no</td></tr>
+            <tr><td class="mono">emu</td><td class="mono">60</td><td class="mono">0 → A</td><td class="mono">0 → A</td><td class="okc">no</td></tr>
+            <tr><td class="mono">fox</td><td class="mono">70</td><td class="mono">1 → B</td><td class="mono">2 → C</td><td class="warn">yes</td></tr>
+            <tr><td class="mono">gnu</td><td class="mono">90</td><td class="mono">0 → A</td><td class="mono">2 → C</td><td class="warn">yes</td></tr>
+          </tbody>
+        </table></div>
+        <p><b>3 of 6 keys move.</b> With thousands of keys the gap grows: mod N moves about 3/4 of them when going from 3 to 4 servers, while consistent hashing moves about 1/4 on average. The simulation above measures this on 120 real hashes.</p>
+      </div></li>
+      <li><div>
+        <h3>Why a move is expensive</h3>
+        <p>If the servers are caches, a moved key is a cache miss that falls through to the database. If they are databases, a moved key is data that has to be copied across the network. Moving 75% of keys at once can take a whole site down, which is exactly what consistent hashing was invented to prevent.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>A fix for the 1990s web getting crushed by its own success</h2>
+    <p>In the mid-1990s a popular site could be knocked offline simply by being popular. When a big news site linked to a small server, thousands of browsers arrived at once and the server fell over. The paper called these "hot spots". A few years later the same effect got the nickname "slashdotting", after the tech news site whose links caused it so often.</p>
+    <p>The obvious fix was caching: keep copies of popular pages on many machines and spread the requests. But which cache should hold which page? If each browser picked a cache by <span class="mono">hash(url) mod N</span>, every cache added or lost would reshuffle nearly every page, and all those caches would miss at once. Worse, different browsers might know about different sets of caches, so they would disagree about where a page lives.</p>
+    <p>At MIT, David Karger, Eric Lehman, Tom Leighton, Rina Panigrahy, Matthew Levine and Daniel Lewin worked on this problem. Their 1997 paper introduced consistent hashing: put caches and URLs on the same circle and give each URL to the next cache clockwise. A change in the set of caches only disturbs the neighbours of the cache that changed.</p>
+    <blockquote class="pull">The idea did not stay in a paper. Leighton and Lewin founded Akamai in 1998 to run it as a business.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">1997</span><p>Karger and colleagues present "Consistent Hashing and Random Trees" at STOC, the ACM Symposium on Theory of Computing, as a way to relieve hot spots on the web.</p></li>
+      <li><span class="year">1998</span><p>Tom Leighton and Daniel Lewin found Akamai, a content delivery network built on the technique.</p></li>
+      <li><span class="year">2007</span><p>Amazon's Dynamo paper uses a consistent hashing ring with virtual nodes to partition its key-value store. This brings the idea from web caches into databases.</p></li>
+      <li><span class="year">Today</span><p>Cassandra, Riak, ScyllaDB, OpenStack Swift, Discord and many load balancers and caches use a ring or a close relative of it.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A way to assign keys to servers so that when the set of servers changes, only about K/N of K keys move to a new server.</p></div>
+      <div><span class="q">Why</span><p>Servers join and fail all the time. With <span class="mono">mod N</span>, changing N changes the answer for almost every key, because the divisor is shared by all of them.</p></div>
+      <div><span class="q">When</span><p>1997, when web traffic was growing faster than any single server could handle and caching had to span many machines.</p></div>
+      <div><span class="q">Where</span><p>MIT's theory group. The authors published it at a theory conference, and it went into production at Akamai within a year.</p></div>
+      <div><span class="q">How</span><p>Remove the shared divisor. Hash servers and keys into the same space, and let each key find its owner by position alone. Adding a server then only cuts one arc of the circle.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> make a key's owner depend only on its nearby neighbours on the ring, never on the total number of servers.</p>
+      <p><b>The follow-up problem:</b> a few random points give uneven arcs. Virtual nodes place each server at many points, which averages the arc sizes out. Try the slider in the simulation.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
     <div class="panel">
       <h2>What to notice</h2>
       <ul>

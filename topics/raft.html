@@ -46,9 +46,12 @@
   <header class="intro">
     <h1>Raft Consensus</h1>
     <p class="lede">Five servers agree on one ordered log, even when some crash. One server is elected leader, accepts writes, and replicates them. An entry is committed once a majority (3 of 5) has stored it. Click a server to crash or restart it.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
   </header>
 
-  <section class="stage">
+  <section class="stage" id="simulation">
     <div class="panel canvas-panel">
       <svg id="cluster" viewBox="0 0 440 440" role="img" aria-label="Five Raft servers exchanging messages"></svg>
       <div class="legend">
@@ -89,7 +92,99 @@
     <div class="logs" id="logs"></div>
   </section>
 
-  <section class="notes">
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One write, one crash, and a candidate who gets turned down</h2>
+    <p class="kicker">Five servers, S1 to S5. A majority is 3. The timings follow the Raft paper, which suggests election timeouts picked at random between 150 and 300 ms.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>S1 is leader of term 1</h3>
+        <p>S1 sends a heartbeat (an empty AppendEntries message) to every follower many times per second. Each heartbeat resets the follower's election timer, so nobody tries to start an election while S1 is alive. S5 happens to be down.</p>
+      </div></li>
+      <li><div>
+        <h3>A client writes <span class="mono">set x=1</span></h3>
+        <p>S1 adds the command to the end of its own log as entry #1, tagged with the current term. It is not committed yet, so S1 does not reply to the client.</p>
+      </div></li>
+      <li><div>
+        <h3>S1 replicates the entry</h3>
+        <p>S1 sends the entry to all followers. S2 and S3 store it and reply OK. S4 is on a slow link and hasn't received it yet.</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Server</th><th>Log</th><th>Counts toward majority?</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">S1 (leader)</td><td class="mono">[#1 term 1]</td><td class="okc">yes</td></tr>
+            <tr><td class="mono">S2</td><td class="mono">[#1 term 1]</td><td class="okc">yes</td></tr>
+            <tr><td class="mono">S3</td><td class="mono">[#1 term 1]</td><td class="okc">yes</td></tr>
+            <tr><td class="mono">S4</td><td class="mono">[ ]</td><td>no</td></tr>
+            <tr><td class="mono">S5</td><td class="mono">down</td><td>no</td></tr>
+          </tbody>
+        </table></div>
+        <p>3 of 5 servers hold entry #1, so S1 marks it <b>committed</b>, applies <span class="mono">x=1</span> and replies to the client. From now on no leader can ever lose this entry.</p>
+      </div></li>
+      <li><div>
+        <h3>S1 crashes</h3>
+        <p>The heartbeats stop. The followers' timers keep counting down. They picked random timeouts: S4 180 ms, S2 230 ms, S3 270 ms.</p>
+      </div></li>
+      <li><div>
+        <h3>S4 times out first and asks for votes</h3>
+        <p>S4 moves to term 2, votes for itself and sends RequestVote to everyone, including the index and term of its last log entry. S4's log is empty.</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Voter</th><th>Voter's last entry</th><th>S4's last entry</th><th>Decision</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">S2</td><td class="mono">#1, term 1</td><td class="mono">none</td><td class="warn">refuse: S4 is behind</td></tr>
+            <tr><td class="mono">S3</td><td class="mono">#1, term 1</td><td class="mono">none</td><td class="warn">refuse: S4 is behind</td></tr>
+          </tbody>
+        </table></div>
+        <p>S4 gets only its own vote. This refusal is the safety rule doing its job: <b>a server missing a committed entry can never win</b>, because the entry sits on a majority and any majority of voters includes at least one of those servers.</p>
+      </div></li>
+      <li><div>
+        <h3>S2 times out and wins</h3>
+        <p>S2 has already seen term 2 in S4's request, so it starts term 3. S3's log is equal to S2's, and S4's is behind, so both grant their votes. With its own vote S2 has 3, a majority. It becomes leader of term 3.</p>
+      </div></li>
+      <li><div>
+        <h3>The new leader repairs S4</h3>
+        <p>S2's first AppendEntries to S4 includes entry #1. S4 stores it, and the logs match again. When S1 and S5 come back, they see the higher term, become followers and receive the same entries.</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>Try it:</b> in the simulation, send a write, crash two followers before it commits, and watch the commit index stall until one of them restarts.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>An algorithm designed to be understood</h2>
+    <p>Keeping copies of data on several machines is easy until the machines disagree. If a network cable is cut, which copy is right? Which server should accept the next write? Getting a group of computers to agree on one answer when some of them fail is called <b>consensus</b>, and it is one of the oldest hard problems in distributed computing.</p>
+    <p>In 1985 Fischer, Lynch and Paterson proved a sobering result: in a fully asynchronous system, no deterministic algorithm can guarantee consensus will finish if even one machine may crash. Practical algorithms therefore aim for something slightly weaker. They are always safe, and they finish as long as the network behaves reasonably for long enough.</p>
+    <p>The standard answer for decades was Paxos, by Leslie Lamport. He first wrote it up around 1989 as the story of the parliament on a fictional Greek island. Reviewers found the allegory hard going, and the paper was not published until 1998. In 2001 Lamport wrote "Paxos Made Simple", which opens by saying the algorithm is simple. Many engineers still disagreed. Google's Chubby team wrote in 2007 that turning Paxos into a working system was much harder than the paper suggested.</p>
+    <p>At Stanford, PhD student Diego Ongaro and his advisor John Ousterhout set out to design a consensus algorithm whose main goal was <b>understandability</b>. Their method was to split the problem into pieces that can be understood separately: leader election, log replication and safety. They also removed freedom wherever they could. There is one strong leader, logs only flow from the leader to followers, and randomized timers break ties.</p>
+    <p>They then tested the claim. 43 students in distributed systems courses at Stanford and UC Berkeley learned both algorithms and took a quiz on each. The average score was 25.7 out of 60 on Raft versus 20.8 on Paxos, and 33 of the 43 students did better on Raft.</p>
+    <ol class="timeline">
+      <li><span class="year">1985</span><p>Fischer, Lynch and Paterson publish the FLP impossibility result.</p></li>
+      <li><span class="year">1988</span><p>Oki and Liskov publish Viewstamped Replication, a leader-based protocol that Raft closely resembles.</p></li>
+      <li><span class="year">1998</span><p>Lamport's "The Part-Time Parliament" (Paxos) is finally published, after first being submitted around 1990.</p></li>
+      <li><span class="year">2001</span><p>"Paxos Made Simple" gives a shorter explanation.</p></li>
+      <li><span class="year">2006</span><p>Google describes Chubby, its lock service built on Paxos. A 2007 follow-up, "Paxos Made Live", describes how hard the implementation was.</p></li>
+      <li><span class="year">2013</span><p>A draft of the Raft paper circulates, and open-source projects such as etcd start implementing it before the paper is formally published.</p></li>
+      <li><span class="year">2014</span><p>"In Search of an Understandable Consensus Algorithm" appears at USENIX ATC.</p></li>
+      <li><span class="year">Today</span><p>Raft runs inside etcd (and therefore Kubernetes), Consul, CockroachDB, TiKV and Kafka's KRaft mode.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A way for a group of servers to agree on one ordered log of commands, so every server applies the same commands in the same order and ends in the same state.</p></div>
+      <div><span class="q">Why</span><p>One server is a single point of failure. Several copies survive crashes, but only if they never disagree about what was written.</p></div>
+      <div><span class="q">When</span><p>2013–2014, when many teams needed consensus for cluster coordination but found Paxos hard to implement correctly.</p></div>
+      <div><span class="q">Where</span><p>Stanford University, in John Ousterhout's research group, as Diego Ongaro's PhD work.</p></div>
+      <div><span class="q">How</span><p>Elect one leader per term. The leader appends commands and copies them to followers. An entry is committed once a majority stores it. Voters reject candidates with older logs.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>Why a majority?</b> Any two majorities of 5 servers share at least one server. So a new leader's voters always include someone who saw every committed entry, and the log-comparison rule makes sure the winner has it too.</p>
+      <p><b>Why random timeouts?</b> If every follower timed out at the same moment, they would all vote for themselves forever. Randomness lets one go first.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
     <div class="panel">
       <h2>What to notice</h2>
       <ul>

@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LRU Cache</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  .canvas-panel { display: grid; gap: 14px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .map { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .bucket {
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 4px; text-align: center;
+    display: grid; gap: 3px; font: 500 11px/1.2 var(--mono); color: var(--muted); transition: background .3s, border-color .3s;
+  }
+  .bucket b { font: 600 15px/1.2 var(--mono); color: var(--ink); }
+  .bucket.empty b { color: var(--line); }
+  .bucket.flash { background: var(--accent-soft); border-color: var(--accent); }
+  .list-wrap { overflow-x: auto; }
+  #list { width: 100%; min-width: 560px; height: auto; display: block; }
+  #list .node { transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s; }
+  #list .node.leaving { opacity: 0; }
+  #list .node rect { transition: fill .3s, stroke .3s; }
+  .tape { display: grid; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .tape-row { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
+  .tape-row > span { font: 600 10px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .chips { display: flex; gap: 3px; }
+  .chip2 {
+    width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 4px;
+    font: 600 12px/1 var(--mono); border: 1.5px solid var(--bad); color: var(--bad);
+  }
+  .chip2.hit { background: var(--ok); border-color: var(--ok); color: var(--panel); }
+  .keys { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .keys button { padding: 10px 0; font: 600 14px/1 var(--mono); }
+  select { font: 500 13px/1.2 var(--body); padding: 8px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .ops { margin: 0; padding-left: 1.2em; display: grid; gap: 5px; font-size: 13px; }
+  .ops code { font-family: var(--mono); font-size: 12px; background: var(--paper); padding: 1px 4px; border-radius: 3px; }
+  .verdict { font: 600 13px/1 var(--mono); }
+  .verdict.hit { color: var(--ok); } .verdict.miss { color: var(--bad); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.5rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Data structures</span>
+  </div>
+
+  <header class="intro">
+    <h1>LRU Cache</h1>
+    <p class="lede">A cache has room for only a few items. When it is full and a new item arrives, the Least Recently Used item is thrown out. A hash map finds any item in O(1), and a doubly linked list keeps items in order of use, so every get and every eviction is also O(1).</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow">Hash map · key → node pointer</span><span class="eyebrow">bucket = char code % 8</span></div>
+      <div class="map" id="map"></div>
+      <div class="sub"><span class="eyebrow">Doubly linked list · most recent on the left</span><span class="eyebrow" id="size"></span></div>
+      <div class="list-wrap"><svg id="list" viewBox="0 0 760 150" role="img" aria-label="Doubly linked list of cached keys"></svg></div>
+      <div class="sub"><span class="eyebrow">Access history · filled = hit, outlined = miss</span></div>
+      <div class="tape" id="tape"></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <span class="eyebrow">Access a key</span>
+        <div class="keys" id="keys" style="margin-top:8px"></div>
+      </div>
+      <label class="field" for="pattern">
+        <span>Or play an access pattern</span>
+        <select id="pattern">
+          <option value="example">Worked example: A B C A D B E A (capacity 3)</option>
+          <option value="hot">Hot set: 80% of reads hit A, B, C</option>
+          <option value="loop">Loop over 5 keys with room for 4</option>
+          <option value="scan">Hot pair, then a one-time scan</option>
+          <option value="random">Uniform random over 8 keys</option>
+        </select>
+      </label>
+      <div class="controls">
+        <button class="primary" id="play">Play</button>
+        <button id="step">Step</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="cap">
+        <span class="row"><span>Capacity (changing it resets)</span><b class="mono num" id="capOut"></b></span>
+        <input type="range" id="cap" min="2" max="6" value="3">
+      </label>
+      <div class="compare">
+        <div><span>LRU hit rate</span><b id="lruRate">–</b><span id="lruN">no accesses yet</span></div>
+        <div><span>Optimal (Bélády)</span><b id="optRate">–</b><span id="optN">knows the future</span></div>
+      </div>
+      <div>
+        <div class="sub"><span class="eyebrow">Last operation</span><span class="verdict" id="verdict"></span></div>
+        <ol class="ops" id="ops" style="margin-top:8px"><li>Press a key to see each O(1) step.</li></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Eight reads through a cache that holds three</h2>
+    <p class="kicker">The reads are <span class="mono">A B C A D B E A</span>. The list is written most recent first, so the item on the far right is the next one to be evicted. Choose "Worked example" in the simulation and press Step to follow along.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>#</th><th>Read</th><th>Result</th><th>What happens</th><th>List after (MRU → LRU)</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td class="mono">A</td><td class="warn">miss</td><td>Load A, put it at the front</td><td class="mono">A</td></tr>
+        <tr><td class="mono">2</td><td class="mono">B</td><td class="warn">miss</td><td>Load B</td><td class="mono">B A</td></tr>
+        <tr><td class="mono">3</td><td class="mono">C</td><td class="warn">miss</td><td>Load C. The cache is now full</td><td class="mono">C B A</td></tr>
+        <tr><td class="mono">4</td><td class="mono">A</td><td class="okc">hit</td><td>A was used, so it moves to the front</td><td class="mono">A C B</td></tr>
+        <tr><td class="mono">5</td><td class="mono">D</td><td class="warn">miss</td><td>Full. Evict the tail, <b>B</b></td><td class="mono">D A C</td></tr>
+        <tr><td class="mono">6</td><td class="mono">B</td><td class="warn">miss</td><td>B is gone already. Evict <b>C</b></td><td class="mono">B D A</td></tr>
+        <tr><td class="mono">7</td><td class="mono">E</td><td class="warn">miss</td><td>Evict <b>A</b></td><td class="mono">E B D</td></tr>
+        <tr><td class="mono">8</td><td class="mono">A</td><td class="warn">miss</td><td>A was just evicted. Evict <b>D</b></td><td class="mono">A E B</td></tr>
+      </tbody>
+    </table></div>
+    <p>LRU gets <b>1 hit out of 8</b>. Now replay the same reads with a cache that can see the future. At read 5 it evicts C instead of B, because C is never read again. At read 7 it evicts D for the same reason. It gets <b>3 hits</b> (reads 4, 6 and 8), which is the best any policy can do here.</p>
+    <div class="aside">
+      <p><b>The lesson:</b> LRU is a guess. It bets that what you used recently you will use again soon. When the bet is right, as with a hot set of popular items, it does very well. When access is a loop slightly larger than the cache, every guess is wrong. Try the "Loop over 5 keys" pattern: LRU scores 0%.</p>
+    </div>
+    <h3>The data structure, step by step</h3>
+    <ol class="steps">
+      <li><div><p><b>Find:</b> <span class="mono">map.get(key)</span> returns the node, or nothing. A hash map does this in O(1) on average. A list alone would need O(n) to search.</p></div></li>
+      <li><div><p><b>Move to front on a hit:</b> unlink the node with <span class="mono">node.prev.next = node.next</span> and <span class="mono">node.next.prev = node.prev</span>, then splice it in after the head. That is four pointer writes, O(1). A singly linked list can't do this, because it doesn't know the node's predecessor without a scan.</p></div></li>
+      <li><div><p><b>Evict on a miss when full:</b> the least recently used node is always <span class="mono">tail.prev</span>. Unlink it and delete its key from the map. Both are O(1). The node stores its own key so you know which map entry to delete.</p></div></li>
+      <li><div><p><b>Sentinels:</b> the dummy <span class="mono">HEAD</span> and <span class="mono">TAIL</span> nodes mean every real node always has a neighbour on both sides, so there are no special cases for an empty list or the first and last node.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>How early computers decided what to forget</h2>
+    <p>In the early 1960s, fast memory was tiny and expensive, while slower drum or disk storage was much larger. Programmers spent a lot of effort manually shuffling pieces of their program between the two. The Atlas computer, built at the University of Manchester, changed that in 1962. It gave programs the illusion of one large memory and moved fixed-size pages between fast core memory and the slower drum by itself. This was the first virtual memory.</p>
+    <p>That created a new question the machine had to answer thousands of times a second: when memory is full and a new page is needed, which page do you throw out? A bad answer means the page you just removed is needed again right away, and the machine spends its time copying pages instead of computing.</p>
+    <p>In 1966 László Bélády at IBM published a study comparing replacement algorithms. He described the best possible one, now called MIN or Bélády's algorithm: evict the page that will not be needed for the longest time. It is provably optimal, and impossible to run for real, since the computer cannot see the future. Its value is as a yardstick. You can run it after the fact on a recorded trace and see how close a practical policy gets.</p>
+    <p>The practical answer came from observing real programs. In 1968 Peter Denning at MIT described the <b>working set</b> model: over any short period a program uses a fairly small group of pages, and that group changes slowly. This behaviour, called locality of reference, is why looking backward works. If a page was used a moment ago, it will probably be used again soon. Least Recently Used is that idea turned directly into a rule.</p>
+    <p>Exact LRU turned out to be too costly for hardware to track on every memory access, so operating systems use cheaper approximations such as the clock algorithm. In software, where a hash map plus a linked list makes exact LRU cheap, it became the default cache policy, and a standard interview question.</p>
+    <ol class="timeline">
+      <li><span class="year">1962</span><p>The Atlas computer at Manchester introduces virtual memory with automatic paging.</p></li>
+      <li><span class="year">1966</span><p>Bélády publishes "A study of replacement algorithms for a virtual-storage computer" in the IBM Systems Journal, including the optimal MIN policy.</p></li>
+      <li><span class="year">1968</span><p>Denning publishes the working set model, explaining why recent use predicts future use.</p></li>
+      <li><span class="year">1969</span><p>Bélády and colleagues show that FIFO can get <i>more</i> misses with <i>more</i> memory (Bélády's anomaly). LRU never does this.</p></li>
+      <li><span class="year">Today</span><p>Redis evicts using approximate LRU: it samples a few keys (5 by default) and evicts the oldest of those. Linux keeps active and inactive page lists. CPU caches use pseudo-LRU in hardware. Memcached, browsers and CDNs use LRU variants.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A fixed-size store that, when full, evicts the item whose last use is furthest in the past.</p></div>
+      <div><span class="q">Why</span><p>Fast storage is small and slow storage is large. The ideal rule needs knowledge of the future, so we use the recent past as the best available predictor.</p></div>
+      <div><span class="q">When</span><p>The 1960s, when virtual memory made page replacement an automatic, constant decision.</p></div>
+      <div><span class="q">Where</span><p>Manchester (Atlas), IBM Research (Bélády's comparison) and MIT (Denning's working set model).</p></div>
+      <div><span class="q">How</span><p>Keep items ordered by last use. A hash map gives O(1) lookup, and a doubly linked list gives O(1) move-to-front and evict-from-back.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> programs have locality. What was used recently is likely to be used again soon.</p>
+      <p><b>Where it breaks:</b> a single large scan (a backup, a full table read) touches many items once and pushes the genuinely hot ones out. Variants like LRU-K, 2Q and ARC exist to resist this.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>On a hit only the pointers change. The node itself never moves in memory, and the map entry stays the same.</li>
+        <li>"Hot set" gets a high hit rate close to optimal, because the popular keys keep getting refreshed.</li>
+        <li>"Loop over 5 keys" with room for 4 gets 0% with LRU. Each key is evicted just before it is needed again. Optimal still gets hits.</li>
+        <li>"Hot pair, then a scan" shows scan pollution. The one-time keys C to H push A and B out, and then A and B miss.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Why doubly linked?</b> To unlink a node in O(1) you need its predecessor. A singly linked list would need an O(n) scan to find it.</p>
+        <p><b>Why store the key in the node?</b> On eviction you only have the tail node, and you need its key to delete the map entry.</p>
+        <p><b>Follow-ups:</b> make it thread-safe (one lock, or sharded caches), add expiry times, and explain why Redis only approximates LRU (a linked list across millions of keys costs memory and pointer updates on every read).</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const KEYS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+  // ---------- the real data structure ----------
+  class LRUCache {
+    constructor(capacity) {
+      this.capacity = capacity;
+      this.map = new Map();
+      this.head = { key: "HEAD" }; this.tail = { key: "TAIL" };
+      this.head.next = this.tail; this.tail.prev = this.head;
+    }
+    unlink(n) { n.prev.next = n.next; n.next.prev = n.prev; }
+    pushFront(n) { n.next = this.head.next; n.prev = this.head; this.head.next.prev = n; this.head.next = n; }
+    access(key) {
+      const node = this.map.get(key);
+      if (node) {
+        this.unlink(node); this.pushFront(node);
+        return { hit: true, steps: [
+          `<code>map.get("${key}")</code> finds the node. O(1).`,
+          `Unlink it: <code>prev.next = next</code>, <code>next.prev = prev</code>.`,
+          `Insert after HEAD. ${key} is now the most recently used.`] };
+      }
+      const steps = [`<code>map.get("${key}")</code> returns nothing. Load ${key} from slow storage.`];
+      let evicted = null;
+      if (this.map.size >= this.capacity) {
+        const lru = this.tail.prev; this.unlink(lru); this.map.delete(lru.key); evicted = lru.key;
+        steps.push(`Cache is full (${this.capacity}/${this.capacity}). Evict <code>tail.prev</code> = ${lru.key}, and delete it from the map.`);
+      }
+      const n = { key }; this.pushFront(n); this.map.set(key, n);
+      steps.push(`Create node ${key}, insert after HEAD, and <code>map.set("${key}", node)</code>.`);
+      return { hit: false, evicted, steps };
+    }
+    order() { const out = []; for (let n = this.head.next; n !== this.tail; n = n.next) out.push(n.key); return out; }
+  }
+
+  // Bélády's MIN, run in hindsight over the history so far.
+  function belady(seq, cap) {
+    const cache = new Set(), flags = [];
+    seq.forEach((k, i) => {
+      if (cache.has(k)) { flags.push(true); return; }
+      flags.push(false);
+      if (cache.size >= cap) {
+        let victim = null, far = -1;
+        for (const c of cache) {
+          const nx = seq.indexOf(c, i + 1);
+          if (nx === -1) { victim = c; break; }
+          if (nx > far) { far = nx; victim = c; }
+        }
+        cache.delete(victim);
+      }
+      cache.add(k);
+    });
+    return flags;
+  }
+
+  // ---------- patterns ----------
+  const PATTERNS = {
+    example: { cap: 3, fixed: ["A", "B", "C", "A", "D", "B", "E", "A"] },
+    hot: { cap: 4, next: () => Math.random() < 0.8 ? "ABC"[Math.floor(Math.random() * 3)] : "DEFGH"[Math.floor(Math.random() * 5)] },
+    loop: { cap: 4, next: i => "ABCDE"[i % 5] },
+    scan: { cap: 4, next: i => "ABABABABCDEFGH"[i % 14] },
+    random: { cap: 4, next: () => KEYS[Math.floor(Math.random() * 8)] }
+  };
+
+  let cache, history, lruFlags, patIndex, timer = null;
+  const $ = id => document.getElementById(id);
+
+  function reset(cap) {
+    stop();
+    cache = new LRUCache(cap); history = []; lruFlags = []; patIndex = 0;
+    $("cap").value = cap; $("capOut").textContent = cap;
+    $("ops").innerHTML = "<li>Press a key to see each O(1) step.</li>"; $("verdict").textContent = "";
+    listNodes.forEach(g => g.remove()); listNodes.clear();
+    render(null);
+  }
+
+  function access(key) {
+    const r = cache.access(key);
+    history.push(key); lruFlags.push(r.hit);
+    $("ops").innerHTML = r.steps.map(s => `<li>${s}</li>`).join("");
+    $("verdict").textContent = r.hit ? `get(${key}) · HIT` : `get(${key}) · MISS`;
+    $("verdict").className = "verdict " + (r.hit ? "hit" : "miss");
+    render({ key, hit: r.hit, evicted: r.evicted });
+  }
+
+  function nextFromPattern() {
+    const p = PATTERNS[$("pattern").value];
+    if (p.fixed) {
+      if (patIndex >= p.fixed.length) { stop(); return false; }
+      access(p.fixed[patIndex++]); return true;
+    }
+    access(p.next(patIndex++)); return true;
+  }
+
+  // ---------- drawing the list ----------
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 70, H = 54, GAP = 22, Y = 48;
+  const slotX = i => 12 + i * (W + GAP);
+  const listNodes = new Map();
+
+  function makeNode(key, sentinel) {
+    const g = document.createElementNS(NS, "g"); g.setAttribute("class", "node");
+    g.innerHTML = `<rect width="${W}" height="${H}" rx="6" fill="${sentinel ? "var(--paper)" : "var(--panel)"}" stroke="${sentinel ? "var(--muted)" : "var(--ink)"}" stroke-width="1.5" ${sentinel ? 'stroke-dasharray="4 3"' : ""}/>
+      <text x="${W / 2}" y="${H / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${sentinel ? 11 : 20}" font-weight="600" fill="${sentinel ? "var(--muted)" : "var(--ink)"}">${key}</text>`;
+    $("list").appendChild(g);
+    return g;
+  }
+  function place(g, i, y = Y) { g.style.transform = `translate(${slotX(i)}px, ${y}px)`; }
+
+  function render(ev) {
+    const order = cache.order();
+    const svg = $("list");
+    // arrows between consecutive slots (HEAD, nodes..., TAIL)
+    let arrows = svg.querySelector("#arrows");
+    if (!arrows) { arrows = document.createElementNS(NS, "g"); arrows.id = "arrows"; svg.prepend(arrows); }
+    const slots = order.length + 2;
+    let a = `<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" fill="var(--muted)"/></marker></defs>`;
+    for (let i = 0; i < slots - 1; i++) {
+      const x1 = slotX(i) + W + 2, x2 = slotX(i + 1) - 2;
+      a += `<line x1="${x1}" y1="${Y + 17}" x2="${x2}" y2="${Y + 17}" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ah)"/>`;
+      a += `<line x1="${x1}" y1="${Y + 37}" x2="${x2}" y2="${Y + 37}" stroke="var(--muted)" stroke-width="1.4" marker-start="url(#ah)"/>`;
+    }
+    a += `<text x="${slotX(1)}" y="30" font-family="var(--mono)" font-size="11" fill="var(--accent)">${order.length ? "most recent" : ""}</text>`;
+    if (order.length) a += `<text x="${slotX(order.length) + W}" y="30" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--bad)">${order.length >= cache.capacity ? "next to evict" : "least recent"}</text>`;
+    a += `<text x="${slotX(0)}" y="130" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">top arrows = next · bottom arrows = prev</text>`;
+    arrows.innerHTML = a;
+
+    if (!listNodes.has("HEAD")) { const h = makeNode("HEAD", true); place(h, 0); listNodes.set("HEAD", h); }
+    if (!listNodes.has("TAIL")) { const t = makeNode("TAIL", true); listNodes.set("TAIL", t); }
+    place(listNodes.get("TAIL"), order.length + 1);
+
+    // evicted node drops away
+    if (ev && ev.evicted && listNodes.has(ev.evicted)) {
+      const g = listNodes.get(ev.evicted); listNodes.delete(ev.evicted);
+      g.classList.add("leaving"); g.style.transform += " translateY(60px)";
+      setTimeout(() => g.remove(), 450);
+    }
+    order.forEach((k, i) => {
+      let g = listNodes.get(k);
+      if (!g) { g = makeNode(k, false); place(g, i + 1, Y - 50); g.style.opacity = "0"; listNodes.set(k, g); g.getBoundingClientRect(); g.style.opacity = "1"; }
+      place(g, i + 1);
+      const rect = g.querySelector("rect");
+      if (ev && ev.key === k) {
+        rect.setAttribute("fill", ev.hit ? "var(--accent-soft)" : "var(--amber-soft)");
+        rect.setAttribute("stroke", ev.hit ? "var(--accent)" : "var(--amber)");
+        clearTimeout(g._t);
+        g._t = setTimeout(() => { rect.setAttribute("fill", "var(--panel)"); rect.setAttribute("stroke", "var(--ink)"); }, 900);
+      }
+    });
+    $("size").textContent = `${order.length} / ${cache.capacity} used`;
+
+    // hash map buckets
+    $("map").innerHTML = Array.from({ length: 8 }, (_, b) => {
+      const k = KEYS.find(x => x.charCodeAt(0) % 8 === b);
+      const present = cache.map.has(k);
+      return `<div class="bucket ${present ? "" : "empty"} ${ev && ev.key === k ? "flash" : ""}"><span>[${b}]</span><b>${present ? k : "·"}</b><span>${present ? "→ node" : "empty"}</span></div>`;
+    }).join("");
+
+    // tape and rates
+    const opt = belady(history, cache.capacity);
+    const last = Math.max(0, history.length - 28);
+    const chips = flags => history.slice(last).map((k, i) => `<span class="chip2 ${flags[last + i] ? "hit" : ""}">${k}</span>`).join("");
+    $("tape").innerHTML = history.length
+      ? `<div class="tape-row"><span>LRU</span><div class="chips">${chips(lruFlags)}</div></div>
+         <div class="tape-row"><span>Optimal</span><div class="chips">${chips(opt)}</div></div>`
+      : `<p style="color:var(--muted);font-size:13px">No reads yet. Press Play or a key.</p>`;
+    const hits = lruFlags.filter(Boolean).length, ohits = opt.filter(Boolean).length, n = history.length;
+    $("lruRate").textContent = n ? Math.round(hits / n * 100) + "%" : "–";
+    $("optRate").textContent = n ? Math.round(ohits / n * 100) + "%" : "–";
+    $("lruN").textContent = n ? `${hits} hits of ${n} reads` : "no accesses yet";
+    $("optN").textContent = n ? `${ohits} hits, in hindsight` : "knows the future";
+  }
+
+  // ---------- controls ----------
+  function stop() { clearInterval(timer); timer = null; $("play").textContent = "Play"; }
+  $("keys").innerHTML = KEYS.map(k => `<button data-k="${k}" aria-label="Read key ${k}">${k}</button>`).join("");
+  $("keys").onclick = e => { const b = e.target.closest("[data-k]"); if (b) { stop(); access(b.dataset.k); } };
+  $("play").onclick = () => {
+    if (timer) { stop(); return; }
+    const p = PATTERNS[$("pattern").value];
+    if (p.fixed && patIndex >= p.fixed.length) reset(p.cap);
+    $("play").textContent = "Pause";
+    const tick = () => { if (!nextFromPattern()) stop(); };
+    tick(); timer = setInterval(tick, 900);
+  };
+  $("step").onclick = () => { stop(); const p = PATTERNS[$("pattern").value]; if (p.fixed && patIndex >= p.fixed.length) reset(p.cap); nextFromPattern(); };
+  $("pattern").onchange = () => reset(PATTERNS[$("pattern").value].cap);
+  $("cap").oninput = e => reset(+e.target.value);
+  $("reset").onclick = () => reset(+$("cap").value);
+
+  // open in a working state: the worked example already played through
+  reset(3);
+  PATTERNS.example.fixed.forEach(k => access(k)); patIndex = PATTERNS.example.fixed.length;
+</script>
+</body>
+</html>

@@ -73,6 +73,16 @@
       }
       return s;
     },
+    list() {
+      let s = "", y = 100, w = 44, gap = 18, x0 = 200 - (5 * w + 4 * gap) / 2;
+      for (let i = 0; i < 5; i++) {
+        const x = x0 + i * (w + gap), sent = i === 0 || i === 4;
+        if (i < 4) s += `<line x1="${x + w + 3}" y1="${y - 6}" x2="${x + w + gap - 3}" y2="${y - 6}" stroke="var(--muted)" stroke-width="2"/><line x1="${x + w + 3}" y1="${y + 6}" x2="${x + w + gap - 3}" y2="${y + 6}" stroke="var(--muted)" stroke-width="2"/>`;
+        s += `<rect x="${x}" y="${y - 22}" width="${w}" height="44" rx="6" fill="${i === 1 ? "var(--accent)" : "var(--panel)"}" stroke="${sent ? "var(--muted)" : i === 1 ? "var(--accent)" : "var(--ink)"}" stroke-width="2" ${sent ? 'stroke-dasharray="4 3"' : ""}/>`;
+      }
+      for (let i = 0; i < 8; i++) s += `<rect x="${104 + i * 24}" y="30" width="18" height="18" rx="3" fill="${i % 3 === 0 ? "var(--ok)" : "none"}" stroke="${i % 3 === 0 ? "var(--ok)" : "var(--bad)"}" stroke-width="1.5"/>`;
+      return s;
+    },
     cluster() {
       const cx = 200, cy = 100, r = 62; let pts = [];
       for (let i = 0; i < 5; i++) {

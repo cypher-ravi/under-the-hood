@@ -19,8 +19,15 @@ window.TOPICS = [
     usedIn: "etcd, Consul, CockroachDB, TiKV",
     glyph: "cluster"
   },
-  { slug: "lru-cache", title: "LRU Cache", area: "Data structures", status: "planned",
-    blurb: "Hash map plus doubly linked list, with O(1) get and evict." },
+  {
+    slug: "lru-cache",
+    title: "LRU Cache",
+    area: "Data structures",
+    status: "ready",
+    blurb: "A hash map plus a doubly linked list. Replay access patterns and compare LRU with the optimal policy that knows the future.",
+    usedIn: "Redis, Memcached, Linux page cache, CPU caches",
+    glyph: "list"
+  },
   { slug: "bloom-filter", title: "Bloom Filter", area: "Data structures", status: "planned",
     blurb: "Bit array and k hashes; tune size and watch the false-positive rate." },
   { slug: "token-bucket", title: "Token Bucket Rate Limiter", area: "Backend", status: "planned",
