@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="shared/lab.css?v=4">
+<link rel="stylesheet" href="shared/lab.css?v=5">
 <style>
   .hero { display: grid; gap: 14px; padding-block: 12px 4px; }
   .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); }
@@ -31,10 +31,19 @@
 
   .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .planned { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); border-top: 1px solid var(--line); }
-  .planned li { padding: 14px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+  .planned li { padding: 14px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; align-content: start; }
   .planned .eyebrow { font-size: 10px; }
   .planned p { color: var(--muted); font-size: 14px; }
   footer { color: var(--muted); font-size: 13px; }
+  .qgrid { display: grid; gap: 16px; }
+  .qgrid .topic { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); grid-template-rows: auto; }
+  .qgrid .topic .thumb { aspect-ratio: auto; border-bottom: 0; border-right: 1px solid var(--line); display: grid; place-items: center; padding: 12px; }
+  .qgrid .topic .thumb svg { height: auto; }
+  .qgrid .topic .body { padding: 20px 22px; }
+  @media (max-width: 700px) {
+    .qgrid .topic { grid-template-columns: minmax(0, 1fr); }
+    .qgrid .topic .thumb { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
 </style>
 </head>
 <body>
@@ -43,26 +52,32 @@
     <span class="eyebrow">Concept visualizer · <span id="count"></span></span>
     <h1>Under the <span>Hood</span></h1>
     <p class="lede">Working models of the algorithms and systems behind everyday software. Each topic is a small simulation you can poke at: add servers, crash nodes, change parameters, and watch what happens.</p>
+    <div class="switch" role="tablist" aria-label="Browse">
+      <button role="tab" id="tab-concepts" aria-controls="concepts" aria-selected="true" data-panel="concepts">Concepts <span id="nConcepts"></span></button>
+      <button role="tab" id="tab-questions" aria-controls="questions" aria-selected="false" data-panel="questions">Design questions <span id="nQuestions"></span></button>
+    </div>
   </header>
 
-  <section class="ready-grid" id="ready" aria-label="Available topics"></section>
+  <div id="concepts" role="tabpanel" aria-labelledby="tab-concepts" style="display:grid;gap:28px">
+    <section class="ready-grid" id="ready" aria-label="Available topics"></section>
+    <section style="display:grid;gap:14px">
+      <div class="section-head">
+        <h2>Concepts on the bench next</h2>
+        <span class="eyebrow">Planned topics</span>
+      </div>
+      <ul class="planned" id="planned"></ul>
+    </section>
+  </div>
 
-  <section id="questions" style="display:grid;gap:14px;scroll-margin-top:16px">
+  <section id="questions" role="tabpanel" aria-labelledby="tab-questions" hidden style="display:grid;gap:14px">
     <div class="section-head">
       <h2>Design questions</h2>
       <span class="eyebrow">Interview problems, worked step by step</span>
     </div>
     <p style="color:var(--muted)">Each question follows the same interview steps: requirements, core entities, API, high-level design, then deep dives. The design is drawn live and grows one component at a time, with the reason for each addition. The step order follows Hello Interview's delivery framework.</p>
-    <div class="ready-grid" id="qready"></div>
+    <div class="qgrid" id="qready"></div>
+    <h3 style="margin-top:8px">Coming next</h3>
     <ul class="planned" id="qplanned"></ul>
-  </section>
-
-  <section style="display:grid;gap:14px">
-    <div class="section-head">
-      <h2>Concepts on the bench next</h2>
-      <span class="eyebrow">Planned topics</span>
-    </div>
-    <ul class="planned" id="planned"></ul>
   </section>
 
   <footer>Every topic is one self-contained HTML file in <span class="mono">topics/</span>. No build step.</footer>
@@ -158,7 +173,21 @@
     </a>`).join("");
   document.getElementById("qplanned").innerHTML = qs.filter(q => q.status !== "ready").map(q => `
     <li><span class="eyebrow">Design question</span><h3>${q.title}</h3><p>${q.blurb}</p></li>`).join("");
-  document.getElementById("count").textContent += ` · ${qs.filter(q => q.status === "ready").length} design question`;
+  const nQ = qs.filter(q => q.status === "ready").length;
+  document.getElementById("count").textContent += ` · ${nQ} design question${nQ === 1 ? "" : "s"}`;
+  document.getElementById("nConcepts").textContent = ready.length;
+  document.getElementById("nQuestions").textContent = nQ;
+  const tabs = [...document.querySelectorAll('.switch [role="tab"]')];
+  function show(name, push) {
+    tabs.forEach(t => t.setAttribute("aria-selected", t.dataset.panel === name));
+    ["concepts", "questions"].forEach(id => { document.getElementById(id).hidden = id !== name; });
+    if (push) history.replaceState(null, "", name === "questions" ? "#questions" : location.pathname);
+  }
+  tabs.forEach(t => t.addEventListener("click", () => show(t.dataset.panel, true)));
+  tabs.forEach((t, i) => t.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); show(n.dataset.panel, true); }
+  }));
+  show(location.hash === "#questions" ? "questions" : "concepts", false);
 
   document.getElementById("planned").innerHTML = planned.map(t => `
     <li><span class="eyebrow">${t.area}</span><h3>${t.title}</h3><p>${t.blurb}</p></li>`).join("");

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=4">
+<link rel="stylesheet" href="../shared/lab.css?v=5">
 <style>
   .diagram-wrap { overflow-x: auto; }
   #arch { width: 100%; min-width: 620px; height: auto; display: block; }
@@ -23,6 +23,8 @@
 </style>
 </head>
 <body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="bitly" aria-label="Question navigation"></aside>
 <main class="wrap">
   <div class="topbar">
     <a class="back" href="../#questions">← All questions</a>
@@ -32,21 +34,11 @@
   <header class="intro">
     <h1>Design a URL Shortener</h1>
     <p class="lede">Turn a long link into a short one like <span class="mono">sho.rt/15FTGn</span>, and send anyone who opens it to the original page. The core is a key-value lookup. The interesting parts are generating short codes that never collide and serving far more reads than writes with low latency.</p>
-    <div class="budget">
-      <span class="eyebrow">A 45-minute interview, step by step · click a step to jump to it</span>
-      <div class="budget-bar" role="navigation" aria-label="Interview steps">
-        <a href="#requirements" style="flex:5">1 Requirements · 5m</a>
-        <a href="#entities" style="flex:2">2 Entities</a>
-        <a href="#api" style="flex:5">3 API · 5m</a>
-        <a href="#design" style="flex:13">4 High-level design · 10–15m</a>
-        <a href="#deep" class="deep" style="flex:10">5 Deep dives · 10m</a>
-      </div>
-      <small>Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</small>
-    </div>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
   </header>
 
   <!-- 1. Requirements -->
-  <section class="panel article" id="requirements">
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
     <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
     <p class="kicker">Ask questions until you can write both lists. Keep the functional list to the three or so features that define the product, and give the non-functional list real numbers.</p>
     <div class="req-grid">
@@ -73,7 +65,7 @@
   </section>
 
   <!-- 2. Entities -->
-  <section class="panel article" id="entities">
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
     <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
     <p class="kicker">Name the nouns before drawing boxes. You'll refine their fields during the design.</p>
     <div class="entity-row">
@@ -92,7 +84,7 @@ looked up by</code></div>
   </section>
 
   <!-- 3. API -->
-  <section class="panel article" id="api">
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
     <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
     <p class="kicker">One endpoint per functional requirement is a good default.</p>
 <pre class="api"><span class="c">// Create a short link</span>
@@ -112,7 +104,7 @@ looked up by</code></div>
   </section>
 
   <!-- 4. High-level design -->
-  <section class="panel article" id="design">
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
     <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
     <p class="kicker">Start with the simplest design that meets the functional requirements, then add one component at a time, each justified by a non-functional requirement. Pick a stage and a request type to watch requests flow.</p>
     <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
@@ -129,8 +121,8 @@ looked up by</code></div>
   </section>
 
   <!-- 5. Deep dives -->
-  <section class="panel article" id="deep">
-    <div class="step-head"><span class="step-num">5</span><h2>Deep dive: making short codes unique</h2><span class="step-time">about 10 minutes across all deep dives</span></div>
+  <section class="panel article" id="deep" data-nav="Deep dive: unique codes" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: making short codes unique</h2><span class="step-time">about 5 minutes</span></div>
     <p class="kicker">This is where most of the interview is won. There are three common ways to produce a code. Try each one.</p>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="counter">Counter + base62</button>
@@ -148,8 +140,8 @@ looked up by</code></div>
     <p style="font-size:14px;color:var(--muted)">Random and hash codes collide by the birthday effect long before the space is full. Collisions become likely once you have stored about √N codes, where N is the number of possible codes. That is why random and hash codes need a uniqueness check on every insert.</p>
   </section>
 
-  <section class="panel article" id="scale">
-    <div class="step-head"><span class="step-num">5</span><h2>Deep dive: fast redirects at scale</h2></div>
+  <section class="panel article" id="scale" data-nav="Deep dive: scale" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: fast redirects at scale</h2><span class="step-time">about 5 minutes</span></div>
     <p class="kicker">Do the math only where it changes a decision. Move the sliders and see which components the numbers call for.</p>
     <div class="calc">
       <label class="field" for="perDay"><span class="row"><span>New links per day</span><b class="mono num" id="perDayOut"></b></span><input type="range" id="perDay" min="5" max="9" step="0.25" value="7"></label>
@@ -161,7 +153,7 @@ looked up by</code></div>
   </section>
 
   <!-- Worked example -->
-  <section class="panel article" id="example">
+  <section class="panel article" id="example" data-nav="Worked example">
     <span class="eyebrow">Worked example</span>
     <h2>One link, created and then clicked</h2>
     <ol class="steps">
@@ -184,7 +176,7 @@ looked up by</code></div>
   </section>
 
   <!-- First principles + story -->
-  <section class="panel article" id="principles">
+  <section class="panel article" id="principles" data-nav="First principles">
     <span class="eyebrow">From first principles</span>
     <h2>What the problem really is</h2>
     <div class="qa">
@@ -196,7 +188,7 @@ looked up by</code></div>
     </div>
   </section>
 
-  <section class="panel article" id="story">
+  <section class="panel article" id="story" data-nav="The story">
     <span class="eyebrow">The story</span>
     <h2>Why short links exist</h2>
     <p>In January 2002, Kevin Gilbertson, a web developer in Minnesota, was tired of long web addresses breaking across lines in newsgroup posts. He built TinyURL to turn them into something short enough to paste. It became the first widely used shortener and inspired over a hundred copies.</p>
@@ -211,7 +203,7 @@ looked up by</code></div>
     </ol>
   </section>
 
-  <section class="notes" id="followups">
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
     <div class="panel">
       <h2>Follow-up questions to expect</h2>
       <ul>
@@ -235,7 +227,10 @@ looked up by</code></div>
     </div>
   </section>
 </main>
+</div>
 
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
 <script>
   const $ = id => document.getElementById(id);
   const ALPHA = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
