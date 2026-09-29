@@ -77,7 +77,13 @@ window.QUESTIONS = [
     concepts: ["lru-cache", "consistent-hashing", "bloom-filter", "rate-limiter"]
   },
   { slug: "rate-limiter-design", title: "Design a Rate Limiter", status: "planned", blurb: "A shared limiter for an API gateway: where it runs, Redis and Lua, and failing open or closed." },
-  { slug: "ticketmaster", title: "Design Ticketmaster", status: "planned", blurb: "Thousands of buyers, one seat: reservations, locks with expiry, and virtual waiting rooms." },
+  {
+    slug: "ticketmaster",
+    title: "Design Ticketmaster",
+    status: "ready",
+    blurb: "Step two buyers through a race for one seat, watch abandoned holds expire on a live seat map, and size a waiting room for an on-sale surge.",
+    concepts: ["rate-limiter", "lru-cache", "consistent-hashing"]
+  },
   { slug: "whatsapp", title: "Design WhatsApp", status: "planned", blurb: "Persistent connections, delivery receipts and offline inboxes." },
   { slug: "news-feed", title: "Design a News Feed", status: "planned", blurb: "Fan-out on write versus on read, and the celebrity problem." },
   { slug: "uber", title: "Design Uber", status: "planned", blurb: "Matching riders to nearby drivers with geospatial indexes and location updates." },

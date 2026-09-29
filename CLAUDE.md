@@ -23,5 +23,5 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 
 ## Roadmap (next up first)
 - DSA: Simultaneous Traversal, Interval Merging and Overlap, then Linked List, Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
-- Design questions: Ticketmaster, Rate Limiter, WhatsApp, News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
+- Design questions: Rate Limiter, WhatsApp, News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
 - Concepts: Geohash and Quadtrees, Quorum and CAP, LSM Tree, B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.
