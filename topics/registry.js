@@ -95,7 +95,9 @@ window.DSA = [
     { slug: "two-pointers", title: "Two Pointers", status: "ready",
       blurb: "Direct, reduction and subproblem variants: palindromes, pair sums, the water container and three sum, stepped line by line.",
       problems: ["Palindrome check", "Pair with target sum", "Container with most water", "Three sum"] },
-    { slug: "sliding-window", title: "Sliding Window", status: "planned", blurb: "Fixed and variable windows over a subarray, grown and shrunk in one pass." },
+    { slug: "sliding-window", title: "Sliding Window", status: "ready",
+      blurb: "Fixed and variable windows grown and shrunk in one pass: best k-sum, anagrams, longest run without repeats and shortest sum.",
+      problems: ["Best sum of k in a row", "Find every anagram", "Longest run without repeats", "Shortest subarray reaching a target"] },
     { slug: "simultaneous-traversal", title: "Simultaneous Traversal", status: "planned", blurb: "Walk two sorted arrays at once to merge, intersect or match subsequences." },
     { slug: "intervals", title: "Interval Merging and Overlap", status: "planned", blurb: "Sort by start, merge overlaps, and sweep a line to count meeting rooms." }
   ] },
