@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Raft Consensus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  .nodes { display: grid; gap: 6px; }
+  .node-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+  .node-row .id { font: 600 13px/1 var(--mono); }
+  .node-row .role { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .node-row .role.leader { color: var(--accent); font-weight: 600; }
+  .node-row .role.candidate { color: var(--amber); font-weight: 600; }
+  .node-row .role.down { color: var(--bad); }
+  .node-row button { padding: 6px 9px; font-size: 12px; }
+
+  .logs { overflow-x: auto; }
+  .logs table { border-collapse: separate; border-spacing: 3px; font: 500 11px/1 var(--mono); }
+  .logs th { text-align: left; padding-right: 8px; color: var(--muted); font-weight: 600; }
+  .logs td { min-width: 26px; width: 26px; height: 26px; }
+  .logs td.e { text-align: center; border-radius: 4px; border: 1.5px solid var(--accent); color: var(--accent); }
+  .logs td.e.c { background: var(--accent); color: var(--panel); }
+  .logs td.e.t2 { border-color: var(--amber); color: var(--amber); }
+  .logs td.e.t2.c { background: var(--amber); color: var(--panel); }
+  .logs tr.down th { color: var(--bad); text-decoration: line-through; }
+  .logs .idx td { color: var(--muted); text-align: center; font-size: 10px; }
+
+  .feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; max-height: 190px; overflow-y: auto; }
+  .feed li { display: grid; grid-template-columns: 58px 1fr; gap: 8px; }
+  .feed time { font: 500 11px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; padding: 4px 10px 8px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Distributed systems</span>
+  </div>
+
+  <header class="intro">
+    <h1>Raft Consensus</h1>
+    <p class="lede">Five servers agree on one ordered log, even when some crash. One server is elected leader, accepts writes, and replicates them. An entry is committed once a majority (3 of 5) has stored it. Click a server to crash or restart it.</p>
+  </header>
+
+  <section class="stage">
+    <div class="panel canvas-panel">
+      <svg id="cluster" viewBox="0 0 440 440" role="img" aria-label="Five Raft servers exchanging messages"></svg>
+      <div class="legend">
+        <span><i style="background:var(--amber)"></i>Vote request / vote</span>
+        <span><i style="background:var(--accent)"></i>Append entries (hollow = heartbeat)</span>
+        <span>Ring around a follower = time left before it starts an election</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <button class="primary" id="write">Client write</button>
+        <button id="pause">Pause</button>
+        <button id="crashLeader">Crash leader</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="speed">
+        <span class="row"><span>Simulation speed</span><b class="mono num" id="speedOut">1×</b></span>
+        <input type="range" id="speed" min="0.25" max="2" step="0.25" value="1">
+      </label>
+      <div>
+        <span class="eyebrow">Servers</span>
+        <div class="nodes" id="nodes" style="margin-top:8px"></div>
+      </div>
+      <div class="stat-row"><span>Commit index (majority)</span><b id="commit">–</b></div>
+      <div>
+        <span class="eyebrow">Events</span>
+        <ul class="feed" id="feed" style="margin-top:8px" aria-live="polite"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
+      <h2>Replicated logs</h2>
+      <span class="eyebrow">Number = term · filled = committed on that server</span>
+    </div>
+    <div class="logs" id="logs"></div>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Election timeouts are randomized, so one follower usually times out first and wins before others start. That is how Raft avoids endless split votes.</li>
+        <li>Crash the leader. Heartbeats stop, a follower times out, bumps the term and becomes the new leader.</li>
+        <li>Crash two servers: writes still commit with 3 of 5. Crash three: the leader keeps accepting entries but nothing commits.</li>
+        <li>Restart a crashed server. The leader backs up <span class="mono">nextIndex</span> until the logs match, then fills the gap.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Why can't a stale server become leader?</b> A voter refuses a candidate whose log is less up to date (lower last term, or same term and shorter). Every committed entry is on a majority, and any two majorities overlap, so the winner always has every committed entry.</p>
+        <p><b>Why only commit entries from the current term?</b> Counting replicas of an older-term entry is unsafe; it can still be overwritten (Figure 8 in the Raft paper).</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const N = 5, MAJ = 3;
+  const HEARTBEAT = 700, LAT_MIN = 280, LAT_MAX = 460, ET_MIN = 1800, ET_MAX = 3400;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  let t, nodes, msgs, feed, paused = false, speed = 1, writes, dirty;
+
+  function reset() {
+    t = 0; msgs = []; feed = []; writes = 0; dirty = true;
+    nodes = Array.from({ length: N }, (_, i) => ({
+      id: i, alive: true, role: "follower", term: 0, votedFor: null, log: [], commit: -1,
+      deadline: rand(ET_MIN, ET_MAX), timeout: 0, votes: new Set(), next: [], match: [], hbDue: 0
+    }));
+    nodes.forEach(n => n.timeout = n.deadline);
+    log("Cluster started. Every server is a follower in term 0.");
+  }
+  const name = i => `S${i + 1}`;
+  function log(text) { feed.unshift({ t, text }); feed = feed.slice(0, 40); dirty = true; }
+  function resetTimer(n) { n.timeout = rand(ET_MIN, ET_MAX); n.deadline = t + n.timeout; }
+  const lastIdx = n => n.log.length - 1;
+  const lastTerm = n => n.log.length ? n.log[n.log.length - 1].term : 0;
+
+  function send(from, to, type, body) {
+    msgs.push({ from, to, type, body, sent: t, arrive: t + rand(LAT_MIN, LAT_MAX) });
+  }
+  function stepDown(n, term) {
+    if (term > n.term) { n.term = term; n.votedFor = null; }
+    if (n.role !== "follower") { n.role = "follower"; dirty = true; }
+  }
+
+  function startElection(n) {
+    n.role = "candidate"; n.term++; n.votedFor = n.id; n.votes = new Set([n.id]); resetTimer(n);
+    log(`${name(n.id)} timed out and asks for votes in term ${n.term}.`);
+    nodes.forEach(p => { if (p.id !== n.id) send(n.id, p.id, "RequestVote", { term: n.term, lastIdx: lastIdx(n), lastTerm: lastTerm(n) }); });
+  }
+  function becomeLeader(n) {
+    n.role = "leader";
+    n.next = nodes.map(() => n.log.length); n.match = nodes.map(() => -1); n.match[n.id] = lastIdx(n);
+    log(`${name(n.id)} won with ${n.votes.size} votes and leads term ${n.term}.`);
+    broadcast(n);
+  }
+  function broadcast(n) {
+    n.hbDue = t + HEARTBEAT;
+    nodes.forEach(p => {
+      if (p.id === n.id) return;
+      const prev = n.next[p.id] - 1;
+      send(n.id, p.id, "Append", {
+        term: n.term, prevIdx: prev, prevTerm: prev >= 0 ? n.log[prev].term : 0,
+        entries: n.log.slice(n.next[p.id]), commit: n.commit
+      });
+    });
+  }
+  function advanceCommit(n) {
+    for (let i = lastIdx(n); i > n.commit; i--) {
+      if (n.log[i].term !== n.term) break;
+      const count = nodes.filter(p => (p.id === n.id ? lastIdx(n) : n.match[p.id]) >= i).length;
+      if (count >= MAJ) { log(`${name(n.id)} committed entries up to #${i + 1} (stored on ${count}/5).`); n.commit = i; break; }
+    }
+  }
+
+  function deliver(m) {
+    const n = nodes[m.to], b = m.body;
+    if (!n.alive) return;
+    if (b.term > n.term) stepDown(n, b.term);
+    switch (m.type) {
+      case "RequestVote": {
+        const upToDate = b.lastTerm > lastTerm(n) || (b.lastTerm === lastTerm(n) && b.lastIdx >= lastIdx(n));
+        const grant = b.term === n.term && (n.votedFor === null || n.votedFor === m.from) && upToDate;
+        if (grant) { n.votedFor = m.from; resetTimer(n); }
+        send(n.id, m.from, "Vote", { term: n.term, granted: grant });
+        break;
+      }
+      case "Vote": {
+        if (n.role === "candidate" && b.term === n.term && b.granted) {
+          n.votes.add(m.from);
+          if (n.votes.size >= MAJ) becomeLeader(n);
+        }
+        break;
+      }
+      case "Append": {
+        if (b.term < n.term) { send(n.id, m.from, "AppendReply", { term: n.term, ok: false, match: -1 }); break; }
+        if (n.role !== "follower") { n.role = "follower"; dirty = true; }
+        resetTimer(n);
+        const okPrev = b.prevIdx === -1 || (n.log[b.prevIdx] && n.log[b.prevIdx].term === b.prevTerm);
+        if (!okPrev) { send(n.id, m.from, "AppendReply", { term: n.term, ok: false, match: -1 }); break; }
+        if (b.entries.length) { n.log = n.log.slice(0, b.prevIdx + 1).concat(b.entries.map(e => ({ ...e }))); dirty = true; }
+        const newCommit = Math.min(b.commit, b.prevIdx + b.entries.length);
+        if (newCommit > n.commit) { n.commit = newCommit; dirty = true; }
+        send(n.id, m.from, "AppendReply", { term: n.term, ok: true, match: b.prevIdx + b.entries.length });
+        break;
+      }
+      case "AppendReply": {
+        if (n.role !== "leader" || b.term !== n.term) break;
+        if (b.ok) {
+          n.match[m.from] = Math.max(n.match[m.from], b.match); n.next[m.from] = n.match[m.from] + 1;
+          advanceCommit(n);
+        } else {
+          n.next[m.from] = Math.max(0, n.next[m.from] - 1);
+        }
+        dirty = true;
+        break;
+      }
+    }
+  }
+
+  function step(dt) {
+    t += dt;
+    const due = msgs.filter(m => m.arrive <= t);
+    msgs = msgs.filter(m => m.arrive > t);
+    due.forEach(deliver);
+    nodes.forEach(n => {
+      if (!n.alive) return;
+      if (n.role === "leader") { if (t >= n.hbDue) broadcast(n); }
+      else if (t >= n.deadline) startElection(n);
+    });
+  }
+
+  function leader() {
+    const ls = nodes.filter(n => n.alive && n.role === "leader");
+    return ls.sort((a, b) => b.term - a.term)[0];
+  }
+
+  // ---------- drawing ----------
+  const CX = 220, CY = 220, RING = 150;
+  const pos = i => { const a = i / N * Math.PI * 2 - Math.PI / 2; return [CX + Math.cos(a) * RING, CY + Math.sin(a) * RING]; };
+
+  function draw() {
+    let s = "";
+    for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+      const [x1, y1] = pos(i), [x2, y2] = pos(j);
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 6"/>`;
+    }
+    msgs.forEach(m => {
+      const f = Math.min(1, Math.max(0, (t - m.sent) / (m.arrive - m.sent)));
+      const [x1, y1] = pos(m.from), [x2, y2] = pos(m.to);
+      const x = x1 + (x2 - x1) * f, y = y1 + (y2 - y1) * f;
+      const vote = m.type === "RequestVote" || m.type === "Vote";
+      const color = vote ? "var(--amber)" : "var(--accent)";
+      const hollow = m.type === "Vote" || m.type === "AppendReply" || (m.type === "Append" && !m.body.entries.length);
+      const dropped = !nodes[m.to].alive;
+      s += `<circle cx="${x}" cy="${y}" r="${m.type === "Append" && m.body.entries.length ? 7 : 5}" fill="${hollow ? "var(--panel)" : color}" stroke="${color}" stroke-width="2" opacity="${dropped ? 0.35 : 1}"/>`;
+    });
+    nodes.forEach(n => {
+      const [x, y] = pos(n.id);
+      const color = !n.alive ? "var(--muted)" : n.role === "leader" ? "var(--accent)" : n.role === "candidate" ? "var(--amber)" : "var(--ink)";
+      if (n.alive && n.role !== "leader") {
+        const frac = Math.max(0, Math.min(1, (n.deadline - t) / n.timeout));
+        const c = 2 * Math.PI * 42;
+        s += `<circle cx="${x}" cy="${y}" r="42" fill="none" stroke="var(--line)" stroke-width="4"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="42" fill="none" stroke="${n.role === "candidate" ? "var(--amber)" : "var(--muted)"}" stroke-width="4" stroke-dasharray="${c * frac} ${c}" transform="rotate(-90 ${x} ${y})" stroke-linecap="round"/>`;
+      }
+      if (n.alive && n.role === "leader") s += `<circle cx="${x}" cy="${y}" r="42" fill="none" stroke="var(--accent)" stroke-width="4"/>`;
+      s += `<g data-id="${n.id}" style="cursor:pointer">`;
+      s += `<circle cx="${x}" cy="${y}" r="33" fill="${n.alive && n.role === "leader" ? "var(--accent)" : "var(--panel)"}" stroke="${color}" stroke-width="2.5" ${n.alive ? "" : 'stroke-dasharray="5 4"'}/>`;
+      const txt = n.alive && n.role === "leader" ? "var(--panel)" : color;
+      s += `<text x="${x}" y="${y - 5}" text-anchor="middle" font-family="var(--display)" font-size="17" font-weight="700" fill="${txt}">${name(n.id)}</text>`;
+      s += `<text x="${x}" y="${y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="${txt}">${n.alive ? "term " + n.term : "down"}</text>`;
+      s += `</g>`;
+    });
+    const L = leader();
+    s += `<text x="${CX}" y="${CY - 4}" text-anchor="middle" font-family="var(--display)" font-size="20" font-weight="700" fill="var(--ink)">${L ? name(L.id) + " leads" : "No leader"}</text>`;
+    s += `<text x="${CX}" y="${CY + 18}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">t = ${(t / 1000).toFixed(1)}s</text>`;
+    document.getElementById("cluster").innerHTML = s;
+
+    if (!dirty) return;
+    dirty = false;
+    document.getElementById("nodes").innerHTML = nodes.map(n => {
+      const role = !n.alive ? "down" : n.role;
+      return `<div class="node-row"><span class="id">${name(n.id)}</span>
+        <span class="role ${role}">${role}${n.alive ? ` · term ${n.term}` : ""}</span>
+        <button data-toggle="${n.id}">${n.alive ? "Crash" : "Restart"}</button></div>`;
+    }).join("");
+    const maxLen = Math.max(8, ...nodes.map(n => n.log.length));
+    let rows = `<tr class="idx"><th></th>${Array.from({ length: maxLen }, (_, i) => `<td>${i + 1}</td>`).join("")}</tr>`;
+    nodes.forEach(n => {
+      rows += `<tr class="${n.alive ? "" : "down"}"><th>${name(n.id)}${n.alive && n.role === "leader" ? " ★" : ""}</th>`;
+      for (let i = 0; i < maxLen; i++) {
+        const e = n.log[i];
+        rows += e ? `<td class="e ${i <= n.commit ? "c" : ""} ${e.term % 2 === 0 ? "t2" : ""}" title="${e.cmd}">${e.term}</td>` : `<td></td>`;
+      }
+      rows += `</tr>`;
+    });
+    document.getElementById("logs").innerHTML = `<table>${rows}</table>`;
+    const L2 = leader();
+    document.getElementById("commit").textContent = L2 ? (L2.commit >= 0 ? `#${L2.commit + 1}` : "none yet") : "–";
+    document.getElementById("write").disabled = !L2;
+    document.getElementById("crashLeader").disabled = !L2;
+    document.getElementById("feed").innerHTML = feed.map(f => `<li><time>${(f.t / 1000).toFixed(1)}s</time><span>${f.text}</span></li>`).join("");
+  }
+
+  // ---------- loop & controls ----------
+  let last = performance.now();
+  function frame(now) {
+    const real = Math.min(50, now - last); last = now;
+    if (!paused) { let rem = real * speed; while (rem > 0) { const d = Math.min(10, rem); step(d); rem -= d; } }
+    draw();
+    requestAnimationFrame(frame);
+  }
+  function toggle(id) {
+    const n = nodes[id];
+    if (n.alive) { n.alive = false; log(`${name(id)} crashed.${n.role === "leader" ? " Heartbeats stop." : ""}`); n.role = "follower"; }
+    else { n.alive = true; n.role = "follower"; resetTimer(n); log(`${name(id)} restarted with its saved term ${n.term} and ${n.log.length} log entries.`); }
+    dirty = true;
+  }
+  document.getElementById("cluster").addEventListener("click", e => { const g = e.target.closest("[data-id]"); if (g) toggle(+g.dataset.id); });
+  document.getElementById("nodes").addEventListener("click", e => { const b = e.target.closest("[data-toggle]"); if (b) toggle(+b.dataset.toggle); });
+  document.getElementById("write").onclick = () => {
+    const L = leader(); if (!L) return;
+    writes++; L.log.push({ term: L.term, cmd: `set x=${writes}` }); L.match[L.id] = lastIdx(L);
+    log(`Client sent "set x=${writes}" to ${name(L.id)} (entry #${L.log.length}).`);
+    broadcast(L);
+  };
+  document.getElementById("crashLeader").onclick = () => { const L = leader(); if (L) toggle(L.id); };
+  document.getElementById("pause").onclick = e => { paused = !paused; e.target.textContent = paused ? "Resume" : "Pause"; };
+  document.getElementById("speed").oninput = e => { speed = +e.target.value; document.getElementById("speedOut").textContent = speed + "×"; };
+  document.getElementById("reset").onclick = reset;
+
+  reset();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

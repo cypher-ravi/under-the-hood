@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Under the Hood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="shared/lab.css">
+<style>
+  .hero { display: grid; gap: 14px; padding-block: 12px 4px; }
+  .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); }
+  .hero h1 span { color: var(--accent); }
+  .hero .lede { font-size: 1.12rem; color: var(--muted); }
+
+  .ready-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .topic {
+    display: grid; grid-template-rows: auto 1fr; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+    transition: border-color .15s, transform .15s;
+  }
+  .topic:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .topic .thumb { background: var(--paper); border-bottom: 1px solid var(--line); aspect-ratio: 16 / 8; max-width: 100%; }
+  .topic .thumb svg { width: 100%; height: 100%; display: block; }
+  .topic .body { padding: 16px 18px 18px; display: grid; gap: 8px; align-content: start; }
+  .topic .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .topic p { color: var(--muted); }
+  .topic .used { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .planned { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); border-top: 1px solid var(--line); }
+  .planned li { padding: 14px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+  .planned .eyebrow { font-size: 10px; }
+  .planned p { color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Concept visualizer · <span id="count"></span></span>
+    <h1>Under the <span>Hood</span></h1>
+    <p class="lede">Working models of the algorithms and systems behind everyday software. Each topic is a small simulation you can poke at: add servers, crash nodes, change parameters, and watch what happens.</p>
+  </header>
+
+  <section class="ready-grid" id="ready" aria-label="Available topics"></section>
+
+  <section style="display:grid;gap:14px">
+    <div class="section-head">
+      <h2>On the bench next</h2>
+      <span class="eyebrow">Planned topics</span>
+    </div>
+    <ul class="planned" id="planned"></ul>
+  </section>
+
+  <footer>Every topic is one self-contained HTML file in <span class="mono">topics/</span>. No build step.</footer>
+</main>
+
+<script src="topics/registry.js"></script>
+<script>
+  const glyphs = {
+    ring() {
+      const cx = 200, cy = 100, r = 70, colors = ["var(--accent)", "var(--amber)", "var(--ok)"];
+      let s = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="8"/>`;
+      for (let i = 0; i < 9; i++) {
+        const a = i / 9 * Math.PI * 2 - Math.PI / 2;
+        s += `<circle cx="${cx + Math.cos(a) * r}" cy="${cy + Math.sin(a) * r}" r="7" fill="${colors[i % 3]}"/>`;
+      }
+      for (let i = 0; i < 24; i++) {
+        const a = (i * 0.29 + 0.1) * Math.PI * 2;
+        s += `<circle cx="${cx + Math.cos(a) * 50}" cy="${cy + Math.sin(a) * 50}" r="2.5" fill="var(--muted)"/>`;
+      }
+      return s;
+    },
+    cluster() {
+      const cx = 200, cy = 100, r = 62; let pts = [];
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2 - Math.PI / 2; pts.push([cx + Math.cos(a) * r * 1.5, cy + Math.sin(a) * r]);
+      }
+      let s = "";
+      for (let i = 1; i < 5; i++) s += `<line x1="${pts[0][0]}" y1="${pts[0][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 5"/>`;
+      pts.forEach((p, i) => {
+        s += `<circle cx="${p[0]}" cy="${p[1]}" r="17" fill="${i === 0 ? "var(--accent)" : "var(--panel)"}" stroke="${i === 0 ? "var(--accent)" : "var(--muted)"}" stroke-width="2"/>`;
+      });
+      return s;
+    }
+  };
+
+  const ready = TOPICS.filter(t => t.status === "ready");
+  const planned = TOPICS.filter(t => t.status !== "ready");
+  document.getElementById("count").textContent = `${ready.length} live, ${planned.length} planned`;
+
+  document.getElementById("ready").innerHTML = ready.map(t => `
+    <a class="topic" href="topics/${t.slug}.html">
+      <div class="thumb"><svg viewBox="0 0 400 200" aria-hidden="true">${glyphs[t.glyph] ? glyphs[t.glyph]() : ""}</svg></div>
+      <div class="body">
+        <div class="meta"><span class="eyebrow">${t.area}</span><span class="pill ready">Live</span></div>
+        <h3 style="font-size:1.3rem">${t.title}</h3>
+        <p>${t.blurb}</p>
+        <span class="used">Used in: ${t.usedIn}</span>
+      </div>
+    </a>`).join("");
+
+  document.getElementById("planned").innerHTML = planned.map(t => `
+    <li><span class="eyebrow">${t.area}</span><h3>${t.title}</h3><p>${t.blurb}</p></li>`).join("");
+</script>
+</body>
+</html>

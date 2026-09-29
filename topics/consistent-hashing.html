@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Consistent Hashing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  .servers { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--mono); padding: 7px 9px; }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .bars { display: grid; gap: 6px; }
+  .bar { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); }
+  .bar .track { position: relative; height: 12px; background: var(--paper); border-radius: 3px; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; transition: width .3s; }
+  .bar .ideal { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .55; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.5rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare .good b { color: var(--ok); }
+  .compare .badv b { color: var(--bad); }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; padding: 4px 10px 8px; }
+  @keyframes pulse { from { r: 4; opacity: 1; } to { r: 13; opacity: 0; } }
+  .moved-ring { animation: pulse 1.2s ease-out 2; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Distributed systems</span>
+  </div>
+
+  <header class="intro">
+    <h1>Consistent Hashing</h1>
+    <p class="lede">Servers and keys are hashed onto the same ring. Each key belongs to the first server clockwise from it. When a server joins or leaves, only the keys in its slice of the ring move. With plain <span class="mono">hash(key) mod N</span>, almost every key moves.</p>
+  </header>
+
+  <section class="stage">
+    <div class="panel canvas-panel">
+      <svg id="ring" viewBox="0 0 440 440" role="img" aria-label="Hash ring showing servers and keys"></svg>
+      <div class="legend">
+        <span>Outer band: which server owns each arc</span>
+        <span>Dots: keys, colored by owner</span>
+        <span>Pulsing: keys that just moved</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <button class="primary" id="add">Add server</button>
+        <button id="reset">Reset</button>
+      </div>
+      <div>
+        <span class="eyebrow">Servers · click one to remove it</span>
+        <div class="servers" id="servers" style="margin-top:8px"></div>
+      </div>
+      <label class="field" for="vnodes">
+        <span class="row"><span>Virtual nodes per server</span><b class="mono num" id="vnodesOut"></b></span>
+        <input type="range" id="vnodes" min="1" max="50" value="1">
+      </label>
+      <label class="field" for="keycount">
+        <span class="row"><span>Keys</span><b class="mono num" id="keysOut"></b></span>
+        <input type="range" id="keycount" min="20" max="400" step="20" value="120">
+      </label>
+
+      <div>
+        <span class="eyebrow">Last change moved</span>
+        <div class="compare" style="margin-top:8px">
+          <div class="good"><span>Consistent hashing</span><b id="movedCH">–</b><span id="movedCHn">Add or remove a server</span></div>
+          <div class="badv"><span>hash mod N</span><b id="movedMod">–</b><span id="movedModn">&nbsp;</span></div>
+        </div>
+      </div>
+
+      <div>
+        <span class="eyebrow">Keys per server · line = perfect balance</span>
+        <div class="bars" id="bars" style="margin-top:8px"></div>
+        <div class="stat-row" style="margin-top:10px"><span>Most-loaded server vs ideal</span><b id="skew"></b></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Adding a 5th server moves about 1/5 of keys with consistent hashing. With mod N it moves about 4/5.</li>
+        <li>With 1 virtual node, servers get very uneven slices. Push the slider to 30+ and the bars even out.</li>
+        <li>Removing a server hands its keys only to its clockwise neighbours. Everyone else is untouched.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Why virtual nodes?</b> A few random points on a ring give high variance in arc length. Many points per server average it out, and a server that leaves spreads its load across many neighbours instead of one.</p>
+        <p><b>Trade-off:</b> more virtual nodes means a bigger ring to search (O(log V·N) lookup) and more metadata to gossip.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // 32-bit FNV-1a, then a final avalanche so similar strings spread out.
+  function hash(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+    return h >>> 0;
+  }
+  const unit = s => hash(s) / 4294967296;
+
+  const PALETTE = ["#3B6FE0", "#D0802A", "#2E9E6B", "#C2457A", "#7A5AD8", "#1F9BB0", "#A8961A", "#D05A45"];
+  const NAMES = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+  let servers, vnodes, keyCount, keys, owners, movedSet = new Set(), nextName = 0;
+
+  function reset() {
+    servers = []; nextName = 0;
+    for (let i = 0; i < 4; i++) servers.push(newServer());
+    vnodes = +document.getElementById("vnodes").value;
+    keyCount = +document.getElementById("keycount").value;
+    buildKeys(); owners = assign(); movedSet.clear();
+    setCompare(null);
+    render();
+  }
+  function newServer() {
+    const used = new Set(servers.map(s => s.name));
+    const name = NAMES.find(n => !used.has(n));
+    return { name, color: PALETTE[NAMES.indexOf(name)] };
+  }
+  function buildKeys() {
+    keys = Array.from({ length: keyCount }, (_, i) => `user:${1000 + i * 7}`);
+  }
+  function ringPoints() {
+    const pts = [];
+    servers.forEach(s => { for (let v = 0; v < vnodes; v++) pts.push({ pos: unit(`${s.name}#${v}`), server: s }); });
+    return pts.sort((a, b) => a.pos - b.pos);
+  }
+  function ownerOf(pts, p) {
+    for (const pt of pts) if (pt.pos >= p) return pt.server.name;
+    return pts[0].server.name;
+  }
+  function assign() {
+    const pts = ringPoints(); const m = new Map();
+    keys.forEach(k => m.set(k, ownerOf(pts, unit(k))));
+    return m;
+  }
+  function modOwners(list) {
+    const m = new Map(); keys.forEach(k => m.set(k, list[hash(k) % list.length]));
+    return m;
+  }
+
+  function change(mutate) {
+    const beforeNames = servers.map(s => s.name);
+    const before = owners, beforeMod = modOwners(beforeNames);
+    mutate();
+    owners = assign();
+    const afterMod = modOwners(servers.map(s => s.name));
+    movedSet = new Set(keys.filter(k => before.get(k) !== owners.get(k)));
+    const modMoved = keys.filter(k => beforeMod.get(k) !== afterMod.get(k)).length;
+    setCompare({ ch: movedSet.size, mod: modMoved, from: beforeNames.length, to: servers.length });
+    render();
+  }
+  function setCompare(c) {
+    const $ = id => document.getElementById(id);
+    if (!c) { $("movedCH").textContent = "–"; $("movedMod").textContent = "–"; $("movedCHn").textContent = "Add or remove a server"; $("movedModn").innerHTML = "&nbsp;"; return; }
+    const pct = n => Math.round(n / keys.length * 100) + "%";
+    $("movedCH").textContent = pct(c.ch); $("movedMod").textContent = pct(c.mod);
+    $("movedCHn").textContent = `${c.ch} of ${keys.length} keys`; $("movedModn").textContent = `${c.mod} of ${keys.length} keys`;
+  }
+
+  const CX = 220, CY = 220, R = 170;
+  const xy = (p, r) => { const a = p * Math.PI * 2 - Math.PI / 2; return [CX + Math.cos(a) * r, CY + Math.sin(a) * r]; };
+  function arc(p0, p1, r) {
+    let span = p1 - p0; if (span <= 0) span += 1;
+    if (span >= 0.9999) return null;
+    const [x0, y0] = xy(p0, r), [x1, y1] = xy(p0 + span, r);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${span > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+
+  function render() {
+    const svg = document.getElementById("ring");
+    const pts = ringPoints();
+    let s = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`;
+    // ownership arcs: (prev, this] belongs to this point's server
+    if (pts.length === 1 || servers.length === 1) {
+      s += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${servers[0].color}" stroke-width="14"/>`;
+    } else {
+      pts.forEach((pt, i) => {
+        const prev = pts[(i - 1 + pts.length) % pts.length];
+        const d = arc(prev.pos, pt.pos, R);
+        if (d) s += `<path d="${d}" fill="none" stroke="${pt.server.color}" stroke-width="14"/>`;
+      });
+    }
+    // server markers (only label them when there are few)
+    pts.forEach(pt => {
+      const [x, y] = xy(pt.pos, R);
+      s += `<circle cx="${x}" cy="${y}" r="${vnodes > 8 ? 3.5 : 9}" fill="var(--panel)" stroke="${pt.server.color}" stroke-width="3"/>`;
+      if (vnodes <= 3) {
+        const [lx, ly] = xy(pt.pos, R + 26);
+        s += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="13" font-weight="600" fill="${pt.server.color}">${pt.server.name}${vnodes > 1 ? "" : ""}</text>`;
+      }
+    });
+    // keys
+    const colorOf = Object.fromEntries(servers.map(sv => [sv.name, sv.color]));
+    keys.forEach((k, i) => {
+      const p = unit(k), r = R - 26 - (i % 4) * 9;
+      const [x, y] = xy(p, r);
+      if (movedSet.has(k)) s += `<circle class="moved-ring" cx="${x}" cy="${y}" r="4" fill="none" stroke="${colorOf[owners.get(k)]}" stroke-width="2"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="${movedSet.has(k) ? 4.2 : 3}" fill="${colorOf[owners.get(k)]}"><title>${k} → ${owners.get(k)}</title></circle>`;
+    });
+    s += `<text x="${CX}" y="${CY - 8}" text-anchor="middle" font-family="var(--display)" font-size="26" font-weight="700" fill="var(--ink)">${servers.length} servers</text>`;
+    s += `<text x="${CX}" y="${CY + 18}" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">${pts.length} points on ring · ${keys.length} keys</text>`;
+    svg.innerHTML = s;
+
+    // server chips
+    document.getElementById("servers").innerHTML = servers.map(sv =>
+      `<button class="chip" data-name="${sv.name}" ${servers.length <= 1 ? "disabled" : ""} aria-label="Remove server ${sv.name}"><i style="background:${sv.color}"></i>${sv.name} ✕</button>`).join("");
+    document.getElementById("add").disabled = servers.length >= NAMES.length;
+
+    // load bars
+    const counts = Object.fromEntries(servers.map(sv => [sv.name, 0]));
+    keys.forEach(k => counts[owners.get(k)]++);
+    const ideal = keys.length / servers.length;
+    const max = Math.max(...Object.values(counts), ideal) * 1.1;
+    document.getElementById("bars").innerHTML = servers.map(sv => `
+      <div class="bar"><span>${sv.name}</span>
+        <div class="track"><div class="fill" style="width:${counts[sv.name] / max * 100}%;background:${sv.color}"></div><div class="ideal" style="left:${ideal / max * 100}%"></div></div>
+        <span class="num">${counts[sv.name]}</span></div>`).join("");
+    const worst = Math.max(...Object.values(counts));
+    document.getElementById("skew").textContent = `${(worst / ideal).toFixed(2)}×`;
+    document.getElementById("vnodesOut").textContent = vnodes;
+    document.getElementById("keysOut").textContent = keys.length;
+  }
+
+  document.getElementById("add").onclick = () => change(() => servers.push(newServer()));
+  document.getElementById("servers").onclick = e => {
+    const b = e.target.closest("button[data-name]"); if (!b || servers.length <= 1) return;
+    change(() => { servers = servers.filter(s => s.name !== b.dataset.name); });
+  };
+  document.getElementById("vnodes").oninput = e => { vnodes = +e.target.value; owners = assign(); movedSet.clear(); setCompare(null); render(); };
+  document.getElementById("keycount").oninput = e => { keyCount = +e.target.value; buildKeys(); owners = assign(); movedSet.clear(); setCompare(null); render(); };
+  document.getElementById("reset").onclick = () => {
+    document.getElementById("vnodes").value = 1; document.getElementById("keycount").value = 120; reset();
+  };
+  reset();
+</script>
+</body>
+</html>
