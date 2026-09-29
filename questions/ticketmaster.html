@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Ticketmaster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=6">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  /* the diagram has eleven boxes, so give it the full width and put the explanation underneath */
+  .hld { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .hld .explain { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px 20px; align-items: start; }
+  .flow-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+  .flow-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  .verdict-good { color: var(--ok); font-weight: 600; } .verdict-bad { color: var(--bad); font-weight: 600; }
+
+  /* race timeline */
+  .race { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: start; }
+  @media (max-width: 640px) { .race { grid-template-columns: minmax(0, 1fr); } }
+  .race ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .race li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .race li.future { opacity: .35; }
+  .race li.now { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  .race .who { font: 600 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+  .race .who.A { color: var(--accent); } .race .who.B { color: var(--amber); } .race .who.S { color: var(--muted); }
+  .race code { font: 500 12px/1.5 var(--mono); display: block; color: var(--ink); overflow-wrap: anywhere; }
+  .race p { font-size: 14px; }
+  .race .res { font: 600 12px/1.4 var(--mono); }
+  .race .res.ok { color: var(--ok); } .race .res.bad { color: var(--bad); }
+  .seatcard { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 8px; background: var(--paper); justify-items: start; }
+  .seatcard .seat { width: 64px; height: 56px; border-radius: 12px 12px 6px 6px; display: grid; place-items: center; font: 700 16px/1 var(--mono); border: 2px solid var(--line); background: var(--panel); color: var(--ink); }
+  .seatcard .seat.held { border-color: var(--amber); background: var(--amber-soft); }
+  .seatcard .seat.booked { border-color: var(--accent); background: var(--accent); color: var(--panel); }
+  .seatcard .seat.twice { border-color: var(--bad); background: var(--bad); color: var(--panel); }
+  .seatcard .state { font: 600 13px/1.4 var(--mono); }
+  .seatcard .charges { font-size: 13px; color: var(--muted); }
+
+  /* seat map */
+  #seatmap { width: 100%; height: auto; display: block; max-width: 640px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1.5px solid var(--line); }
+  .legend i.av { background: var(--panel); } .legend i.hd { background: var(--amber-soft); border-color: var(--amber); }
+  .legend i.gh { background: var(--amber-soft); border: 1.5px dashed var(--bad); } .legend i.bk { background: var(--accent); border-color: var(--accent); }
+  .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .qbar { display: flex; height: 18px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); background: var(--paper); }
+  .qbar i { display: block; height: 100%; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="ticketmaster" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design Ticketmaster</h1>
+    <p class="lede">Let people find an event, pick a seat and pay for it. Browsing is an ordinary read-heavy website. The hard part is the moment a big show goes on sale: hundreds of thousands of people want the same few thousand seats in the same minute, and no seat may ever be sold twice.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <!-- 1. Requirements -->
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Pin down the three features that define the product, then find out which parts need to be correct and which parts need to be fast. For ticketing, the answer is different for different parts of the system.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Open an event and see its details and which seats are free.</li>
+          <li>Search for events by name, performer, city or date.</li>
+          <li>Pick seats, hold them while paying, and end up with a ticket.</li>
+        </ul>
+        <p style="margin-top:10px;color:var(--muted);font-size:14px">Out of scope: resale between fans, dynamic pricing, organizers adding events, printing and scanning tickets.</p>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li><b>Never sell one seat to two people.</b> Booking needs strong consistency.</li>
+          <li>Stay up for browsing and search. A seat map that is a second out of date is fine.</li>
+          <li>Survive on-sale spikes: a single event can bring millions of visitors in minutes.</li>
+          <li>Return search results in well under a second.</li>
+          <li>Expect many more reads than bookings, roughly 100 to 1 on a normal day.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> say out loud that the system has two halves with opposite needs. Viewing and search should pick availability, so they can be cached and replicated freely. Booking must pick consistency, so it goes through one source of truth. Most of the design follows from drawing that line.</p></div>
+  </section>
+
+  <!-- 2. Entities -->
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <p class="kicker">The key modelling choice: create one Ticket row per seat per event when the event is set up. Booking then means changing one row, not inserting a new one.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>Event</h3><code>event_id
+venue_id, performer_id
+name, date, description</code></div>
+      <div class="entity"><h3>Venue</h3><code>venue_id
+location
+seat_map (sections,
+rows, seat numbers)</code></div>
+      <div class="entity"><h3>Performer</h3><code>performer_id
+name, description</code></div>
+      <div class="entity"><h3>Ticket</h3><code>ticket_id
+event_id, seat, price
+status: available |
+  reserved | booked
+user_id?</code></div>
+      <div class="entity"><h3>Booking</h3><code>booking_id
+user_id, ticket_ids[]
+total, status
+payment_id</code></div>
+    </div>
+  </section>
+
+  <!-- 3. API -->
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">One endpoint per requirement, except booking, which splits in two because paying takes minutes.</p>
+<pre class="api"><span class="c">// Event page, including the seat map</span>
+<span class="verb">GET</span> /events/{event_id}
+→ { event, venue, performer, tickets: [{ id, seat, price, status }] }
+
+<span class="c">// Search</span>
+<span class="verb">GET</span> /events/search?q=swift&amp;city=chicago&amp;from=2026-10-01&amp;to=2026-12-31
+
+<span class="c">// Step 1: hold seats while the user pays</span>
+<span class="verb">POST</span> /bookings/reserve
+{ "ticket_ids": ["t_c12", "t_c13"] }
+→ 200 { "booking_id": "b_81", "held_until": "…+10 min" }
+→ 409 if any seat is already taken
+
+<span class="c">// Step 2: pay and confirm</span>
+<span class="verb">PUT</span> /bookings/{booking_id}/confirm
+{ "payment_token": "tok_…" }       <span class="c">// from the payment provider's form</span>
+→ 200 { "booking_id": "b_81", "status": "booked" }</pre>
+    <div class="aside">
+      <p><b>Why two calls?</b> A card form, 3-D Secure checks and typing take minutes. If there were no hold, the seat could go while the buyer is paying. If the hold never ended, someone who closed the tab would keep the seat forever. The reserve call makes a hold that ends by itself, and the confirm call turns it into a sale.</p>
+      <p>The user comes from the session token, never from the request body.</p>
+    </div>
+  </section>
+
+  <!-- 4. High-level design -->
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">Start with services that meet the three functional requirements, then add one component per non-functional requirement. Pick a stage and a request type to watch requests flow.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="flow-toggle" role="group" aria-label="Request type" style="margin-bottom:8px">
+          <button id="flowView" aria-pressed="true">View and search</button>
+          <button id="flowBook" aria-pressed="false">Book a seat</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 380" role="img" aria-label="Architecture diagram with animated requests"></svg></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <!-- 5a. Deep dive: no double booking -->
+  <section class="panel article" id="contention" data-nav="Deep dive: one seat, two buyers" data-num="5a" data-time="6m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: one seat, two buyers</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">Alice and Bob both click seat C12 within the same second. Step through three ways of handling it and see which ones sell the seat twice.</p>
+    <div class="tabs" role="tablist" id="raceTabs">
+      <button role="tab" aria-selected="true" data-race="naive">Read, then write</button>
+      <button role="tab" aria-selected="false" data-race="cond">Conditional update</button>
+      <button role="tab" aria-selected="false" data-race="redis">Hold in Redis with TTL</button>
+    </div>
+    <div class="race">
+      <ol id="raceSteps"></ol>
+      <div class="seatcard" id="seatCard"></div>
+    </div>
+    <div class="controls">
+      <button id="raceNext" class="primary">Next step</button>
+      <button id="raceReset">Replay</button>
+    </div>
+    <div id="raceVerdict"></div>
+
+    <h3 style="margin-top:14px">Why holds must expire</h3>
+    <p style="max-width:70ch">Buyers arrive, hold a seat and head to checkout. Some pay. Some close the tab. Switch expiry off and watch abandoned holds lock seats that nobody is paying for.</p>
+    <div class="calc">
+      <label class="field" for="ttl"><span class="row"><span>Hold length</span><b class="mono num" id="ttlOut"></b></span><input type="range" id="ttl" min="2" max="20" value="8"></label>
+      <label class="field" for="abandon"><span class="row"><span>Buyers who abandon checkout</span><b class="mono num" id="abandonOut"></b></span><input type="range" id="abandon" min="0" max="60" step="5" value="30"></label>
+    </div>
+    <div class="controls">
+      <label class="toggle-row"><input type="checkbox" id="expiry" checked> Holds expire</label>
+      <button id="simReset" class="primary">Restart the on-sale</button>
+    </div>
+    <svg id="seatmap" viewBox="0 0 640 250" role="img" aria-label="Seat map with seats being held, booked and released"></svg>
+    <div class="legend"><span><i class="av"></i>Available</span><span><i class="hd"></i>Held, buyer paying</span><span><i class="gh"></i>Held, buyer gone</span><span><i class="bk"></i>Booked</span></div>
+    <div class="results" id="simResults"></div>
+  </section>
+
+  <!-- 5b. Deep dive: surge -->
+  <section class="panel article" id="surge" data-nav="Deep dive: on-sale surge" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: surviving the on-sale surge</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">When a stadium tour goes on sale, demand is far bigger than supply, and everyone arrives at 10:00:00. A virtual waiting room lets people in at the rate the booking path can handle. Move the sliders to size it.</p>
+    <div class="calc">
+      <label class="field" for="fans"><span class="row"><span>Fans in line at the start</span><b class="mono num" id="fansOut"></b></span><input type="range" id="fans" min="4" max="7" step="0.1" value="6"></label>
+      <label class="field" for="seats"><span class="row"><span>Seats on sale</span><b class="mono num" id="seatsOut"></b></span><input type="range" id="seats" min="5000" max="100000" step="5000" value="50000"></label>
+      <label class="field" for="admit"><span class="row"><span>Fans let in per minute</span><b class="mono num" id="admitOut"></b></span><input type="range" id="admit" min="500" max="20000" step="500" value="5000"></label>
+    </div>
+    <div class="results" id="surgeResults"></div>
+    <div style="display:grid;gap:6px">
+      <span class="eyebrow">The line, front to back</span>
+      <div class="qbar" id="qbar" aria-hidden="true"></div>
+      <p style="font-size:13px;color:var(--muted)" id="qbarNote"></p>
+    </div>
+    <ul id="surgeNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+  </section>
+
+  <!-- 5c. Deep dive: search -->
+  <section class="panel article" id="search" data-nav="Deep dive: fast search" data-num="5c" data-time="4m">
+    <div class="step-head"><span class="step-num">5c</span><h2>Deep dive: fast search</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Searching events with a SQL <span class="mono">LIKE '%swift%'</span> can't use a normal index, so it scans every row. Put a search index next to the database instead.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Approach</th><th>How it finds "swift"</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>SQL LIKE</td><td>Reads every event name</td><td class="warn">O(rows) per query</td></tr>
+        <tr><td>Database full-text index</td><td>Built-in inverted index</td><td>Good for small scale, shares load with booking</td></tr>
+        <tr><td>Elasticsearch</td><td>Looks up the word in an inverted index: word → event ids</td><td class="okc">Fast, fuzzy matching, geo and date filters</td></tr>
+      </tbody>
+    </table></div>
+    <ul style="margin:0;padding-left:1.1em;display:grid;gap:6px">
+      <li><b>Keep it in sync with change data capture (CDC):</b> the database's change log streams inserts and updates to the search index. The database stays the source of truth, and search may lag by a second, which the requirements allow.</li>
+      <li><b>Cache what everyone asks:</b> on a big on-sale day, most searches are the same few queries. Cache results for a short time in Redis or at a CDN.</li>
+      <li><b>Keep seat status out of search.</b> Search returns events. Live availability comes from the event page, which reads the source of truth plus holds.</li>
+    </ul>
+  </section>
+
+  <!-- Worked example -->
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One seat, from 10:00:00 to a ticket</h2>
+    <ol class="steps">
+      <li><div><h3>Alice joins the waiting room</h3><p>At 9:58 she opens the event. The gateway sees the event is in on-sale mode and sends her to the waiting room. Her place is stored in a Redis sorted set, with the join time as the score. An open server-sent events (SSE) connection pushes her position to the page.</p></div></li>
+      <li><div><h3>She is let in</h3><p>A worker admits the next 5,000 people every minute. At 10:03 Alice gets a signed token that the booking service will accept for the next 15 minutes.</p></div></li>
+      <li><div><h3>She loads the seat map</h3><p>The event service reads ticket rows from the database (or a short-lived cache) and marks any seat with a live hold in Redis as taken. C12 shows as free.</p></div></li>
+      <li><div><h3>She reserves C12</h3><p>The booking service runs <span class="mono">SET hold:evt42:C12 alice NX EX 600</span>. <span class="mono">NX</span> means "only if the key doesn't exist", and Redis runs each command on its own, so exactly one caller can win. Alice gets <span class="mono">OK</span>.</p></div></li>
+      <li><div><h3>Bob tries the same seat</h3><p>Half a second later Bob's identical command returns <span class="mono">nil</span>. He gets a 409 and a message that the seat was just taken. His seat map updates over SSE a moment later.</p></div></li>
+      <li><div><h3>Alice pays</h3><p>The payment provider charges her card and calls the booking service's webhook with an idempotency key, so a retried webhook can't book twice.</p></div></li>
+      <li><div><h3>The sale is written</h3><p>In one transaction: <span class="mono">UPDATE tickets SET status='booked', user_id='alice' WHERE id='C12' AND status='available'</span>, and insert the booking. One row changed, so the sale stands. Then <span class="mono">DEL hold:evt42:C12</span>.</p></div></li>
+      <li><div><h3>What if Alice had left?</h3><p>Nobody would call confirm. Ten minutes later Redis deletes the key by itself, C12 shows as free again, and the next person in line can take it. No cleanup job needed.</p></div></li>
+    </ol>
+  </section>
+
+  <!-- First principles + story -->
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A catalogue that millions of people browse, attached to a tiny inventory that must be handed out exactly once.</p></div>
+      <div><span class="q">Why it's hard</span><p>Contention. When demand is 20 times supply, many requests fight over the same row at the same moment, and checkout is slow compared with a click.</p></div>
+      <div><span class="q">Key insight</span><p>Split "claim" from "pay". A claim is a quick atomic check that ends by itself. Payment can then take minutes without blocking anyone else.</p></div>
+      <div><span class="q">Safety net</span><p>A hold is a lease, and leases can end at the wrong moment. The final write must still check the database, so a late or expired hold can't cause a double sale.</p></div>
+      <div><span class="q">Surge</span><p>You can't make the stadium bigger. A queue can't create seats either. What it does is keep the system upright and tell people honestly how likely they are to get one.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>From box-office software to a Senate hearing</h2>
+    <p>Ticketmaster started in Phoenix, Arizona in 1976. Peter Gadwa, a programmer, and Albert Leffler, who knew event booking, wrote software that let box offices sell tickets by computer, and they licensed it to venues. Over the following decades it became the default ticket seller for large venues in the United States, and in 2010 it merged with the concert promoter Live Nation.</p>
+    <p>The design problem on this page became front-page news on 15 November 2022, when the presale for Taylor Swift's Eras Tour opened. About 3.5 million people had registered through Ticketmaster's Verified Fan program, and roughly 1.5 million were sent codes. The company later said its systems took 3.5 billion requests that day, four times its previous peak, partly from bots and from people without codes. Queues stalled and checkouts failed, and the general public sale planned for later that week was cancelled.</p>
+    <p>The fallout went beyond engineering. The Senate Judiciary Committee held a hearing on ticketing competition in January 2023, and in May 2024 the US Justice Department, joined by dozens of states, sued Live Nation and Ticketmaster for monopolizing the live-event market. For interviews, the lesson is narrower. An on-sale is a planned denial-of-service attack by your own customers, and it should be designed for from day one.</p>
+    <ol class="timeline">
+      <li><span class="year">1976</span><p>Ticketmaster is founded in Phoenix to sell tickets by computer.</p></li>
+      <li><span class="year">2010</span><p>Ticketmaster merges with Live Nation.</p></li>
+      <li><span class="year">2022</span><p>The Eras Tour presale brings 3.5 billion requests. The public sale is cancelled.</p></li>
+      <li><span class="year">2023</span><p>The Senate Judiciary Committee holds a hearing on ticketing.</p></li>
+      <li><span class="year">2024</span><p>The Justice Department files an antitrust lawsuit against Live Nation and Ticketmaster.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Several seats at once:</b> hold all or none. Use one Redis <span class="mono">MSETNX</span> (or a Lua script) for keys on the same shard, and put the event id in a hash tag so all its seats live together.</li>
+        <li><b>The hold expires during payment:</b> the conditional update at confirm catches it. If the seat is gone, refund the charge automatically and say so clearly.</li>
+        <li><b>Redis goes down:</b> new holds fail, but no seat is sold twice, because the database still has the final say. Decide whether to pause sales or fall back to holds in the database.</li>
+        <li><b>Live seat map:</b> push changes over SSE or WebSockets, batched every second or so, rather than letting clients poll the event page.</li>
+        <li><b>Bots and scalpers:</b> verified registration before the sale, per-account and per-device rate limits, and a cap on tickets per buyer.</li>
+        <li><b>Payment retries:</b> an idempotency key per booking, so a retried request or webhook never charges or books twice.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <p style="color:var(--muted);font-size:14px">Each has its own interactive page.</p>
+      <div class="concepts">
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "K" : Math.round(n).toString();
+  const pct = x => x >= 0.1 ? Math.round(x * 100) + "%" : (x * 100).toFixed(x >= 0.01 ? 1 : 2) + "%";
+  const mins = m => m < 1 ? "under a minute" : m < 90 ? `${Math.round(m)} min` : `${(m / 60).toFixed(1)} hours`;
+
+  // ================= Architecture diagram =================
+  const NODES = {
+    client: { x: 70, y: 190, label: "Client", sub: "browser / app" },
+    wait: { x: 205, y: 320, label: "Waiting room", sub: "Redis sorted set" },
+    gw: { x: 205, y: 190, label: "API gateway", sub: "auth, routing" },
+    event: { x: 370, y: 70, label: "Event service", sub: "" },
+    search: { x: 370, y: 190, label: "Search service", sub: "" },
+    booking: { x: 370, y: 310, label: "Booking service", sub: "" },
+    cache: { x: 560, y: 50, label: "Cache", sub: "event details" },
+    es: { x: 560, y: 160, label: "Elasticsearch", sub: "inverted index" },
+    lock: { x: 560, y: 260, label: "Seat holds", sub: "Redis, TTL" },
+    db: { x: 725, y: 160, label: "Database", sub: "Postgres, truth" },
+    pay: { x: 725, y: 330, label: "Payments", sub: "e.g. Stripe" }
+  };
+  const STORES = ["db", "cache", "es", "lock", "wait"];
+  const V = (p, w, tag) => ({ p, w, tag });
+  const STAGES = [
+    {
+      name: "1 · Basic", nodes: ["client", "gw", "event", "search", "booking", "db", "pay"],
+      view: [V(["client", "gw", "event", "db", "event", "gw", "client"], 0.6), V(["client", "gw", "search", "db", "search", "gw", "client"], 0.4, "search")],
+      book: [V(["client", "gw", "booking", "pay", "booking", "db", "booking", "gw", "client"], 1)],
+      adds: "Three services behind a gateway, one per functional requirement, sharing one Postgres database. Booking takes the payment and then marks the ticket booked.",
+      why: "A relational database gives transactions, and booking needs them. Separate services let the read-heavy ones scale on their own later.",
+      breaks: "Nothing holds the seat while the buyer pays. Two people can see C12 as free, both pay, and both get told they have it."
+    },
+    {
+      name: "2 · Seat holds", nodes: ["client", "gw", "event", "search", "booking", "lock", "db", "pay"],
+      view: [V(["client", "gw", "event", "db", "event", "lock", "event", "gw", "client"], 0.6), V(["client", "gw", "search", "db", "search", "gw", "client"], 0.4, "search")],
+      book: [V(["client", "gw", "booking", "lock", "booking", "gw", "client"], 0.5, "reserve"), V(["client", "gw", "booking", "pay", "booking", "db", "booking", "gw", "client"], 0.5)],
+      adds: "A Redis store of seat holds. Reserve sets a key per seat with a 10-minute expiry. Confirm charges the card and writes the sale to the database.",
+      why: "Redis's SET with NX is atomic, so only one buyer can hold a seat. The TTL frees seats from abandoned checkouts without a cleanup job. The seat map combines database status with live holds.",
+      breaks: "Search runs LIKE queries that scan every event, and every event page view reads the database. Reads outnumber bookings 100 to 1."
+    },
+    {
+      name: "3 · Fast reads", nodes: ["client", "gw", "event", "search", "booking", "cache", "es", "lock", "db", "pay"],
+      extra: [["db", "es"]],
+      view: [V(["client", "gw", "event", "cache", "event", "lock", "event", "gw", "client"], 0.5), V(["client", "gw", "event", "cache", "db", "cache", "event", "gw", "client"], 0.1, "miss"), V(["client", "gw", "search", "es", "search", "gw", "client"], 0.4, "search")],
+      book: [V(["client", "gw", "booking", "lock", "booking", "gw", "client"], 0.5, "reserve"), V(["client", "gw", "booking", "pay", "booking", "db", "booking", "gw", "client"], 0.5)],
+      adds: "A cache for event, venue and performer details, and Elasticsearch fed from the database by change data capture (the dashed line).",
+      why: "Event details rarely change, so they cache well. An inverted index answers text search without scanning. Both may lag slightly, which the requirements allow for reads.",
+      breaks: "At 10:00:00 a million fans hit the booking path at once. Holds are fought over, pages time out, and people refresh, which makes it worse."
+    },
+    {
+      name: "4 · On-sale surge", nodes: ["client", "wait", "gw", "event", "search", "booking", "cache", "es", "lock", "db", "pay"],
+      extra: [["db", "es"]],
+      view: [V(["client", "gw", "event", "cache", "event", "lock", "event", "gw", "client"], 0.5), V(["client", "gw", "event", "cache", "db", "cache", "event", "gw", "client"], 0.1, "miss"), V(["client", "gw", "search", "es", "search", "gw", "client"], 0.4, "search")],
+      book: [V(["client", "wait", "client", "gw", "booking", "lock", "booking", "gw", "client"], 0.6, "queue"), V(["client", "gw", "booking", "pay", "booking", "db", "booking", "gw", "client"], 0.4)],
+      adds: "A virtual waiting room for events in on-sale mode. Fans get a place in line, their position is pushed over SSE, and they are let in at a fixed rate with a signed token.",
+      why: "The booking path has a known safe capacity. A queue turns a spike it can't survive into a steady flow it can. It is also fairer than whoever refreshes fastest.",
+      breaks: "What's left is who gets into the line. Bots and scalpers need verified registration, rate limits and per-buyer caps (see the follow-ups)."
+    }
+  ];
+  const TAG_COLOR = { search: "var(--muted)", miss: "var(--amber)", reserve: "var(--amber)", queue: "var(--amber)" };
+  let stage = 0, flow = "view", dots = [], spawnT = 0;
+
+  function drawArch() {
+    const st = STAGES[stage];
+    const edges = new Set();
+    [...st.view, ...st.book].forEach(r => r.p.forEach((n, i) => { if (i) edges.add([r.p[i - 1], n].sort().join("|")); }));
+    let s = "";
+    edges.forEach(e => {
+      const [a, b] = e.split("|").map(k => NODES[k]);
+      s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--line)" stroke-width="2"/>`;
+    });
+    (st.extra || []).forEach(([a, b]) => { s += `<line x1="${NODES[a].x}" y1="${NODES[a].y}" x2="${NODES[b].x}" y2="${NODES[b].y}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4"/>`; });
+    dots.forEach(d => {
+      const color = TAG_COLOR[d.tag] || (flow === "book" ? "var(--accent)" : "var(--ok)");
+      s += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="${color}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    });
+    st.nodes.forEach(k => {
+      const n = NODES[k], w = 122, h = 46, store = STORES.includes(k);
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${store ? 14 : 6}" fill="var(--panel)" stroke="${store ? "var(--accent)" : "var(--ink)"}" stroke-width="1.6"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="14" font-weight="700" fill="var(--ink)">${n.label}</text>`;
+      if (n.sub) s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${n.sub}</text>`;
+    });
+    const key = flow === "view"
+      ? (stage < 2 ? "green = event page, grey = search, all from the database" : "green = cached event page, amber = cache miss, grey = search")
+      : (stage === 0 ? "blue = pay and book in one go" : stage === 3 ? "amber = wait in line, then hold; blue = pay and confirm" : "amber = reserve (hold), blue = pay and confirm");
+    s += `<text x="12" y="372" font-family="var(--mono)" font-size="11" fill="var(--muted)">${key}</text>`;
+    $("arch").innerHTML = s;
+  }
+  function spawn() {
+    const routes = STAGES[stage][flow];
+    let r = Math.random(), route = routes[0];
+    for (const x of routes) { if (r < x.w) { route = x; break; } r -= x.w; }
+    dots.push({ route: route.p, tag: route.tag, seg: 0, f: 0, x: NODES[route.p[0]].x, y: NODES[route.p[0]].y });
+  }
+  function stepDots(dt) {
+    spawnT -= dt; if (spawnT <= 0) { spawn(); spawnT = 0.55; }
+    const SPEED = 260;
+    dots.forEach(d => {
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.route.length - 1) {
+        const a = NODES[d.route[d.seg]], b = NODES[d.route[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y), left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; }
+        else { d.f += move / len; move = 0; }
+        const a2 = NODES[d.route[d.seg]], b2 = NODES[d.route[Math.min(d.seg + 1, d.route.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.route.length - 1) d.done = true;
+    });
+    dots = dots.filter(d => !d.done);
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; dots = []; renderExplain(); };
+  const setFlow = f => { flow = f; dots = []; $("flowView").setAttribute("aria-pressed", f === "view"); $("flowBook").setAttribute("aria-pressed", f === "book"); };
+  $("flowView").onclick = () => setFlow("view");
+  $("flowBook").onclick = () => setFlow("book");
+
+  // ================= 5a: race between two buyers =================
+  // who: A = Alice, B = Bob, S = system. seat: the seat's state after the step. paid: people charged so far.
+  const RACES = {
+    naive: {
+      steps: [
+        { who: "A", code: "SELECT status FROM tickets WHERE id = 'C12'", res: "→ available", seat: "free", paid: [] },
+        { who: "B", code: "SELECT status FROM tickets WHERE id = 'C12'", res: "→ available", note: "Alice hasn't written anything yet, so Bob sees the same answer.", seat: "free", paid: [] },
+        { who: "A", code: "charge card; UPDATE tickets SET status = 'booked', user_id = 'alice' WHERE id = 'C12'", res: "→ 1 row", ok: true, seat: "alice", paid: ["Alice"] },
+        { who: "B", code: "charge card; UPDATE tickets SET status = 'booked', user_id = 'bob' WHERE id = 'C12'", res: "→ 1 row, overwrites Alice", bad: true, seat: "twice", paid: ["Alice", "Bob"] }
+      ],
+      verdict: `<p><span class="verdict-bad">Sold twice.</span> The check and the write are two separate steps, and the other buyer slipped in between them. Both were charged; only Bob's name is on the seat. Wrapping it in a transaction doesn't help at the default isolation level unless you also lock the row with <span class="mono">SELECT … FOR UPDATE</span>, and holding that lock for a whole checkout would block everyone.</p>`
+    },
+    cond: {
+      steps: [
+        { who: "A", code: "UPDATE tickets SET status = 'reserved', user_id = 'alice', expires_at = now() + '10 min' WHERE id = 'C12' AND (status = 'available' OR (status = 'reserved' AND expires_at < now()))", res: "→ 1 row: Alice holds it", ok: true, seat: "held", paid: [] },
+        { who: "B", code: "(same statement for bob)", res: "→ 0 rows: seat taken", bad: true, note: "The check and the write are one statement, so the database runs them atomically on that row.", seat: "held", paid: [] },
+        { who: "S", code: "Bob sees \"This seat was just taken\" and picks another.", seat: "held", paid: [] },
+        { who: "A", code: "charge card; UPDATE tickets SET status = 'booked' WHERE id = 'C12' AND user_id = 'alice' AND status = 'reserved'", res: "→ 1 row: booked", ok: true, seat: "alice", paid: ["Alice"] }
+      ],
+      verdict: `<p><span class="verdict-good">Correct.</span> Putting the condition inside the <span class="mono">WHERE</span> makes check-and-set a single atomic step, and the <span class="mono">expires_at</span> clause lets a stale hold be taken over. <span class="verdict-bad">Trade-offs:</span> every hold is a write to the primary database, which hurts during a surge, and every seat-map read has to compare <span class="mono">expires_at</span> with the clock.</p>`
+    },
+    redis: {
+      steps: [
+        { who: "A", code: "SET hold:C12 alice NX EX 600", res: "→ OK: Alice holds it for 10 min", ok: true, seat: "held", paid: [] },
+        { who: "B", code: "SET hold:C12 bob NX EX 600", res: "→ nil: key exists", bad: true, note: "NX means \"only set if missing\". Redis runs one command at a time, so there is exactly one winner.", seat: "held", paid: [] },
+        { who: "A", code: "charge card (takes 2 minutes)", seat: "held", paid: ["Alice"] },
+        { who: "S", code: "UPDATE tickets SET status = 'booked', user_id = 'alice' WHERE id = 'C12' AND status = 'available'", res: "→ 1 row: booked", ok: true, note: "The database checks again. If the hold had expired and someone else had bought C12, this would change 0 rows and Alice would be refunded.", seat: "alice", paid: ["Alice"] },
+        { who: "S", code: "DEL hold:C12", res: "→ hold released", seat: "alice", paid: ["Alice"] }
+      ],
+      verdict: `<p><span class="verdict-good">Correct and cheap.</span> Holds live in memory with a built-in expiry, so abandoned checkouts free themselves and the database only sees real sales. The conditional update at the end is what keeps it safe: a hold is a lease, and a lease can run out at the wrong moment.</p>`
+    }
+  };
+  let race = "naive", raceI = 0;
+  function renderRace() {
+    const R = RACES[race], names = { A: "Alice", B: "Bob", S: "System" };
+    $("raceSteps").innerHTML = R.steps.map((s, k) => `<li class="${k > raceI ? "future" : k === raceI ? "now" : ""}"><span class="who ${s.who}">${names[s.who]}</span><div><code>${s.code}</code>${s.res ? `<span class="res ${s.ok ? "ok" : s.bad ? "bad" : ""}">${s.res}</span>` : ""}${s.note && k <= raceI ? `<p style="color:var(--muted);margin-top:4px">${s.note}</p>` : ""}</div></li>`).join("");
+    const cur = R.steps[raceI], st = cur.seat;
+    const label = st === "free" ? "available" : st === "held" ? "held by Alice" : st === "alice" ? "booked by Alice" : "sold to Alice and Bob";
+    $("seatCard").innerHTML = `<span class="eyebrow">Seat C12</span><div class="seat ${st === "held" ? "held" : st === "alice" ? "booked" : st === "twice" ? "twice" : ""}">C12</div><span class="state">${label}</span><span class="charges">Charged: ${cur.paid.length ? cur.paid.join(", ") : "nobody yet"}</span>`;
+    $("raceNext").disabled = raceI >= R.steps.length - 1;
+    $("raceVerdict").innerHTML = raceI >= R.steps.length - 1 ? R.verdict : "";
+    document.querySelectorAll("[data-race]").forEach(b => b.setAttribute("aria-selected", b.dataset.race === race));
+  }
+  $("raceTabs").onclick = e => { const b = e.target.closest("[data-race]"); if (!b) return; race = b.dataset.race; raceI = 0; renderRace(); };
+  $("raceNext").onclick = () => { raceI++; renderRace(); };
+  $("raceReset").onclick = () => { raceI = 0; renderRace(); };
+
+  // ================= 5a: seat map simulation =================
+  // One simulated minute passes every 0.4 s. Buyers arrive, hold a free seat, then pay or leave.
+  const ROWS = 6, COLS = 14, N = ROWS * COLS;
+  let seats, simT, simAcc, soldAt, arrivals;
+  function simReset() {
+    seats = Array.from({ length: N }, () => ({ s: "free" }));
+    simT = 0; simAcc = 0; soldAt = null; arrivals = 0;
+  }
+  function simMinute() {
+    const ttl = +$("ttl").value, abandon = +$("abandon").value / 100, expire = $("expiry").checked;
+    simT++;
+    seats.forEach(x => {
+      if (x.s === "held" && x.payAt === simT) { x.s = "booked"; }
+      else if ((x.s === "held" || x.s === "gone") && expire && simT >= x.until) { x.s = "free"; }
+      else if (x.s === "held" && x.payAt == null && simT >= x.leaveAt) { x.s = "gone"; }
+    });
+    const free = seats.map((x, i) => x.s === "free" ? i : -1).filter(i => i >= 0);
+    const want = Math.min(free.length, 3 + Math.floor(Math.random() * 4));
+    for (let k = 0; k < want; k++) {
+      const j = free.splice(Math.floor(Math.random() * free.length), 1)[0], leaves = Math.random() < abandon;
+      const took = 1 + Math.floor(Math.random() * 4);
+      arrivals++;
+      seats[j] = { s: "held", until: simT + ttl, payAt: !leaves && took < ttl ? simT + took : null, leaveAt: simT + 1 + Math.floor(Math.random() * 3) };
+    }
+    if (soldAt === null && seats.every(x => x.s === "booked")) soldAt = simT;
+  }
+  function drawSeats() {
+    const cw = 38, ch = 28, gx = 6, gy = 8, ox = (640 - (COLS * cw + (COLS - 1) * gx)) / 2, oy = 34;
+    let s = `<rect x="${ox + 40}" y="4" width="${COLS * (cw + gx) - gx - 80}" height="18" rx="4" fill="var(--grid)"/><text x="320" y="17" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">STAGE</text>`;
+    seats.forEach((x, i) => {
+      const r = Math.floor(i / COLS), c = i % COLS, X = ox + c * (cw + gx) + (c >= COLS / 2 ? 0 : 0), Y = oy + r * (ch + gy);
+      const fill = x.s === "booked" ? "var(--accent)" : x.s === "free" ? "var(--panel)" : "var(--amber-soft)";
+      const stroke = x.s === "booked" ? "var(--accent)" : x.s === "held" ? "var(--amber)" : x.s === "gone" ? "var(--bad)" : "var(--line)";
+      s += `<rect x="${X}" y="${Y}" width="${cw}" height="${ch}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="1.6"${x.s === "gone" ? ` stroke-dasharray="4 3"` : ""}/>`;
+      if (x.s === "held" || x.s === "gone") {
+        const left = Math.max(0, x.until - simT);
+        s += `<text x="${X + cw / 2}" y="${Y + ch / 2 + 4}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--ink)">${$("expiry").checked ? left + "m" : "∞"}</text>`;
+      }
+    });
+    s += `<text x="${ox}" y="${oy + ROWS * (ch + gy) + 12}" font-family="var(--mono)" font-size="11" fill="var(--muted)">minute ${simT}${soldAt !== null ? ` · sold out at minute ${soldAt}` : ""}</text>`;
+    $("seatmap").innerHTML = s;
+    const c = k => seats.filter(x => x.s === k).length;
+    const stuck = !$("expiry").checked && c("free") === 0 && c("held") === 0 && c("gone") > 0;
+    $("simResults").innerHTML = `
+      <div><span>Available</span><b>${c("free")}</b></div>
+      <div><span>Held, paying</span><b>${c("held")}</b></div>
+      <div><span>Held by someone who left</span><b style="color:${c("gone") ? "var(--bad)" : "var(--ink)"}">${c("gone")}</b></div>
+      <div><span>Booked</span><b>${c("booked")} / ${N}</b></div>
+      <div><span>${stuck ? "Status" : "Buyers so far"}</span><b style="${stuck ? "color:var(--bad)" : ""}">${stuck ? "stuck forever" : arrivals}</b></div>`;
+  }
+  $("simReset").onclick = () => { simReset(); drawSeats(); };
+  $("expiry").onchange = () => { simReset(); drawSeats(); };
+  const ttlLabel = () => { $("ttlOut").textContent = $("ttl").value + " min"; $("abandonOut").textContent = $("abandon").value + "%"; };
+  ["ttl", "abandon"].forEach(id => $(id).addEventListener("input", ttlLabel));
+
+  // ================= 5b: surge sizing =================
+  function renderSurge() {
+    const fans = Math.round(Math.pow(10, +$("fans").value)), seatsN = +$("seats").value, admit = +$("admit").value;
+    const perBuyer = 2.5, conversion = 0.8;                // each admitted fan buys ~2.5 seats, 80% of them buy
+    const seatsPerMin = admit * conversion * perBuyer;
+    const sellout = seatsN / seatsPerMin;                  // minutes
+    const served = Math.min(fans, Math.ceil(sellout * admit));
+    const lucky = Math.min(1, served / fans);
+    const noQueue = fans / 3;                              // everyone refreshing every ~3 s
+    const inside = admit * 10;                             // admitted fans stay ~10 minutes
+    const withQueue = inside / 5;                          // admitted shoppers send ~1 request every 5 s
+    $("fansOut").textContent = fmt(fans); $("seatsOut").textContent = fmt(seatsN); $("admitOut").textContent = fmt(admit);
+    $("surgeResults").innerHTML = `
+      <div><span>Sold out after</span><b>${sellout * admit >= fans ? "never: supply lasts" : mins(sellout)}</b></div>
+      <div><span>Fans let in before sell-out</span><b>${fmt(served)}</b></div>
+      <div><span>Share of the line that gets seats</span><b style="color:${lucky < 0.2 ? "var(--bad)" : "var(--ink)"}">${pct(lucky)}</b></div>
+      <div><span>Booking requests/s, no queue</span><b style="color:var(--bad)">${fmt(noQueue)}</b></div>
+      <div><span>Booking requests/s, with a queue</span><b style="color:var(--ok)">${fmt(withQueue)}</b></div>
+      <div><span>Open SSE connections in the line</span><b>${fmt(Math.max(0, fans - served))}</b></div>
+      <div><span>Wait for the last fan let in</span><b>${mins(Math.min(sellout, fans / admit))}</b></div>`;
+    $("qbar").innerHTML = `<i style="width:${Math.max(lucky * 100, 0.8)}%;background:var(--ok)"></i><i style="flex:1;background:var(--line)"></i>`;
+    $("qbarNote").textContent = lucky >= 1 ? "Everyone in line can be served." : `Green: roughly the first ${fmt(served)} places. Everyone behind them will find the show sold out.`;
+    const notes = [];
+    notes.push(`Without a queue, ${fmt(fans)} fans refreshing every few seconds send about ${fmt(noQueue)} requests per second, most of them fighting over the same ${fmt(seatsN)} seat keys.`);
+    notes.push(`With a queue, the booking path only sees about ${fmt(inside)} active shoppers. Size admission to what the hold store and payment provider can take, not to demand. The people still in line hold cheap SSE connections to the waiting-room service, which only pushes a position number now and then.`);
+    if (lucky < 1) notes.push(`Only about ${pct(lucky)} of the line can get seats. A good waiting room says so early: once position × ${perBuyer} seats per buyer passes the remaining inventory, tell people the odds instead of making them wait.`);
+    notes.push(`Letting people in faster only makes the sell-out happen sooner (${mins(sellout)} now). It doesn't change how many fans get seats.`);
+    $("surgeNotes").innerHTML = notes.map(x => `<li>${x}</li>`).join("");
+  }
+  ["fans", "seats", "admit"].forEach(id => $(id).oninput = renderSurge);
+
+  // ================= boot =================
+  renderExplain(); renderRace(); ttlLabel(); simReset(); renderSurge();
+  for (let i = 0; i < 80; i++) stepDots(0.03);
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    stepDots(dt); drawArch();
+    simAcc += dt;
+    if (simAcc >= 0.4) { simAcc = 0; if (soldAt === null && simT < 400) simMinute(); drawSeats(); }
+    requestAnimationFrame(frame);
+  }
+  drawSeats();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
