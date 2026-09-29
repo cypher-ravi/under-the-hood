@@ -28,8 +28,15 @@ window.TOPICS = [
     usedIn: "Redis, Memcached, Linux page cache, CPU caches",
     glyph: "list"
   },
-  { slug: "bloom-filter", title: "Bloom Filter", area: "Data structures", status: "planned",
-    blurb: "Bit array and k hashes; tune size and watch the false-positive rate." },
+  {
+    slug: "bloom-filter",
+    title: "Bloom Filter",
+    area: "Data structures",
+    status: "ready",
+    blurb: "Add words to a bit array, check ones you never added, and catch a false positive. Tune m and k against the formula.",
+    usedIn: "Cassandra, RocksDB, Bigtable, Akamai",
+    glyph: "bits"
+  },
   { slug: "token-bucket", title: "Token Bucket Rate Limiter", area: "Backend", status: "planned",
     blurb: "Bursty traffic hits a bucket that refills at a fixed rate." },
   { slug: "b-tree", title: "B-Tree Inserts", area: "Databases", status: "planned",

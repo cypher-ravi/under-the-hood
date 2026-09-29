@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bloom Filter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=2">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  #bits { width: 100%; height: auto; display: block; }
+  #bits .cell { transition: fill .3s, stroke .3s; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.no b { color: var(--ok); }
+  .verdict-box.maybe b { color: var(--accent); }
+  .verdict-box.fp { border-color: var(--bad); }
+  .verdict-box.fp b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .inputrow { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+  .inputrow input { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 0; }
+  .words { display: flex; flex-wrap: wrap; gap: 6px; }
+  .word { font: 500 12px/1 var(--mono); padding: 6px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .word.added { background: var(--accent-soft); border-color: var(--accent); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+  .bitrow { font: 600 14px/1 var(--mono); letter-spacing: .12em; }
+  .bitrow .on { color: var(--accent); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Data structures</span>
+  </div>
+
+  <header class="intro">
+    <h1>Bloom Filter</h1>
+    <p class="lede">A tiny bit array that answers "have I seen this before?" It can say <b>definitely not</b> or <b>probably yes</b>, never a false "no". In exchange for a small chance of a wrong "yes", it uses a fraction of the memory of storing the items themselves.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="bitsLabel"></span><span class="eyebrow" id="fillLabel"></span></div>
+      <svg id="bits" viewBox="0 0 680 300" role="img" aria-label="Bit array with hash positions"></svg>
+      <div class="verdict-box" id="verdict"><b>Add a few words, then check some that you did not add.</b><p>Each word is hashed k times. Adding sets those bits to 1. Checking looks at the same bits.</p></div>
+    </div>
+
+    <div class="panel">
+      <div class="inputrow">
+        <label for="word" class="eyebrow" style="grid-column:1/-1">Type a word</label>
+        <input id="word" value="mango" autocomplete="off" spellcheck="false">
+        <button class="primary" id="add">Add</button>
+        <button id="check">Check</button>
+      </div>
+      <div>
+        <span class="eyebrow">Click a word to check it · blue = added</span>
+        <div class="words" id="words" style="margin-top:8px"></div>
+      </div>
+      <label class="field" for="m">
+        <span class="row"><span>Bits (m) · changing resets</span><b class="mono num" id="mOut"></b></span>
+        <input type="range" id="m" min="16" max="64" step="8" value="32">
+      </label>
+      <label class="field" for="k">
+        <span class="row"><span>Hash functions (k) · changing resets</span><b class="mono num" id="kOut"></b></span>
+        <input type="range" id="k" min="1" max="6" value="3">
+      </label>
+      <div class="controls">
+        <button id="fill">Add 5 random words</button>
+        <button id="test">Test 500 unseen words</button>
+        <button id="reset">Reset</button>
+      </div>
+      <div class="compare">
+        <div><span>Predicted false positives</span><b id="pred">0%</b><span id="predN">(1 − e<sup>−kn/m</sup>)<sup>k</sup></span></div>
+        <div><span>Measured false positives</span><b id="meas">–</b><span id="measN">press Test</span></div>
+      </div>
+      <div class="stat-row"><span>Best k for this m and n</span><b id="bestK">–</b></div>
+      <div class="stat-row"><span>Memory: filter vs storing the words</span><b id="mem">–</b></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Ten bits, two hash functions, one false alarm</h2>
+    <p class="kicker">Here m = 10 bits (numbered 0–9) and k = 2 hash functions. The hash outputs below are made up to keep the example short. Real ones come from mixing the word's bytes.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Start with every bit at 0</h3>
+        <p class="bitrow">0 0 0 0 0 0 0 0 0 0</p>
+      </div></li>
+      <li><div>
+        <h3>Add "cat"</h3>
+        <p>h1(cat) = 1 and h2(cat) = 4. Set bits 1 and 4.</p>
+        <p class="bitrow">0 <span class="on">1</span> 0 0 <span class="on">1</span> 0 0 0 0 0</p>
+      </div></li>
+      <li><div>
+        <h3>Add "dog"</h3>
+        <p>h1(dog) = 4 and h2(dog) = 7. Bit 4 is already 1, which is fine. Bits can be shared between words.</p>
+        <p class="bitrow">0 <span class="on">1</span> 0 0 <span class="on">1</span> 0 0 <span class="on">1</span> 0 0</p>
+      </div></li>
+      <li><div>
+        <h3>Check "fox": definitely not</h3>
+        <p>h1(fox) = 2 and h2(fox) = 4. Bit 2 is 0. If fox had been added, bit 2 would be 1, so fox was <b>certainly never added</b>. A Bloom filter can never give a false "no".</p>
+      </div></li>
+      <li><div>
+        <h3>Check "emu": a false positive</h3>
+        <p>h1(emu) = 1 and h2(emu) = 7. Both bits are 1, so the answer is "probably yes". But emu was never added. Bit 1 was set by cat and bit 7 by dog. This is a <b>false positive</b>.</p>
+      </div></li>
+      <li><div>
+        <h3>How likely was that?</h3>
+        <p>After n = 2 words, the formula predicts the false-positive rate:</p>
+        <p class="formula">(1 − e<sup>−kn/m</sup>)<sup>k</sup> = (1 − e<sup>−2·2/10</sup>)<sup>2</sup> = (1 − 0.670)<sup>2</sup> ≈ 0.109, about 11%</p>
+        <p>That is high because 10 bits is tiny. Real filters are sized for the error rate you can tolerate.</p>
+      </div></li>
+      <li><div>
+        <h3>Sizing a real one</h3>
+        <p>For n items and a target false-positive rate p, the bits needed are m = −n·ln(p) / (ln 2)² and the best k is (m/n)·ln 2.</p>
+        <p class="formula">1,000,000 URLs at p = 1% → m ≈ 9.6 million bits ≈ 1.2 MB, with k = 7</p>
+        <p>Storing the URLs themselves at around 50 bytes each would take about 50 MB. The filter is roughly 40 times smaller, and it answers without touching disk.</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>Why no deletes?</b> Clearing cat's bits would also clear bit 4, which dog needs. Then checking dog would say "definitely not", a false negative. Counting Bloom filters fix this by keeping a small counter per slot instead of one bit.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>A hyphenation problem in 1970</h2>
+    <p>In 1970 memory was measured in kilobytes, and disks were slow. Burton Howard Bloom was thinking about a program that hyphenates words. He imagined a dictionary of 500,000 words. About 90% of them could be hyphenated by simple rules, but the other 10% needed a lookup in a table on disk.</p>
+    <p>Checking the disk for every word would be slow, and the table of exceptions didn't fit in memory. Bloom's question was whether you could keep a much smaller summary in memory, one that sometimes says "maybe" when the answer is "no", as long as it never says "no" when the answer is "yes". A wrong "maybe" only costs one unnecessary disk read. A wrong "no" would give a wrong hyphenation.</p>
+    <p>His paper in Communications of the ACM showed that such a summary works surprisingly well. In his example, a hash area only 18% of the size needed for an error-free table still eliminated 87% of the disk accesses. The key idea was to accept a known, tunable error in exchange for a large space saving. That trade-off is now everywhere in large systems.</p>
+    <blockquote class="pull">A Bloom filter doesn't store your data. It stores just enough to tell you when to skip the expensive lookup.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">1970</span><p>Bloom publishes "Space/Time Trade-offs in Hash Coding with Allowable Errors" in Communications of the ACM.</p></li>
+      <li><span class="year">2000</span><p>Fan, Cao, Almeida and Broder's "Summary Cache" introduces counting Bloom filters so web proxies can share compact summaries of what they hold.</p></li>
+      <li><span class="year">2004</span><p>Broder and Mitzenmacher's survey "Network Applications of Bloom Filters" helps spread the idea across networking.</p></li>
+      <li><span class="year">2006</span><p>Google's Bigtable paper describes using Bloom filters to skip disk reads for rows that are not in a file. HBase, Cassandra and RocksDB follow the same pattern.</p></li>
+      <li><span class="year">2012</span><p>Bitcoin adds Bloom filters so lightweight wallets can ask for only their own transactions. Researchers later showed this leaked which addresses a wallet owned.</p></li>
+      <li><span class="year">2014</span><p>Cuckoo filters offer an alternative that supports deletion and uses less space at low error rates.</p></li>
+      <li><span class="year">Today</span><p>Akamai uses them to avoid caching "one-hit wonders", which make up nearly three quarters of objects. Databases, browsers and spell checkers use them to skip lookups.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A bit array plus k hash functions that tests set membership. It returns "definitely not" or "probably yes".</p></div>
+      <div><span class="q">Why</span><p>Storing every item is too big, and checking the real store is too slow. Most checks are for items that aren't there, and those are exactly what the filter can rule out cheaply.</p></div>
+      <div><span class="q">When</span><p>1970, when fast memory was scarce and a disk read cost milliseconds.</p></div>
+      <div><span class="q">Where</span><p>Published by Burton H. Bloom in Communications of the ACM, motivated by a hyphenation program.</p></div>
+      <div><span class="q">How</span><p>To add an item, set the k bits its hashes point to. To check, look at the same k bits. Any 0 means "not added". All 1s means "probably added".</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> you don't need to know what is in a set to prove that something is <i>not</i> in it.</p>
+      <p><b>The tuning rule:</b> more bits per item means fewer false positives. For each bit budget there is a best k. Too few hashes give weak evidence, and too many fill the array.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Check a word you added: the answer is always "probably yes". A false "no" never happens.</li>
+        <li>Keep pressing "Add 5 random words" and watch the fill rise. Once about half the bits are 1, false positives climb quickly.</li>
+        <li>Press "Test 500 unseen words". The measured rate lands close to the formula.</li>
+        <li>With 32 bits and 10 words, try k = 1 and k = 6. The best k sits in between, near (m/n)·ln 2.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Where would you put one?</b> In front of anything expensive where most lookups miss: a disk read for a key, a database query for a username, a network call to a remote cache.</p>
+        <p><b>Can you delete?</b> Not from a plain Bloom filter. Use a counting Bloom filter, a cuckoo filter, or rebuild it periodically.</p>
+        <p><b>How many hash functions do you really compute?</b> Two. Positions h1 + i·h2 for i = 0…k−1 behave almost as well as k independent hashes for large arrays (Kirsch and Mitzenmacher, 2006). This page uses k separately seeded hashes, because with only 16–64 bits the h1 + i·h2 positions form visible patterns that skew the error rate.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  function fnv(str, seed) {
+    let h = 0x811c9dc5 ^ seed;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+    return h >>> 0;
+  }
+  // k independently seeded hashes (with an array this small, h1 + i*h2 leaves visible patterns)
+  function positions(word, k, m) {
+    const out = [];
+    for (let i = 0; i < k; i++) out.push(fnv(word, Math.imul(i + 1, 0x9e3779b9)) % m);
+    return out;
+  }
+
+  const PRESET = ["apple", "banana", "cherry", "grape", "lemon", "mango", "peach", "plum", "kiwi", "melon", "olive", "papaya", "guava", "lime"];
+  const SYL = ["ka", "ri", "to", "ne", "su", "mo", "la", "pi", "de", "vo", "zu", "ha", "gi", "ro"];
+  const randWord = () => Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => SYL[Math.floor(Math.random() * SYL.length)]).join("");
+
+  let m, k, bits, added, lastSetBy, measured = null;
+
+  function reset() {
+    m = +$("m").value; k = +$("k").value;
+    bits = new Array(m).fill(0); added = new Set(); lastSetBy = new Array(m).fill(null); measured = null;
+    $("mOut").textContent = m; $("kOut").textContent = k;
+    setVerdict(null); draw(null);
+  }
+
+  function addWord(w) {
+    w = w.trim().toLowerCase(); if (!w) return;
+    const ps = positions(w, k, m);
+    const fresh = ps.filter(p => !bits[p]).length;
+    ps.forEach(p => { bits[p] = 1; lastSetBy[p] = lastSetBy[p] || w; });
+    added.add(w); measured = null;
+    setVerdict({ type: "add", word: w, ps, fresh });
+    draw({ word: w, ps, mode: "add" });
+  }
+  function checkWord(w) {
+    w = w.trim().toLowerCase(); if (!w) return;
+    const ps = positions(w, k, m);
+    const zero = ps.find(p => !bits[p]);
+    const type = zero !== undefined ? "no" : added.has(w) ? "yes" : "fp";
+    setVerdict({ type, word: w, ps, zero });
+    draw({ word: w, ps, mode: "check" });
+  }
+
+  function setVerdict(v) {
+    const box = $("verdict");
+    if (!v) { box.className = "verdict-box"; box.innerHTML = `<b>Add a few words, then check some that you did not add.</b><p>Each word is hashed ${k} time${k > 1 ? "s" : ""}. Adding sets those bits to 1. Checking looks at the same bits.</p>`; return; }
+    const list = v.ps.join(", ");
+    if (v.type === "add") { box.className = "verdict-box maybe"; box.innerHTML = `<b>Added "${v.word}"</b><p>Hashes point to bits ${list}. ${v.fresh} of them were newly set; the rest were already 1 from other words.</p>`; }
+    if (v.type === "no") { box.className = "verdict-box no"; box.innerHTML = `<b>"${v.word}": definitely not in the set</b><p>Bits ${list}. Bit ${v.zero} is 0, and adding "${v.word}" would have set it. This answer is always correct.</p>`; }
+    if (v.type === "yes") { box.className = "verdict-box maybe"; box.innerHTML = `<b>"${v.word}": probably in the set (and it is)</b><p>Bits ${list} are all 1. A true positive.</p>`; }
+    if (v.type === "fp") {
+      const who = [...new Set(v.ps.map(p => lastSetBy[p]))].map(x => `"${x}"`).join(", ");
+      box.className = "verdict-box fp"; box.innerHTML = `<b>"${v.word}": probably in the set, but it was never added</b><p>A false positive. Bits ${list} were all set by other words, starting with ${who}.</p>`;
+    }
+  }
+
+  const COLS = 16, CW = 38, GAP = 3, X0 = (680 - (COLS * CW + (COLS - 1) * GAP)) / 2, Y0 = 110;
+  const cellX = i => X0 + (i % COLS) * (CW + GAP), cellY = i => Y0 + Math.floor(i / COLS) * (CW + 18);
+
+  function draw(ev) {
+    const rows = Math.ceil(m / COLS);
+    const svg = $("bits");
+    svg.setAttribute("viewBox", `0 0 680 ${Y0 + rows * (CW + 18) + 6}`);
+    let s = "";
+    if (ev) {
+      const color = ev.mode === "add" ? "var(--accent)" : "var(--amber)";
+      const wx = 340, wy = 38;
+      ev.ps.forEach((p, i) => {
+        const x = cellX(p) + CW / 2, y = cellY(p);
+        s += `<path d="M${wx} ${wy + 16} C ${wx} ${wy + 60}, ${x} ${y - 50}, ${x} ${y - 2}" fill="none" stroke="${color}" stroke-width="1.6" opacity=".8"/>`;
+        s += `<text x="${(wx + x) / 2 + (x > wx ? 8 : -8)}" y="${(wy + y) / 2 + 6}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${color}">h${i + 1}</text>`;
+      });
+      const tw = Math.max(80, ev.word.length * 10 + 40);
+      s += `<rect x="${wx - tw / 2}" y="${wy - 16}" width="${tw}" height="32" rx="16" fill="${ev.mode === "add" ? "var(--accent)" : "var(--amber-soft)"}" stroke="${color}" stroke-width="1.5"/>`;
+      s += `<text x="${wx}" y="${wy + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="14" font-weight="600" fill="${ev.mode === "add" ? "var(--panel)" : "var(--ink)"}">${ev.mode === "add" ? "add" : "check"} "${ev.word}"</text>`;
+    } else {
+      s += `<text x="340" y="42" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">${m} bits, ${k} hash function${k > 1 ? "s" : ""}</text>`;
+    }
+    for (let i = 0; i < m; i++) {
+      const on = bits[i], hit = ev && ev.ps.includes(i);
+      const zeroHit = hit && ev.mode === "check" && !on;
+      s += `<rect class="cell" x="${cellX(i)}" y="${cellY(i)}" width="${CW}" height="${CW}" rx="4" fill="${on ? "var(--accent)" : "var(--panel)"}" stroke="${zeroHit ? "var(--ok)" : hit ? "var(--amber)" : on ? "var(--accent)" : "var(--line)"}" stroke-width="${hit ? 3 : 1.2}"/>`;
+      s += `<text x="${cellX(i) + CW / 2}" y="${cellY(i) + CW / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="14" font-weight="600" fill="${on ? "var(--panel)" : "var(--muted)"}">${on}</text>`;
+      s += `<text x="${cellX(i) + CW / 2}" y="${cellY(i) + CW + 11}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">${i}</text>`;
+    }
+    svg.innerHTML = s;
+
+    const n = added.size, set = bits.reduce((a, b) => a + b, 0);
+    $("bitsLabel").textContent = `Bit array · m = ${m}, k = ${k}, n = ${n}`;
+    $("fillLabel").textContent = `${set} of ${m} bits set (${Math.round(set / m * 100)}%)`;
+    const pred = n ? Math.pow(1 - Math.exp(-k * n / m), k) : 0;
+    $("pred").textContent = (pred * 100).toFixed(1) + "%";
+    $("meas").textContent = measured ? (measured.rate * 100).toFixed(1) + "%" : "–";
+    $("measN").textContent = measured ? `${measured.fp} of ${measured.total} unseen words` : "press Test";
+    $("bestK").textContent = n ? `${Math.max(1, Math.round(m / n * Math.LN2))} (you have ${k})` : "add words first";
+    const bytes = [...added].reduce((a, w) => a + w.length + 1, 0);
+    $("mem").textContent = `${Math.ceil(m / 8)} B vs ${bytes} B`;
+    $("words").innerHTML = PRESET.map(w => `<button class="word ${added.has(w) ? "added" : ""}" data-w="${w}">${w}</button>`).join("");
+  }
+
+  function testUnseen() {
+    let fp = 0, total = 0;
+    while (total < 500) {
+      const w = "t" + Math.random().toString(36).slice(2, 9);
+      if (added.has(w)) continue;
+      total++;
+      if (positions(w, k, m).every(p => bits[p])) fp++;
+    }
+    measured = { fp, total, rate: fp / total };
+    draw(null);
+  }
+
+  $("add").onclick = () => addWord($("word").value);
+  $("check").onclick = () => checkWord($("word").value);
+  $("word").addEventListener("keydown", e => { if (e.key === "Enter") addWord($("word").value); });
+  $("words").onclick = e => {
+    const b = e.target.closest("[data-w]"); if (!b) return;
+    $("word").value = b.dataset.w;
+    checkWord(b.dataset.w);
+  };
+  $("fill").onclick = () => { for (let i = 0; i < 5; i++) { let w; do { w = randWord(); } while (added.has(w)); addWord(w); } };
+  $("test").onclick = testUnseen;
+  $("m").oninput = reset; $("k").oninput = reset;
+  $("reset").onclick = reset;
+
+  // open in a working state: a few fruits added, then one checked
+  reset();
+  ["apple", "banana", "cherry", "grape", "lemon", "mango"].forEach(addWord);
+  checkWord("peach");
+</script>
+</body>
+</html>
