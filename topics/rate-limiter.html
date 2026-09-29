@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rate Limiters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=3">
+<style>
+  .stage.wide { grid-template-columns: 1fr; }
+  .canvas-panel { padding: 12px; }
+  .lanes-wrap { overflow-x: auto; }
+  #lanes { width: 100%; min-width: 640px; height: auto; display: block; }
+  .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 24px; align-items: end; }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 6px 2px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Backend</span>
+  </div>
+
+  <header class="intro">
+    <h1>Rate Limiters</h1>
+    <p class="lede">Four common ways to enforce "at most L requests per W seconds", all fed the same traffic at once. They agree on steady traffic and disagree sharply on bursts, especially a burst that straddles a window boundary.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="panel" id="simulation">
+    <div class="toolbar">
+      <div class="controls">
+        <button class="primary" id="boundary">Burst across a boundary</button>
+        <button id="burst">Burst now</button>
+        <button id="one">Send 1</button>
+        <button id="pause">Pause</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="rate">
+        <span class="row"><span>Background traffic</span><b class="mono num" id="rateOut"></b></span>
+        <input type="range" id="rate" min="0" max="4" step="0.25" value="1">
+      </label>
+      <label class="field" for="limit">
+        <span class="row"><span>Limit L per W = 4 s window · resets</span><b class="mono num" id="limitOut"></b></span>
+        <input type="range" id="limit" min="3" max="10" value="5">
+      </label>
+    </div>
+    <div class="canvas-panel">
+      <div class="lanes-wrap"><svg id="lanes" viewBox="0 0 900 420" role="img" aria-label="Four rate limiters processing the same requests over time"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--ok)"></i>Allowed</span>
+        <span><i style="background:var(--bad)"></i>Rejected</span>
+        <span>Shaded band: the last W seconds</span>
+        <span>Peak: most requests allowed in any W-second span. Anything above L means the limit leaked.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Ten requests in two seconds, against a limit of 5 per 10 seconds</h2>
+    <p class="kicker">The limit is L = 5 requests per W = 10 seconds. A client sends 5 requests at 0:09 and 5 more at 0:11, right across the 0:10 boundary. (The simulation uses W = 4 s so you don't have to wait as long.)</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Fixed window: count per clock window</h3>
+        <p>Keep one counter per window, [0:00, 0:10), [0:10, 0:20) and so on, and reject once it reaches 5. The first five land in window one, the next five in window two, and both counters are fresh. <b>All 10 are allowed</b>, twice the limit inside two seconds.</p>
+      </div></li>
+      <li><div>
+        <h3>Sliding window log: remember every timestamp</h3>
+        <p>Store the time of every allowed request. For a new request, drop timestamps older than 10 seconds and count what's left. At 0:11, all five timestamps from 0:09 are still inside the last 10 seconds, so the count is already 5. <b>5 allowed, 5 rejected.</b> Exact, but it stores up to L timestamps per client.</p>
+      </div></li>
+      <li><div>
+        <h3>Sliding window counter: estimate from two counters</h3>
+        <p>Keep only the previous and current fixed-window counts. Assume the previous window's requests were spread evenly, and count the part of it that still overlaps the last 10 seconds.</p>
+        <p class="formula">estimate = prev × (time left in overlap ÷ W) + current = 5 × 0.9 + 0 = 4.5</p>
+        <p>4.5 is under 5, so the first request at 0:11 is allowed. Then the estimate is 5 × 0.9 + 1 = 5.5, so the other four are rejected. <b>6 allowed in total.</b> Nearly exact, with just two numbers of state.</p>
+      </div></li>
+      <li><div>
+        <h3>Token bucket: spend tokens, refill steadily</h3>
+        <p>The bucket holds at most 5 tokens and refills at 5 per 10 s, so 0.5 per second. Each request spends one token. At 0:09 the bucket is full, so all five pass and it is empty. Two seconds later it has refilled 1 token. <b>6 allowed in total.</b> It stores two numbers: the token count and the last refill time.</p>
+      </div></li>
+    </ol>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Algorithm</th><th>Allowed at 0:09</th><th>Allowed at 0:11</th><th>State per client</th><th>Main weakness</th></tr></thead>
+      <tbody>
+        <tr><td>Fixed window</td><td class="mono">5</td><td class="mono warn">5</td><td>1 counter</td><td>Up to 2L at a boundary</td></tr>
+        <tr><td>Sliding window log</td><td class="mono">5</td><td class="mono okc">0</td><td>Up to L timestamps</td><td>Memory grows with L</td></tr>
+        <tr><td>Sliding window counter</td><td class="mono">5</td><td class="mono">1</td><td>2 counters</td><td>Approximate</td></tr>
+        <tr><td>Token bucket</td><td class="mono">5</td><td class="mono">1</td><td>Tokens + timestamp</td><td>Up to 2L in one window (burst + refill)</td></tr>
+      </tbody>
+    </table></div>
+    <div class="aside"><p><b>In Redis:</b> fixed window is <span class="mono">INCR</span> plus <span class="mono">EXPIRE</span>. The sliding log is a sorted set trimmed with <span class="mono">ZREMRANGEBYSCORE</span>. A token bucket is usually a small Lua script, so the read, refill and spend happen as one atomic step.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>From telephone networks to every public API</h2>
+    <p>Rate limiting started in networking, not in web APIs. In the 1980s, telephone companies were designing networks that would carry voice, video and data over shared links. A network can only promise quality to everyone if no single sender can flood a link. It needed a way to check, packet by packet, whether each connection was keeping to the rate it had agreed to.</p>
+    <p>In 1986 Jonathan Turner described the <b>leaky bucket</b>. Picture a bucket with a hole in the bottom. Each packet pours some water in, and water drains out at a fixed rate. If a packet would overflow the bucket, the sender is over its limit. The bucket's size decides how big a burst is tolerated, and the drain rate decides the long-term average.</p>
+    <p>The <b>token bucket</b> is the same idea seen from the other side. Tokens drip in at a fixed rate and each packet takes one out. Given the same parameters, the two make identical decisions. The standard for ATM networks formalized this as the Generic Cell Rate Algorithm (GCRA), and routers still use token buckets to shape traffic.</p>
+    <p>When web APIs went public in the 2000s, the same problem came back. One buggy script or scraper could use up a service built for thousands of users. The simplest fix was a counter per clock minute, but its boundary flaw was quickly noticed. Engineers borrowed the token bucket from networking and invented the sliding window variants to get accuracy without storing every request.</p>
+    <ol class="timeline">
+      <li><span class="year">1986</span><p>Jonathan Turner describes the leaky bucket as a way to police traffic in packet networks.</p></li>
+      <li><span class="year">1990s</span><p>The ITU-T (Recommendation I.371) and the ATM Forum standardize the leaky bucket as the Generic Cell Rate Algorithm for ATM networks.</p></li>
+      <li><span class="year">2000s</span><p>Public web APIs adopt per-key limits, often a simple counter per hour or minute.</p></li>
+      <li><span class="year">2017</span><p>Stripe and Cloudflare publish how they rate limit at scale. Stripe uses token buckets in Redis, and Cloudflare uses a sliding window counter built from two fixed windows.</p></li>
+      <li><span class="year">Today</span><p>AWS API Gateway documents that it throttles with a token bucket. Nginx, Envoy and most API gateways ship one or more of these algorithms.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A check in front of a service that rejects requests from a client once it exceeds a rate, such as 100 requests per minute.</p></div>
+      <div><span class="q">Why</span><p>Capacity is shared. Without limits, one heavy or broken client degrades the service for everyone, and abuse like credential stuffing becomes cheap.</p></div>
+      <div><span class="q">When</span><p>The mid-1980s for network traffic, and again in the 2000s when APIs opened to the public.</p></div>
+      <div><span class="q">Where</span><p>Born in telecom research (Turner, then the ITU and ATM Forum). Today it runs in API gateways, load balancers and services, usually with state kept in Redis.</p></div>
+      <div><span class="q">How</span><p>Keep a small amount of state per client (a counter, timestamps or a token balance), update it on each request, and compare it with the limit.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The core trade-off:</b> accuracy against memory. Exact sliding windows need a timestamp per request. Counters and buckets need O(1) state, and either approximate or allow a deliberate burst.</p>
+      <p><b>At scale:</b> the state lives in a shared store so every server sees the same count. The read and update must be atomic, or two servers can both see "4 of 5" and both allow.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Press "Burst across a boundary". Fixed window's peak jumps to 2L. The sliding log never goes above L, because it counts exactly.</li>
+        <li>The sliding counter can overshoot L a little. It assumes the previous window's requests were spread evenly, and a burst at the end of that window breaks the assumption.</li>
+        <li>The token bucket can also pass more than L in W seconds: a full bucket of L, plus up to L more refilled during the window. That is its burst allowance, not a bug. Its long-run average still stays at L per W.</li>
+        <li>Press "Burst now" after a quiet stretch. The token bucket lets exactly L through at once, then about one request every W/L seconds as it refills.</li>
+        <li>Watch the sliding counter's estimate fall smoothly as the previous window slides out of view.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Which would you pick?</b> Token bucket for most APIs: O(1) state, a controlled burst allowance, and two intuitive knobs (bucket size and refill rate). Sliding window counter when you want a smooth limit with no burst allowance.</p>
+        <p><b>Where does it run?</b> Usually at the API gateway, keyed by user ID, API key or IP address, with counters in Redis and a Lua script for atomicity.</p>
+        <p><b>What does the client see?</b> HTTP 429 Too Many Requests, ideally with a <span class="mono">Retry-After</span> header and rate-limit headers showing the remaining quota.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const W = 4, SPAN = 12;               // window seconds, visible seconds
+  let L, t, paused = false, rate = 1, nextArrival, scheduled, algos;
+
+  function makeAlgos() {
+    return [
+      {
+        name: "Fixed window", counts: new Map(),
+        allow(t) { const w = Math.floor(t / W), c = this.counts.get(w) || 0; if (c < L) { this.counts.set(w, c + 1); return true; } return false; },
+        state(t) { const w = Math.floor(t / W); return `window ${w + 1}: ${this.counts.get(w) || 0} of ${L}`; }
+      },
+      {
+        name: "Sliding window log", log: [],
+        allow(t) { this.log = this.log.filter(x => x > t - W); if (this.log.length < L) { this.log.push(t); return true; } return false; },
+        state(t) { return `${this.log.filter(x => x > t - W).length} timestamps in last ${W}s`; }
+      },
+      {
+        name: "Sliding window counter", counts: new Map(),
+        est(t) {
+          const w = Math.floor(t / W), prev = this.counts.get(w - 1) || 0, cur = this.counts.get(w) || 0;
+          const frac = 1 - (t - w * W) / W; return { prev, cur, frac, val: prev * frac + cur };
+        },
+        allow(t) { const e = this.est(t); if (e.val < L) { const w = Math.floor(t / W); this.counts.set(w, e.cur + 1); return true; } return false; },
+        state(t) { const e = this.est(t); return `${e.prev}×${e.frac.toFixed(2)} + ${e.cur} = ${e.val.toFixed(1)}`; }
+      },
+      {
+        name: "Token bucket", tokens: 0, last: 0, samples: [],
+        level(t) { return Math.min(L, this.tokens + Math.max(0, t - this.last) * L / W); },
+        allow(t) { this.tokens = this.level(t); this.last = t; if (this.tokens >= 1) { this.tokens -= 1; return true; } return false; },
+        state(t) { return `${this.level(t).toFixed(1)} of ${L} tokens`; }
+      }
+    ].map(a => Object.assign(a, { reqs: [], allowed: [], peak: 0, ok: 0, no: 0 }));
+  }
+
+  function reset() {
+    L = +$("limit").value; $("limitOut").textContent = `${L} per ${W}s`;
+    t = 0; scheduled = []; algos = makeAlgos();
+    algos[3].tokens = L; algos[3].last = 0;
+    nextArrival = rate > 0 ? expo(rate) : Infinity;
+  }
+  const expo = r => -Math.log(1 - Math.random()) / r;
+
+  function send(at) {
+    algos.forEach(a => {
+      const ok = a.allow(at);
+      a.reqs.push({ t: at, ok });
+      if (ok) {
+        a.ok++; a.allowed.push(at);
+        const inWin = a.allowed.filter(x => x > at - W).length;
+        a.peak = Math.max(a.peak, inWin);
+      } else a.no++;
+    });
+  }
+
+  function step(dt) {
+    t += dt;
+    const due = [];
+    while (t >= nextArrival) { due.push(nextArrival); nextArrival += rate > 0 ? expo(rate) : Infinity; }
+    scheduled.sort((a, b) => a - b);
+    while (scheduled.length && scheduled[0] <= t) due.push(scheduled.shift());
+    due.sort((a, b) => a - b).forEach(send);
+    const b = algos[3]; b.samples.push({ t, v: b.level(t) });
+    const cut = t - SPAN - 1;
+    algos.forEach(a => {
+      if (a.reqs.length && a.reqs[0].t < cut) a.reqs = a.reqs.filter(r => r.t >= cut);
+      if (a.allowed.length > 200) a.allowed = a.allowed.filter(x => x > t - W - 1);
+    });
+    if (b.samples.length && b.samples[0].t < cut) b.samples = b.samples.filter(s => s.t >= cut);
+  }
+
+  // ---------- drawing ----------
+  const LANE_H = 94, TOP = 28, LEFT = 230, RIGHT = 890, VW = 900;
+  const tx = tt => LEFT + (tt - (t - SPAN)) / SPAN * (RIGHT - LEFT);
+
+  function draw() {
+    const H = TOP + algos.length * LANE_H + 8;
+    let s = "";
+    // time axis
+    const t0 = Math.ceil(t - SPAN);
+    for (let sec = t0; sec <= t; sec++) {
+      const x = tx(sec);
+      if (x > RIGHT - 30) continue;
+      s += `<text x="${x}" y="16" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${sec}s</text>`;
+    }
+    s += `<text x="${RIGHT}" y="16" text-anchor="end" font-family="var(--mono)" font-size="10" font-weight="600" fill="var(--ink)">now</text>`;
+
+    algos.forEach((a, i) => {
+      const y = TOP + i * LANE_H, mid = y + LANE_H / 2;
+      s += `<rect x="0" y="${y + 3}" width="${VW}" height="${LANE_H - 6}" rx="6" fill="var(--paper)"/>`;
+      // sliding band for the last W seconds
+      s += `<rect x="${tx(t - W)}" y="${y + 6}" width="${tx(t) - tx(t - W)}" height="${LANE_H - 12}" fill="var(--accent-soft)" opacity=".7"/>`;
+      // fixed-window boundaries (used by fixed and sliding counter)
+      if (i === 0 || i === 2) {
+        for (let w = Math.floor((t - SPAN) / W); w * W <= t; w++) {
+          const bx = tx(w * W);
+          if (bx >= LEFT) s += `<line x1="${bx}" y1="${y + 6}" x2="${bx}" y2="${y + LANE_H - 6}" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+          if (i === 0) {
+            const c = a.counts.get(w) || 0, lx = Math.max(LEFT + 16, tx(w * W + W / 2));
+            if (tx((w + 1) * W) > LEFT + 20) s += `<text x="${Math.min(lx, RIGHT - 16)}" y="${y + 18}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${c >= L ? "var(--bad)" : "var(--muted)"}">${c}/${L}</text>`;
+          }
+        }
+      }
+      // token level line
+      if (i === 3 && a.samples.length > 1) {
+        const yv = v => y + LANE_H - 10 - v / L * (LANE_H - 26);
+        const pts = a.samples.filter(p => p.t >= t - SPAN).map(p => `${tx(p.t).toFixed(1)},${yv(p.v).toFixed(1)}`).join(" ");
+        s += `<polyline points="${pts}" fill="none" stroke="var(--amber)" stroke-width="1.8"/>`;
+      }
+      // requests
+      a.reqs.forEach(r => {
+        if (r.t < t - SPAN) return;
+        const x = tx(r.t), jitter = ((r.t * 997) % 1) * 18 - 9;
+        if (r.ok) s += `<circle cx="${x}" cy="${mid + jitter}" r="4.5" fill="var(--ok)"/>`;
+        else s += `<path d="M${x - 4} ${mid + jitter - 4} l8 8 m0 -8 l-8 8" stroke="var(--bad)" stroke-width="2"/>`;
+      });
+      // left panel
+      s += `<rect x="0" y="${y + 3}" width="${LEFT - 10}" height="${LANE_H - 6}" rx="6" fill="var(--panel)" stroke="var(--line)"/>`;
+      s += `<text x="12" y="${y + 24}" font-family="var(--display)" font-size="15" font-weight="700" fill="var(--ink)">${a.name}</text>`;
+      s += `<text x="12" y="${y + 44}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${a.state(t)}</text>`;
+      s += `<text x="12" y="${y + 64}" font-family="var(--mono)" font-size="11" fill="var(--ink)"><tspan fill="var(--ok)">${a.ok} ok</tspan> · <tspan fill="var(--bad)">${a.no} rejected</tspan></text>`;
+      s += `<text x="12" y="${y + 82}" font-family="var(--mono)" font-size="11" font-weight="600" fill="${a.peak > L ? "var(--bad)" : "var(--muted)"}">peak ${a.peak} in ${W}s${a.peak > L ? "  ▲ over limit" : ""}</text>`;
+      if (i === 3) {
+        const lv = a.level(t), bx = LEFT - 44, by = y + 16, bh = 60;
+        s += `<rect x="${bx}" y="${by}" width="22" height="${bh}" rx="3" fill="none" stroke="var(--muted)" stroke-width="1.5"/>`;
+        s += `<rect x="${bx + 2}" y="${by + bh - 2 - (bh - 4) * lv / L}" width="18" height="${(bh - 4) * lv / L}" rx="2" fill="var(--amber)"/>`;
+      }
+    });
+    const svg = $("lanes");
+    svg.setAttribute("viewBox", `0 0 ${VW} ${H}`);
+    svg.innerHTML = s;
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused) step(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  $("one").onclick = () => send(t);
+  $("burst").onclick = () => { for (let i = 0; i < L + 3; i++) scheduled.push(t + i * 0.05); };
+  $("boundary").onclick = () => {
+    let nb = Math.ceil(t / W) * W; if (nb - t < 1) nb += W;
+    for (let i = 0; i < L; i++) { scheduled.push(nb - 0.45 + i * 0.07); scheduled.push(nb + 0.05 + i * 0.07); }
+  };
+  $("pause").onclick = e => { paused = !paused; e.target.textContent = paused ? "Resume" : "Pause"; };
+  $("reset").onclick = reset;
+  $("limit").oninput = reset;
+  $("rate").oninput = e => { rate = +e.target.value; $("rateOut").textContent = `${rate} req/s`; nextArrival = rate > 0 ? t + expo(rate) : Infinity; };
+
+  rate = +$("rate").value; $("rateOut").textContent = `${rate} req/s`;
+  reset();
+  // open in a working state: a few seconds of traffic plus one boundary burst already in view
+  for (let i = 0; i < 400; i++) step(0.02);
+  $("boundary").onclick();
+  for (let i = 0; i < 280; i++) step(0.02);
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
