@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a URL Shortener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=4">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .flow-toggle { display: flex; gap: 6px; }
+  .flow-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  .lab-out { display: grid; gap: 10px; }
+  .code-big { font: 700 2rem/1 var(--mono); letter-spacing: .04em; color: var(--accent); }
+  input[type="number"], input[type="text"].t { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+  .verdict-good { color: var(--ok); font-weight: 600; } .verdict-bad { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a URL Shortener</h1>
+    <p class="lede">Turn a long link into a short one like <span class="mono">sho.rt/15FTGn</span>, and send anyone who opens it to the original page. The core is a key-value lookup. The interesting parts are generating short codes that never collide and serving far more reads than writes with low latency.</p>
+    <div class="budget">
+      <span class="eyebrow">A 45-minute interview, step by step · click a step to jump to it</span>
+      <div class="budget-bar" role="navigation" aria-label="Interview steps">
+        <a href="#requirements" style="flex:5">1 Requirements · 5m</a>
+        <a href="#entities" style="flex:2">2 Entities</a>
+        <a href="#api" style="flex:5">3 API · 5m</a>
+        <a href="#design" style="flex:13">4 High-level design · 10–15m</a>
+        <a href="#deep" class="deep" style="flex:10">5 Deep dives · 10m</a>
+      </div>
+      <small>Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</small>
+    </div>
+  </header>
+
+  <!-- 1. Requirements -->
+  <section class="panel article" id="requirements">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Ask questions until you can write both lists. Keep the functional list to the three or so features that define the product, and give the non-functional list real numbers.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Submit a long URL and get back a short one.</li>
+          <li>Optionally choose a custom alias (<span class="mono">sho.rt/my-talk</span>) and an expiry date.</li>
+          <li>Open a short URL and be redirected to the original.</li>
+        </ul>
+        <p style="margin-top:10px;color:var(--muted);font-size:14px">Out of scope: accounts, click analytics dashboards, editing links.</p>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Guarantee every short code maps to exactly one URL.</li>
+          <li>Redirect fast: aim for under 100 ms, since a redirect sits in front of every page load.</li>
+          <li>Favour availability over consistency for redirects. A new link taking a second to work everywhere is fine. Redirects failing is not.</li>
+          <li>Handle about 10 million new links a day and roughly 100 redirects for every link created.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> the ratio of reads to writes is the most important number here. At 100 to 1, every design choice should make the read path cheap, even if it makes writes a little slower.</p></div>
+  </section>
+
+  <!-- 2. Entities -->
+  <section class="panel article" id="entities">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <p class="kicker">Name the nouns before drawing boxes. You'll refine their fields during the design.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>Link</h3><code>short_code  (primary key)
+long_url
+created_at
+expires_at?
+creator_id?</code></div>
+      <div class="entity"><h3>User</h3><code>user_id
+(only needed for custom
+aliases and quotas)</code></div>
+      <div class="entity"><h3>Short code</h3><code>7 characters of [0-9a-zA-Z]
+the key everything is
+looked up by</code></div>
+    </div>
+  </section>
+
+  <!-- 3. API -->
+  <section class="panel article" id="api">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">One endpoint per functional requirement is a good default.</p>
+<pre class="api"><span class="c">// Create a short link</span>
+<span class="verb">POST</span> /urls
+{ "long_url": "https://example.com/blog/2026/09/a-very-long-post-title",
+  "custom_alias": "my-talk",      <span class="c">// optional</span>
+  "expires_at": "2027-01-01" }    <span class="c">// optional</span>
+→ 201 { "short_url": "https://sho.rt/15FTGn" }
+
+<span class="c">// Follow a short link</span>
+<span class="verb">GET</span> /{short_code}
+→ 302 Found
+  Location: https://example.com/blog/2026/09/a-very-long-post-title</pre>
+    <div class="aside">
+      <p><b>302 or 301?</b> A 301 (moved permanently) lets browsers cache the redirect and never ask you again. That saves load, but you lose the ability to count clicks, change the target, or expire the link. A 302 (found) sends every click through your servers. Most shorteners choose 302 and absorb the load with caching.</p>
+    </div>
+  </section>
+
+  <!-- 4. High-level design -->
+  <section class="panel article" id="design">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">Start with the simplest design that meets the functional requirements, then add one component at a time, each justified by a non-functional requirement. Pick a stage and a request type to watch requests flow.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="flow-toggle" role="group" aria-label="Request type" style="margin-bottom:8px">
+          <button id="flowRedirect" aria-pressed="true">Redirect (GET)</button>
+          <button id="flowCreate" aria-pressed="false">Create (POST)</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 380" role="img" aria-label="Architecture diagram with animated requests"></svg></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <!-- 5. Deep dives -->
+  <section class="panel article" id="deep">
+    <div class="step-head"><span class="step-num">5</span><h2>Deep dive: making short codes unique</h2><span class="step-time">about 10 minutes across all deep dives</span></div>
+    <p class="kicker">This is where most of the interview is won. There are three common ways to produce a code. Try each one.</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="counter">Counter + base62</button>
+      <button role="tab" aria-selected="false" data-tab="hash">Hash the URL</button>
+      <button role="tab" aria-selected="false" data-tab="random">Random code</button>
+    </div>
+    <div class="lab-out" id="lab"></div>
+
+    <h3 style="margin-top:14px">How long should the code be?</h3>
+    <div class="calc">
+      <label class="field" for="len"><span class="row"><span>Code length</span><b class="mono num" id="lenOut"></b></span><input type="range" id="len" min="4" max="9" value="7"></label>
+      <label class="field" for="stored"><span class="row"><span>Links stored so far</span><b class="mono num" id="storedOut"></b></span><input type="range" id="stored" min="3" max="10" step="0.5" value="9"></label>
+    </div>
+    <div class="results" id="lenResults"></div>
+    <p style="font-size:14px;color:var(--muted)">Random and hash codes collide by the birthday effect long before the space is full. Collisions become likely once you have stored about √N codes, where N is the number of possible codes. That is why random and hash codes need a uniqueness check on every insert.</p>
+  </section>
+
+  <section class="panel article" id="scale">
+    <div class="step-head"><span class="step-num">5</span><h2>Deep dive: fast redirects at scale</h2></div>
+    <p class="kicker">Do the math only where it changes a decision. Move the sliders and see which components the numbers call for.</p>
+    <div class="calc">
+      <label class="field" for="perDay"><span class="row"><span>New links per day</span><b class="mono num" id="perDayOut"></b></span><input type="range" id="perDay" min="5" max="9" step="0.25" value="7"></label>
+      <label class="field" for="ratio"><span class="row"><span>Redirects per link created</span><b class="mono num" id="ratioOut"></b></span><input type="range" id="ratio" min="1" max="1000" step="1" value="100"></label>
+      <label class="field" for="years"><span class="row"><span>Years of links kept</span><b class="mono num" id="yearsOut"></b></span><input type="range" id="years" min="1" max="10" value="5"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+  </section>
+
+  <!-- Worked example -->
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One link, created and then clicked</h2>
+    <ol class="steps">
+      <li><div><h3>Client sends POST /urls</h3><p>The body contains the long URL. The load balancer forwards it to a write server.</p></div></li>
+      <li><div><h3>Write server gets the next ID</h3><p>It doesn't call Redis on every request. It reserved the range 1,000,000,001 to 1,000,001,000 earlier with one <span class="mono">INCRBY 1000</span>, and its next unused number is 1,000,000,007.</p></div></li>
+      <li><div><h3>Encode in base62</h3><p>Divide by 62 repeatedly and read the remainders from last to first:</p>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Number</th><th>÷ 62</th><th>Remainder</th><th>Character</th></tr></thead><tbody>
+          <tr><td class="mono">1,000,000,007</td><td class="mono">16,129,032</td><td class="mono">23</td><td class="mono hl">n</td></tr>
+          <tr><td class="mono">16,129,032</td><td class="mono">260,145</td><td class="mono">42</td><td class="mono hl">G</td></tr>
+          <tr><td class="mono">260,145</td><td class="mono">4,195</td><td class="mono">55</td><td class="mono hl">T</td></tr>
+          <tr><td class="mono">4,195</td><td class="mono">67</td><td class="mono">41</td><td class="mono hl">F</td></tr>
+          <tr><td class="mono">67</td><td class="mono">1</td><td class="mono">5</td><td class="mono hl">5</td></tr>
+          <tr><td class="mono">1</td><td class="mono">0</td><td class="mono">1</td><td class="mono hl">1</td></tr>
+        </tbody></table></div>
+        <p>Reading upward gives <b class="mono">15FTGn</b>. The alphabet is <span class="mono">0-9</span>, then <span class="mono">a-z</span>, then <span class="mono">A-Z</span>, so 23 is <span class="mono">n</span> and 42 is <span class="mono">G</span>.</p></div></li>
+      <li><div><h3>Store and respond</h3><p>Insert <span class="mono">(15FTGn → long URL)</span> into the database. The code came from a counter, so there's no collision check. Return <span class="mono">https://sho.rt/15FTGn</span>.</p></div></li>
+      <li><div><h3>Someone clicks it</h3><p>GET <span class="mono">/15FTGn</span> reaches a read server. It checks Redis first. On the first click that misses, so it reads a database replica (a few milliseconds), stores the result in Redis, and replies <span class="mono">302 Location: …</span>.</p></div></li>
+      <li><div><h3>Every later click</h3><p>The next click hits Redis in about a millisecond. With roughly 20% of links getting most of the traffic, a cache sized for the hot set serves the large majority of redirects.</p></div></li>
+    </ol>
+  </section>
+
+  <!-- First principles + story -->
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A giant, read-mostly dictionary from short code to long URL, exposed over HTTP.</p></div>
+      <div><span class="q">Why it's hard</span><p>Codes must be short <i>and</i> unique across billions of links, created by many servers at once, and looked up in milliseconds.</p></div>
+      <div><span class="q">Key insight</span><p>Uniqueness is easiest if you never guess. A counter gives every link a distinct number, and base62 just writes that number compactly.</p></div>
+      <div><span class="q">Where it bends</span><p>A single counter is a bottleneck and makes codes guessable. Hand out ranges to servers, and shuffle the bits if predictability matters.</p></div>
+      <div><span class="q">Read path</span><p>100 reads per write means the cache is not an optimisation. It is the design.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>Why short links exist</h2>
+    <p>In January 2002, Kevin Gilbertson, a web developer in Minnesota, was tired of long web addresses breaking across lines in newsgroup posts. He built TinyURL to turn them into something short enough to paste. It became the first widely used shortener and inspired over a hundred copies.</p>
+    <p>Short links took off with Twitter's 140-character limit. Bitly became one of the dominant services, and in November 2009 alone its links were opened about 2.1 billion times. Twitter eventually built its own shortener, t.co, so it could check links for malware and keep click data in-house.</p>
+    <p>The history also teaches a design lesson about durability. Google launched goo.gl in 2009, then in 2024 announced that its links would stop working in 2025, and later narrowed that to links with no recent traffic. Millions of links in papers and old posts depended on one company's decision. A shortener's real promise is that a link keeps working for years.</p>
+    <ol class="timeline">
+      <li><span class="year">2002</span><p>TinyURL launches to make newsgroup links shorter.</p></li>
+      <li><span class="year">2008</span><p>Bitly launches and grows with Twitter.</p></li>
+      <li><span class="year">2009</span><p>Google launches goo.gl. Bitly links are opened about 2.1 billion times in November.</p></li>
+      <li><span class="year">2010s</span><p>Twitter wraps every posted link in its own t.co shortener.</p></li>
+      <li><span class="year">2024</span><p>Google announces the end of goo.gl links, a reminder that short links are only as durable as the service behind them.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Custom aliases:</b> check availability with a unique constraint. A Bloom filter in front can answer "definitely free" without a database read.</li>
+        <li><b>Expiry:</b> store <span class="mono">expires_at</span>, check it on read, and clean up with a background job or a database TTL.</li>
+        <li><b>Abuse:</b> rate limit link creation per user or IP, and scan targets for malware.</li>
+        <li><b>Analytics:</b> keep 302, and publish click events to a queue such as Kafka rather than writing a counter on the redirect path.</li>
+        <li><b>Hot links:</b> a viral link can overload one cache node. Replicate hot keys or serve them from a CDN edge.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <p style="color:var(--muted);font-size:14px">Each has its own interactive page.</p>
+      <div class="concepts">
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/bloom-filter.html">Bloom Filter</a>
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const ALPHA = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const b62 = n => { if (n === 0n) return "0"; let s = ""; while (n > 0n) { s = ALPHA[Number(n % 62n)] + s; n /= 62n; } return s; };
+  const fmt = n => n >= 1e12 ? (n / 1e12).toFixed(1) + "T" : n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : Math.round(n).toString();
+  const bytes = b => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(1) + " MB";
+
+  // ================= Architecture diagram =================
+  const NODES = {
+    client: { x: 70, y: 190, label: "Client", sub: "browser" },
+    lb: { x: 205, y: 190, label: "Load balancer", sub: "" },
+    api: { x: 345, y: 190, label: "API server", sub: "one box" },
+    write: { x: 360, y: 100, label: "Write service", sub: "few instances" },
+    read: { x: 360, y: 280, label: "Read service", sub: "many instances" },
+    counter: { x: 560, y: 50, label: "Counter", sub: "Redis INCRBY" },
+    cache: { x: 560, y: 220, label: "Cache", sub: "Redis, LRU" },
+    db: { x: 720, y: 120, label: "Database", sub: "primary" },
+    replica: { x: 720, y: 320, label: "Replicas", sub: "read-only" }
+  };
+  const STAGES = [
+    {
+      name: "1 · Basic", nodes: ["client", "api", "db"],
+      create: [{ p: ["client", "api", "db", "api", "client"], w: 1 }],
+      redirect: [{ p: ["client", "api", "db", "api", "client"], w: 1 }],
+      adds: "One server and one database. The server generates a code, stores the row, and on a redirect looks the code up.",
+      why: "It meets every functional requirement. Always start here, so the interviewer sees a working system before any optimisation.",
+      breaks: n => `At ${fmt(n.readQps)} redirects per second, every one is a database read. The database becomes the bottleneck, and code generation is still undecided.`
+    },
+    {
+      name: "2 · Unique codes", nodes: ["client", "api", "counter", "db"],
+      create: [{ p: ["client", "api", "counter", "api", "db", "api", "client"], w: 1 }],
+      redirect: [{ p: ["client", "api", "db", "api", "client"], w: 1 }],
+      adds: "A global counter in Redis. Each new link gets the next number, encoded in base62.",
+      why: "Counting can never produce a duplicate, so there's no collision check or retry. Redis INCR is atomic, and a server can reserve 1,000 IDs at once to avoid a round trip per link.",
+      breaks: n => `Reads are still all on the database: about ${fmt(n.readQps)} per second, and ${fmt(n.readQps * 3)} at peak.`
+    },
+    {
+      name: "3 · Cache", nodes: ["client", "api", "counter", "cache", "db"],
+      create: [{ p: ["client", "api", "counter", "api", "db", "api", "client"], w: 1 }],
+      redirect: [{ p: ["client", "api", "cache", "api", "client"], w: 0.9, tag: "hit" }, { p: ["client", "api", "cache", "api", "db", "api", "client"], w: 0.1, tag: "miss" }],
+      adds: "A Redis cache in front of the database, holding the most popular links.",
+      why: "Link popularity is very skewed. A small cache of hot links absorbs most redirects in about 1 ms, and misses fall through to the database.",
+      breaks: n => `One API box can't serve ${fmt(n.readQps * 3)} requests per second at peak, and a deploy or crash takes everything down.`
+    },
+    {
+      name: "4 · Scale out", nodes: ["client", "lb", "write", "read", "counter", "cache", "db", "replica"],
+      create: [{ p: ["client", "lb", "write", "counter", "write", "db", "write", "lb", "client"], w: 1 }],
+      redirect: [{ p: ["client", "lb", "read", "cache", "read", "lb", "client"], w: 0.9, tag: "hit" }, { p: ["client", "lb", "read", "cache", "read", "replica", "read", "lb", "client"], w: 0.1, tag: "miss" }],
+      adds: "A load balancer, separate read and write services, and read replicas behind the cache.",
+      why: "Reads outnumber writes 100 to 1, so they scale separately. Read servers are stateless, so you can add them freely. Replicas take cache misses off the primary.",
+      breaks: n => `Storage reaches ${bytes(n.storage)}. That fits on a few machines. If it didn't, you would shard by short code, for example with consistent hashing.`
+    }
+  ];
+  let stage = 0, flow = "redirect", dots = [], spawnT = 0, counts = { hit: 0, miss: 0, done: 0 };
+
+  function drawArch(nums) {
+    const st = STAGES[stage], used = new Set(st.nodes);
+    const edges = new Set();
+    [...st.create, ...st.redirect].forEach(r => r.p.forEach((n, i) => { if (i) edges.add([r.p[i - 1], n].sort().join("|")); }));
+    let s = "";
+    edges.forEach(e => {
+      const [a, b] = e.split("|").map(k => NODES[k]);
+      s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--line)" stroke-width="2"/>`;
+    });
+    dots.forEach(d => {
+      const color = d.tag === "miss" ? "var(--amber)" : flow === "create" ? "var(--accent)" : "var(--ok)";
+      s += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="${color}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    });
+    st.nodes.forEach(k => {
+      const n = NODES[k], w = 118, h = 46;
+      const store = ["db", "replica", "cache", "counter"].includes(k);
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${store ? 14 : 6}" fill="var(--panel)" stroke="${store ? "var(--accent)" : "var(--ink)"}" stroke-width="1.6"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="14" font-weight="700" fill="var(--ink)">${n.label}</text>`;
+      if (n.sub) s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${n.sub}</text>`;
+    });
+    const hr = counts.hit + counts.miss ? Math.round(counts.hit / (counts.hit + counts.miss) * 100) : null;
+    s += `<text x="12" y="372" font-family="var(--mono)" font-size="11" fill="var(--muted)">${flow === "redirect" ? (stage < 2 ? "every redirect reads the database" : `cache hit rate ${hr === null ? "–" : hr + "%"} (green = hit, amber = miss)`) : "blue dots = create requests"}</text>`;
+    $("arch").innerHTML = s;
+  }
+
+  function spawn() {
+    const routes = STAGES[stage][flow];
+    let r = Math.random(), route = routes[0];
+    for (const x of routes) { if (r < x.w) { route = x; break; } r -= x.w; }
+    dots.push({ route: route.p, tag: route.tag, seg: 0, f: 0, x: NODES[route.p[0]].x, y: NODES[route.p[0]].y });
+  }
+  function stepDots(dt) {
+    spawnT -= dt; if (spawnT <= 0) { spawn(); spawnT = 0.55; }
+    const SPEED = 260;
+    dots.forEach(d => {
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.route.length - 1) {
+        const a = NODES[d.route[d.seg]], b = NODES[d.route[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y), left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; }
+        else { d.f += move / len; move = 0; }
+        const a2 = NODES[d.route[d.seg]], b2 = NODES[d.route[Math.min(d.seg + 1, d.route.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.route.length - 1 && !d.done) { d.done = true; if (d.tag) counts[d.tag]++; }
+    });
+    dots = dots.filter(d => !d.done);
+  }
+
+  function renderExplain(nums) {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks(nums)}</p></div>
+      <p style="font-size:12px;color:var(--muted)">Numbers come from the scale sliders in the deep dive below.</p>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; dots = []; counts = { hit: 0, miss: 0, done: 0 }; renderExplain(estimate()); };
+  $("flowRedirect").onclick = () => { flow = "redirect"; dots = []; $("flowRedirect").setAttribute("aria-pressed", "true"); $("flowCreate").setAttribute("aria-pressed", "false"); };
+  $("flowCreate").onclick = () => { flow = "create"; dots = []; $("flowCreate").setAttribute("aria-pressed", "true"); $("flowRedirect").setAttribute("aria-pressed", "false"); };
+
+  // ================= Short code lab =================
+  let tab = "counter";
+  function renderLab() {
+    let h = "";
+    if (tab === "counter") {
+      h = `<label class="field" for="ctr"><span>Counter value</span><input type="number" id="ctr" value="1000000007" min="0"></label><div id="ctrOut"></div>
+        <p><span class="verdict-good">Never collides.</span> Each number is used once. <span class="verdict-bad">Trade-offs:</span> codes are sequential and guessable (anyone can enumerate links), and the counter must be shared. Reserving ranges per server fixes the bottleneck. Mixing the bits with a reversible permutation fixes guessability.</p>`;
+    } else if (tab === "hash") {
+      h = `<label class="field" for="url"><span>Long URL</span><input type="text" class="t" id="url" value="https://example.com/blog/2026/09/a-very-long-post-title"></label><div id="hashOut"></div>
+        <p><span class="verdict-good">Same URL gives the same code,</span> so duplicates can be merged. <span class="verdict-bad">Trade-off:</span> truncating a hash to 7 characters throws away most of it, so different URLs can collide. You still need a lookup on insert, and a retry with a salt on a clash.</p>`;
+    } else {
+      h = `<div class="controls"><button id="rnd" class="primary">Generate a random code</button></div><div id="rndOut"></div>
+        <p><span class="verdict-good">Simple and unguessable,</span> with no shared state between servers. <span class="verdict-bad">Trade-off:</span> by the birthday effect, collisions become common well before the space fills. Every insert needs a check, such as a unique constraint and a retry. A Bloom filter can skip most of those checks.</p>`;
+    }
+    $("lab").innerHTML = h;
+    if (tab === "counter") { $("ctr").oninput = counterOut; counterOut(); }
+    if (tab === "hash") { $("url").oninput = hashOut; hashOut(); }
+    if (tab === "random") { $("rnd").onclick = rndOut; rndOut(); }
+    document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  }
+  function counterOut() {
+    let n; try { n = BigInt($("ctr").value || "0"); } catch { n = 0n; }
+    if (n < 0n) n = 0n;
+    const rows = []; let x = n;
+    while (x > 0n && rows.length < 12) { rows.push([x, x / 62n, x % 62n]); x /= 62n; }
+    $("ctrOut").innerHTML = `<div class="code-big">${b62(n)}</div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Number</th><th>÷ 62</th><th>Remainder</th><th>Char</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td class="mono">${r[0].toLocaleString()}</td><td class="mono">${r[1].toLocaleString()}</td><td class="mono">${r[2]}</td><td class="mono hl">${ALPHA[Number(r[2])]}</td></tr>`).join("")}
+      </tbody></table></div><p style="font-size:13px;color:var(--muted)">Read the characters from the bottom row up.</p>`;
+  }
+  function fnv64(str) {
+    let h = 0xcbf29ce484222325n; const P = 0x100000001b3n, M = (1n << 64n) - 1n;
+    for (let i = 0; i < str.length; i++) { h ^= BigInt(str.charCodeAt(i)); h = (h * P) & M; }
+    return h;
+  }
+  function hashOut() {
+    const h = fnv64($("url").value), full = b62(h);
+    $("hashOut").innerHTML = `<p class="formula">hash = 0x${h.toString(16).padStart(16, "0")} → base62 ${full} → first 7: <b>${full.slice(0, 7)}</b></p>
+      <div class="code-big">${full.slice(0, 7)}</div><p style="font-size:13px;color:var(--muted)">This demo uses 64-bit FNV-1a. Real systems often use MD5 or SHA-256 and truncate them the same way.</p>`;
+  }
+  function rndOut() {
+    const a = new Uint32Array(7); crypto.getRandomValues(a);
+    const code = [...a].map(v => ALPHA[v % 62]).join("");
+    $("rndOut").innerHTML = `<div class="code-big">${code}</div>`;
+  }
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; renderLab(); });
+
+  function renderLen() {
+    const L = +$("len").value, stored = Math.pow(10, +$("stored").value), N = Math.pow(62, L);
+    const pColl = 1 - Math.exp(-stored * stored / (2 * N));
+    const perDay = Math.pow(10, +$("perDay").value);
+    $("lenOut").textContent = L; $("storedOut").textContent = fmt(stored);
+    const years = N / (perDay * 365);
+    $("lenResults").innerHTML = `
+      <div><span>Possible codes (62^${L})</span><b>${fmt(N)}</b></div>
+      <div><span>Years until full at ${fmt(perDay)}/day</span><b>${years >= 10000 ? ">10,000" : years.toFixed(years < 10 ? 1 : 0)}</b></div>
+      <div><span>Collisions likely after (√N)</span><b>${fmt(Math.sqrt(N))}</b></div>
+      <div><span>Chance of any collision (random/hash)</span><b style="color:${pColl > 0.5 ? "var(--bad)" : "var(--ink)"}">${pColl > 0.999 ? "≈100%" : (pColl * 100).toFixed(pColl < 0.01 ? 3 : 1) + "%"}</b></div>`;
+  }
+  ["len", "stored"].forEach(id => $(id).oninput = renderLen);
+
+  // ================= Scale estimates =================
+  function estimate() {
+    const perDay = Math.pow(10, +$("perDay").value), ratio = +$("ratio").value, years = +$("years").value;
+    const writeQps = perDay / 86400, readQps = writeQps * ratio;
+    const storage = perDay * 365 * years * 500;
+    const cache = perDay * 30 * 0.2 * 500;
+    return { perDay, ratio, years, writeQps, readQps, storage, cache };
+  }
+  function renderScale() {
+    const n = estimate();
+    $("perDayOut").textContent = fmt(n.perDay); $("ratioOut").textContent = n.ratio + " : 1"; $("yearsOut").textContent = n.years;
+    $("scaleResults").innerHTML = `
+      <div><span>Writes per second</span><b>${fmt(n.writeQps)}</b></div>
+      <div><span>Redirects per second</span><b>${fmt(n.readQps)}</b></div>
+      <div><span>Peak redirects (×3)</span><b>${fmt(n.readQps * 3)}</b></div>
+      <div><span>Storage at 500 B/link</span><b>${bytes(n.storage)}</b></div>
+      <div><span>Cache for hot 20% of last 30 days</span><b>${bytes(n.cache)}</b></div>`;
+    const notes = [];
+    notes.push(n.readQps * 3 > 5000 ? `Peak redirects of ${fmt(n.readQps * 3)}/s is more than one database should serve directly, so <b>add a cache</b>.` : `Peak redirects of ${fmt(n.readQps * 3)}/s could be served by one database, but a cache still cuts latency.`);
+    notes.push(n.cache < 100e9 ? `The hot set (${bytes(n.cache)}) fits in memory on one or two cache nodes.` : `The hot set (${bytes(n.cache)}) needs a sharded cache cluster, for example using consistent hashing.`);
+    notes.push(n.storage < 20e12 ? `Total storage (${bytes(n.storage)}) fits one database with replicas, so there's no need to shard yet.` : `Total storage (${bytes(n.storage)}) calls for sharding by short code.`);
+    notes.push(`Writes (${fmt(n.writeQps)}/s) are small. A counter handing out ranges of 1,000 IDs means Redis is hit only about ${fmt(n.writeQps / 1000 * 60)} times a minute.`);
+    $("scaleNotes").innerHTML = notes.map(x => `<li>${x}</li>`).join("");
+    renderExplain(n); renderLen();
+  }
+  ["perDay", "ratio", "years"].forEach(id => $(id).oninput = renderScale);
+
+  // ================= boot =================
+  renderScale(); renderLab();
+  for (let i = 0; i < 80; i++) stepDots(0.03);
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; stepDots(dt); drawArch(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

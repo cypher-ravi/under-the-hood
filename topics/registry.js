@@ -65,3 +65,25 @@ window.TOPICS = [
   { slug: "vector-clocks", title: "Vector Clocks", area: "Distributed systems", status: "planned",
     blurb: "Track causality between events and spot concurrent writes." }
 ];
+
+// Interview-style design questions. Each page follows the same steps:
+// requirements, core entities, API, high-level design, deep dives.
+window.QUESTIONS = [
+  {
+    slug: "bitly",
+    title: "Design a URL Shortener",
+    status: "ready",
+    blurb: "Watch the design grow from one server to a scaled read path, generate codes three ways, and size it with live estimates.",
+    concepts: ["lru-cache", "consistent-hashing", "bloom-filter", "rate-limiter"]
+  },
+  { slug: "rate-limiter-design", title: "Design a Rate Limiter", status: "planned", blurb: "A shared limiter for an API gateway: where it runs, Redis and Lua, and failing open or closed." },
+  { slug: "ticketmaster", title: "Design Ticketmaster", status: "planned", blurb: "Thousands of buyers, one seat: reservations, locks with expiry, and virtual waiting rooms." },
+  { slug: "whatsapp", title: "Design WhatsApp", status: "planned", blurb: "Persistent connections, delivery receipts and offline inboxes." },
+  { slug: "news-feed", title: "Design a News Feed", status: "planned", blurb: "Fan-out on write versus on read, and the celebrity problem." },
+  { slug: "uber", title: "Design Uber", status: "planned", blurb: "Matching riders to nearby drivers with geospatial indexes and location updates." },
+  { slug: "top-k", title: "Design YouTube Top K", status: "planned", blurb: "Most-viewed videos over sliding windows using stream processing and sketches." },
+  { slug: "web-crawler", title: "Design a Web Crawler", status: "planned", blurb: "Frontier queues, politeness, deduplication and failure recovery." },
+  { slug: "distributed-cache", title: "Design a Distributed Cache", status: "planned", blurb: "Eviction, sharding, replication and hot keys." },
+  { slug: "google-docs", title: "Design Google Docs", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
+  { slug: "dropbox", title: "Design Dropbox", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." }
+];

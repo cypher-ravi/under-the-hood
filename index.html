@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="shared/lab.css?v=3">
+<link rel="stylesheet" href="shared/lab.css?v=4">
 <style>
   .hero { display: grid; gap: 14px; padding-block: 12px 4px; }
   .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); }
@@ -47,9 +47,19 @@
 
   <section class="ready-grid" id="ready" aria-label="Available topics"></section>
 
+  <section id="questions" style="display:grid;gap:14px;scroll-margin-top:16px">
+    <div class="section-head">
+      <h2>Design questions</h2>
+      <span class="eyebrow">Interview problems, worked step by step</span>
+    </div>
+    <p style="color:var(--muted)">Each question follows the same interview steps: requirements, core entities, API, high-level design, then deep dives. The design is drawn live and grows one component at a time, with the reason for each addition. The step order follows Hello Interview's delivery framework.</p>
+    <div class="ready-grid" id="qready"></div>
+    <ul class="planned" id="qplanned"></ul>
+  </section>
+
   <section style="display:grid;gap:14px">
     <div class="section-head">
-      <h2>On the bench next</h2>
+      <h2>Concepts on the bench next</h2>
       <span class="eyebrow">Planned topics</span>
     </div>
     <ul class="planned" id="planned"></ul>
@@ -132,6 +142,23 @@
         <span class="used">Used in: ${t.usedIn}</span>
       </div>
     </a>`).join("");
+
+  const qs = window.QUESTIONS || [];
+  const byslug = Object.fromEntries(TOPICS.map(t => [t.slug, t.title]));
+  const steps = ["Requirements", "Entities", "API", "Design", "Deep dives"];
+  document.getElementById("qready").innerHTML = qs.filter(q => q.status === "ready").map(q => `
+    <a class="topic" href="questions/${q.slug}.html">
+      <div class="thumb"><svg viewBox="0 0 400 200" aria-hidden="true">${steps.map((st, i) => `<rect x="${24 + i * 72}" y="70" width="64" height="60" rx="6" fill="${i === 3 ? "var(--accent)" : "var(--panel)"}" stroke="${i === 3 ? "var(--accent)" : "var(--line)"}" stroke-width="1.5"/><text x="${56 + i * 72}" y="104" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="${i === 3 ? "var(--panel)" : "var(--muted)"}">${st}</text>`).join("")}</svg></div>
+      <div class="body">
+        <div class="meta"><span class="eyebrow">Design question</span><span class="pill ready">Live</span></div>
+        <h3 style="font-size:1.3rem">${q.title}</h3>
+        <p>${q.blurb}</p>
+        <span class="used">Concepts: ${q.concepts.map(c => byslug[c] || c).join(", ")}</span>
+      </div>
+    </a>`).join("");
+  document.getElementById("qplanned").innerHTML = qs.filter(q => q.status !== "ready").map(q => `
+    <li><span class="eyebrow">Design question</span><h3>${q.title}</h3><p>${q.blurb}</p></li>`).join("");
+  document.getElementById("count").textContent += ` · ${qs.filter(q => q.status === "ready").length} design question`;
 
   document.getElementById("planned").innerHTML = planned.map(t => `
     <li><span class="eyebrow">${t.area}</span><h3>${t.title}</h3><p>${t.blurb}</p></li>`).join("");
