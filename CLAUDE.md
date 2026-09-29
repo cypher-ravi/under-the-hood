@@ -9,6 +9,7 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 - No build step, no dependencies. Plain HTML/CSS/JS, one file per page. Fonts from Google Fonts only.
 - Colors only through tokens in `shared/lab.css` (light and dark). Every page must fit a 400px-wide screen with no sideways scroll.
 - After changing `shared/lab.css`, bump the `?v=N` query on every page's stylesheet link (currently `v=6`).
+- Same for scripts: after changing `topics/registry.js`, `shared/qnav.js` or `shared/stepper.js`, bump the `?v=N` on every page's `<script>` tag for it (currently `v=2`). Without it, browsers keep the old registry and new pages don't show in the gallery.
 - Write explanations and problem statements in our own words. Credit Hello Interview (design questions) and Codeintuition (DSA pattern structure) as inspiration; never copy their text.
 - Verify facts (dates, names, numbers) with a quick search before putting them in a "story" section.
 - Check each new page once with Playwright (desktop + 400px width, look for console errors), then push.

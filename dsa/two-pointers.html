@@ -151,9 +151,9 @@ while L &lt; R:
 </main>
 </div>
 
-<script src="../topics/registry.js"></script>
-<script src="../shared/qnav.js"></script>
-<script src="../shared/stepper.js"></script>
+<script src="../topics/registry.js?v=2"></script>
+<script src="../shared/qnav.js?v=2"></script>
+<script src="../shared/stepper.js?v=2"></script>
 <script>
   // ---------- The idea: a static picture ----------
   document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawArray([1, 3, 4, 6, 8, 11], { ptr: { L: 0, R: 5 }, mark: { 0: "active", 5: "active" } })}<p style="font-size:14px;color:var(--muted)">One comparison of a[L] and a[R] decides which end to discard. Six elements need at most five steps.</p></div>`;
