@@ -246,35 +246,50 @@
     }
   }
 
-  const COLS = 16, CW = 38, GAP = 3, X0 = (680 - (COLS * CW + (COLS - 1) * GAP)) / 2, Y0 = 110;
-  const cellX = i => X0 + (i % COLS) * (CW + GAP), cellY = i => Y0 + Math.floor(i / COLS) * (CW + 18);
+  // Geometry: 16 columns, with gutters wide enough for lines to run down between columns.
+  const COLS = 16, CW = 36, CG = 8, RG = 28, VW = 720;
+  const X0 = (VW - (COLS * CW + (COLS - 1) * CG)) / 2, Y0 = 118, BUS = Y0 - 36;
+  const cellX = i => X0 + (i % COLS) * (CW + CG), cellY = i => Y0 + Math.floor(i / COLS) * (CW + RG);
 
   function draw(ev) {
     const rows = Math.ceil(m / COLS);
     const svg = $("bits");
-    svg.setAttribute("viewBox", `0 0 680 ${Y0 + rows * (CW + 18) + 6}`);
-    let s = "";
+    svg.setAttribute("viewBox", `0 0 ${VW} ${Y0 + rows * (CW + RG) - RG + 8}`);
+    let s = "", badges = "";
     if (ev) {
       const color = ev.mode === "add" ? "var(--accent)" : "var(--amber)";
-      const wx = 340, wy = 38;
+      const label = `${ev.mode === "add" ? "add" : "check"} "${ev.word}"`;
+      const px = VW / 2, py = 40, pw = Math.max(96, label.length * 8.6 + 36), pb = py + 17;
       ev.ps.forEach((p, i) => {
-        const x = cellX(p) + CW / 2, y = cellY(p);
-        s += `<path d="M${wx} ${wy + 16} C ${wx} ${wy + 60}, ${x} ${y - 50}, ${x} ${y - 2}" fill="none" stroke="${color}" stroke-width="1.6" opacity=".8"/>`;
-        s += `<text x="${(wx + x) / 2 + (x > wx ? 8 : -8)}" y="${(wy + y) / 2 + 6}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${color}">h${i + 1}</text>`;
+        const cx = cellX(p) + CW / 2, ry = cellY(p), by = ry - RG / 2;
+        let d;
+        if (ry === Y0) {
+          // first row: one smooth curve straight to the badge above the cell
+          d = `M${px} ${pb} C ${px} ${pb + 40}, ${cx} ${by - 40}, ${cx} ${by}`;
+        } else {
+          // lower rows: curve to the gutter left of the column, run down it, then turn into the row gap
+          const gx = cellX(p) - CG / 2, r = 5;
+          d = `M${px} ${pb} C ${px} ${pb + 30}, ${gx} ${BUS - 20}, ${gx} ${BUS} V ${by - r} Q ${gx} ${by} ${gx + r} ${by} H ${cx}`;
+        }
+        s += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" opacity=".85"/>`;
+        s += `<line x1="${cx}" y1="${by}" x2="${cx}" y2="${ry}" stroke="${color}" stroke-width="1.6"/>`;
+        badges += `<rect x="${cx - 12}" y="${by - 8}" width="24" height="16" rx="8" fill="${color}"/>`;
+        badges += `<text x="${cx}" y="${by + 0.5}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="10" font-weight="600" fill="var(--panel)">h${i + 1}</text>`;
       });
-      const tw = Math.max(80, ev.word.length * 10 + 40);
-      s += `<rect x="${wx - tw / 2}" y="${wy - 16}" width="${tw}" height="32" rx="16" fill="${ev.mode === "add" ? "var(--accent)" : "var(--amber-soft)"}" stroke="${color}" stroke-width="1.5"/>`;
-      s += `<text x="${wx}" y="${wy + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="14" font-weight="600" fill="${ev.mode === "add" ? "var(--panel)" : "var(--ink)"}">${ev.mode === "add" ? "add" : "check"} "${ev.word}"</text>`;
+      s += `<rect x="${px - pw / 2}" y="${py - 17}" width="${pw}" height="34" rx="17" fill="${ev.mode === "add" ? "var(--accent)" : "var(--amber-soft)"}" stroke="${color}" stroke-width="1.5"/>`;
+      s += `<text x="${px}" y="${py + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="14" font-weight="600" fill="${ev.mode === "add" ? "var(--panel)" : "var(--ink)"}">${label}</text>`;
     } else {
-      s += `<text x="340" y="42" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">${m} bits, ${k} hash function${k > 1 ? "s" : ""}</text>`;
+      s += `<text x="${VW / 2}" y="44" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">${m} bits, ${k} hash function${k > 1 ? "s" : ""}</text>`;
     }
     for (let i = 0; i < m; i++) {
       const on = bits[i], hit = ev && ev.ps.includes(i);
       const zeroHit = hit && ev.mode === "check" && !on;
-      s += `<rect class="cell" x="${cellX(i)}" y="${cellY(i)}" width="${CW}" height="${CW}" rx="4" fill="${on ? "var(--accent)" : "var(--panel)"}" stroke="${zeroHit ? "var(--ok)" : hit ? "var(--amber)" : on ? "var(--accent)" : "var(--line)"}" stroke-width="${hit ? 3 : 1.2}"/>`;
-      s += `<text x="${cellX(i) + CW / 2}" y="${cellY(i) + CW / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="14" font-weight="600" fill="${on ? "var(--panel)" : "var(--muted)"}">${on}</text>`;
-      s += `<text x="${cellX(i) + CW / 2}" y="${cellY(i) + CW + 11}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">${i}</text>`;
+      const x = cellX(i), y = cellY(i);
+      s += `<rect class="cell" x="${x}" y="${y}" width="${CW}" height="${CW}" rx="5" fill="${on ? "var(--accent)" : "var(--panel)"}" stroke="${zeroHit ? "var(--ok)" : hit ? "var(--amber)" : on ? "var(--accent)" : "var(--line)"}" stroke-width="${hit ? 3 : 1.2}"/>`;
+      s += `<text x="${x + 4}" y="${y + 9}" font-family="var(--mono)" font-size="8" fill="${on ? "var(--panel)" : "var(--muted)"}" opacity=".8">${i}</text>`;
+      s += `<text x="${x + CW / 2}" y="${y + CW / 2 + 3}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="15" font-weight="600" fill="${on ? "var(--panel)" : "var(--muted)"}">${on}</text>`;
     }
+    s += badges;
     svg.innerHTML = s;
 
     const n = added.size, set = bits.reduce((a, b) => a + b, 0);
