@@ -4,18 +4,21 @@
   const nav = document.getElementById("qnav");
   if (!nav) return;
   const current = nav.dataset.current;
-  const qs = window.QUESTIONS || [];
+  const kind = nav.dataset.kind || "question";
+  const qs = kind === "dsa"
+    ? (window.DSA || []).flatMap(g => g.patterns.map(p => ({ ...p, title: `${g.area}: ${p.title}` })))
+    : (window.QUESTIONS || []);
   const sections = [...document.querySelectorAll("main section[data-nav]")];
   const steps = sections.filter(s => s.dataset.num), extra = sections.filter(s => !s.dataset.num);
   const item = s => `<li><a href="#${s.id}" data-id="${s.id}"><span class="n">${s.dataset.num || "·"}</span><span>${s.dataset.nav}</span>${s.dataset.time ? `<span class="t">${s.dataset.time}</span>` : ""}</a></li>`;
   const options = qs.map(q => `<option value="${q.slug}"${q.slug === current ? " selected" : ""}${q.status !== "ready" ? " disabled" : ""}>${q.title}${q.status !== "ready" ? " (soon)" : ""}</option>`).join("");
   const weights = [5, 2, 5, 13, 10];
   nav.innerHTML = `
-    <label class="field" for="qswitch"><span class="eyebrow nav-label">Question</span><select id="qswitch" aria-label="Switch question">${options}</select></label>
+    <label class="field" for="qswitch"><span class="eyebrow nav-label">${kind === "dsa" ? "Pattern" : "Question"}</span><select id="qswitch" aria-label="Switch ${kind === "dsa" ? "pattern" : "question"}">${options}</select></label>
     <div style="display:grid;gap:10px">
-      <span class="eyebrow nav-label">Interview steps · 45 min</span>
-      <div class="mini" aria-hidden="true">${weights.map(w => `<i style="flex:${w}"></i>`).join("")}</div>
-      <ol>${steps.map(item).join("")}${extra.length ? `<li class="sep">Also on this page</li>` : ""}${extra.map(item).join("")}</ol>
+      <span class="eyebrow nav-label">${kind === "dsa" ? "On this page" : "Interview steps · 45 min"}</span>
+      ${kind === "dsa" ? "" : `<div class="mini" aria-hidden="true">${weights.map(w => `<i style="flex:${w}"></i>`).join("")}</div>`}
+      <ol>${kind === "dsa" ? sections.map(item).join("") : steps.map(item).join("") + (extra.length ? `<li class="sep">Also on this page</li>` : "") + extra.map(item).join("")}</ol>
     </div>`;
   nav.querySelector("#qswitch").addEventListener("change", e => { location.href = `${e.target.value}.html`; });
 

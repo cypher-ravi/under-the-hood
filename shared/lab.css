@@ -284,3 +284,45 @@ pre.api .c { color: var(--muted); }
 .switch button span { font: 600 11px/1 var(--mono); padding: 3px 6px; border-radius: 999px; background: var(--paper); color: var(--muted); }
 .switch button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .switch button[aria-selected="true"] span { background: var(--accent); color: var(--panel); }
+
+/* ---------- DSA step-through visualizer ---------- */
+.stepper { display: grid; gap: 12px; }
+.st-inputs { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.st-inputs .field { flex: 1 1 180px; }
+.st-inputs input { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; }
+.st-presets { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.st-presets button { font-size: 12px; padding: 6px 9px; }
+.st-error { color: var(--bad); font-size: 14px; }
+.st-main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 760px) { .st-main { grid-template-columns: minmax(0, 1fr); } }
+.st-stage { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 12px; min-height: 140px; align-content: start; }
+.st-scroll { overflow-x: auto; }
+.st-side { display: grid; gap: 10px; }
+.st-code { margin: 0; font: 500 12.5px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 0; overflow-x: auto; }
+.st-code .ln { display: block; padding: 0 12px 0 0; white-space: pre; border-left: 3px solid transparent; }
+.st-code .ln i { display: inline-block; width: 30px; text-align: right; padding-right: 10px; color: var(--muted); font-style: normal; opacity: .7; }
+.st-code .ln.on { background: var(--accent-soft); border-left-color: var(--accent); color: var(--ink); font-weight: 600; }
+.st-vars { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-vars span { font: 500 12px/1 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+.st-vars b { color: var(--accent); margin-right: 4px; }
+.st-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.st-bar button { padding: 8px 11px; }
+.st-scrub { flex: 1 1 140px; accent-color: var(--accent); }
+.st-count { font-size: 12px; color: var(--muted); min-width: 90px; text-align: right; }
+.st-msg { min-height: 1.6em; font-size: 15px; padding: 10px 12px; border-radius: var(--radius); background: var(--accent-soft); max-width: none; }
+.st-msg b.ok { color: var(--ok); } .st-msg b.bad { color: var(--bad); }
+.problem { display: grid; gap: 16px; }
+.problem .qbox { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; background: var(--panel); }
+.problem .qbox h3 { font-size: 13px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.io { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.io div { font: 500 13px/1.5 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+.io div span { display: block; font: 600 10px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+details.hint { border: 1px dashed var(--line); border-radius: var(--radius); padding: 10px 14px; }
+details.hint summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+details.hint[open] summary { margin-bottom: 8px; }
+.cx { display: flex; flex-wrap: wrap; gap: 8px; }
+.cx span { font: 600 12px/1 var(--mono); padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.cx span.good { color: var(--ok); border-color: currentColor; }
+.cx span.meh { color: var(--bad); border-color: currentColor; }
+pre.tmpl { margin: 0; font: 500 13px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; }
+pre.tmpl .c { color: var(--muted); }

@@ -87,3 +87,39 @@ window.QUESTIONS = [
   { slug: "google-docs", title: "Design Google Docs", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
   { slug: "dropbox", title: "Design Dropbox", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." }
 ];
+
+// DSA patterns, grouped by data structure. Each pattern page teaches the idea, how to spot it,
+// a template, and several problems with step-through visualizations of the question and the answer.
+window.DSA = [
+  { area: "Array", patterns: [
+    { slug: "two-pointers", title: "Two Pointers", status: "ready",
+      blurb: "Direct, reduction and subproblem variants: palindromes, pair sums, the water container and three sum, stepped line by line.",
+      problems: ["Palindrome check", "Pair with target sum", "Container with most water", "Three sum"] },
+    { slug: "sliding-window", title: "Sliding Window", status: "planned", blurb: "Fixed and variable windows over a subarray, grown and shrunk in one pass." },
+    { slug: "simultaneous-traversal", title: "Simultaneous Traversal", status: "planned", blurb: "Walk two sorted arrays at once to merge, intersect or match subsequences." },
+    { slug: "intervals", title: "Interval Merging and Overlap", status: "planned", blurb: "Sort by start, merge overlaps, and sweep a line to count meeting rooms." }
+  ] },
+  { area: "Linked List", patterns: [
+    { slug: "fast-slow", title: "Fast and Slow Pointers", status: "planned", blurb: "Find cycles and middles with pointers moving at different speeds." },
+    { slug: "reversal", title: "In-place Reversal", status: "planned", blurb: "Rewire next pointers to reverse a list or a segment of it." }
+  ] },
+  { area: "Stack", patterns: [
+    { slug: "monotonic-stack", title: "Monotonic Stack", status: "planned", blurb: "Next greater element, daily temperatures and the largest rectangle." }
+  ] },
+  { area: "Binary Search", patterns: [
+    { slug: "binary-search", title: "Binary Search on the Answer", status: "planned", blurb: "Halve a sorted range, or halve the space of possible answers." }
+  ] },
+  { area: "Tree", patterns: [
+    { slug: "tree-traversal", title: "DFS and BFS on Trees", status: "planned", blurb: "Preorder, inorder, postorder and level order, with the call stack drawn." }
+  ] },
+  { area: "Heap", patterns: [
+    { slug: "top-k", title: "Top K and Two Heaps", status: "planned", blurb: "Keep the k largest with a min-heap, and a running median with two heaps." }
+  ] },
+  { area: "Graph", patterns: [
+    { slug: "graph-search", title: "BFS, Topological Sort and Union-Find", status: "planned", blurb: "Shortest paths in unweighted graphs, dependency order and connected groups." }
+  ] },
+  { area: "Recursion and DP", patterns: [
+    { slug: "backtracking", title: "Backtracking", status: "planned", blurb: "Build subsets and permutations by choosing, exploring and undoing." },
+    { slug: "dynamic-programming", title: "Dynamic Programming", status: "planned", blurb: "Fill a table from smaller subproblems: stairs, grids and knapsack." }
+  ] }
+];

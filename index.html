@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="shared/lab.css?v=5">
+<link rel="stylesheet" href="shared/lab.css?v=6">
 <style>
   .hero { display: grid; gap: 14px; padding-block: 12px 4px; }
   .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); }
@@ -49,12 +49,13 @@
 <body>
 <main class="wrap">
   <header class="hero">
-    <span class="eyebrow">Concept visualizer · <span id="count"></span></span>
+    <span class="eyebrow">Concepts, design questions and DSA patterns · <span id="count"></span></span>
     <h1>Under the <span>Hood</span></h1>
     <p class="lede">Working models of the algorithms and systems behind everyday software. Each topic is a small simulation you can poke at: add servers, crash nodes, change parameters, and watch what happens.</p>
     <div class="switch" role="tablist" aria-label="Browse">
       <button role="tab" id="tab-concepts" aria-controls="concepts" aria-selected="true" data-panel="concepts">Concepts <span id="nConcepts"></span></button>
       <button role="tab" id="tab-questions" aria-controls="questions" aria-selected="false" data-panel="questions">Design questions <span id="nQuestions"></span></button>
+      <button role="tab" id="tab-dsa" aria-controls="dsa" aria-selected="false" data-panel="dsa">DSA patterns <span id="nDsa"></span></button>
     </div>
   </header>
 
@@ -78,6 +79,15 @@
     <div class="qgrid" id="qready"></div>
     <h3 style="margin-top:8px">Coming next</h3>
     <ul class="planned" id="qplanned"></ul>
+  </section>
+
+  <section id="dsa" role="tabpanel" aria-labelledby="tab-dsa" hidden style="display:grid;gap:14px">
+    <div class="section-head">
+      <h2>DSA patterns</h2>
+      <span class="eyebrow">Grouped by data structure</span>
+    </div>
+    <p style="color:var(--muted)">Learn the pattern, not the problem. Each page explains the idea from first principles, how to spot it in a question, and a template. Then every problem shows the question visually and steps through the answer one line of code at a time, with inputs you can change. The pattern-first structure is inspired by Codeintuition.</p>
+    <div id="dsaList" style="display:grid;gap:22px"></div>
   </section>
 
   <footer>Every topic is one self-contained HTML file in <span class="mono">topics/</span>. No build step.</footer>
@@ -177,17 +187,37 @@
   document.getElementById("count").textContent += ` · ${nQ} design question${nQ === 1 ? "" : "s"}`;
   document.getElementById("nConcepts").textContent = ready.length;
   document.getElementById("nQuestions").textContent = nQ;
+  const dsa = window.DSA || [];
+  const dsaReady = dsa.flatMap(g => g.patterns).filter(p => p.status === "ready").length;
+  document.getElementById("nDsa").textContent = dsaReady;
+  const arrGlyph = `<svg viewBox="0 0 400 200" aria-hidden="true">${[1, 3, 4, 6, 8, 11].map((v, k) => `<rect x="${62 + k * 48}" y="72" width="40" height="40" rx="6" fill="${k === 2 || k === 3 ? "var(--ok)" : "var(--panel)"}" stroke="${k === 2 || k === 3 ? "var(--ok)" : "var(--line)"}" stroke-width="1.5"/><text x="${82 + k * 48}" y="97" text-anchor="middle" font-family="var(--mono)" font-size="15" font-weight="600" fill="${k === 2 || k === 3 ? "var(--panel)" : "var(--ink)"}">${v}</text>`).join("")}<text x="178" y="140" text-anchor="middle" font-family="var(--mono)" font-size="13" font-weight="700" fill="var(--accent)">▲ L</text><text x="226" y="140" text-anchor="middle" font-family="var(--mono)" font-size="13" font-weight="700" fill="var(--amber)">▲ R</text></svg>`;
+  document.getElementById("dsaList").innerHTML = dsa.map(g => `
+    <div style="display:grid;gap:10px">
+      <h3 style="font-size:1.15rem">${g.area}</h3>
+      ${g.patterns.filter(p => p.status === "ready").length ? `<div class="qgrid">${g.patterns.filter(p => p.status === "ready").map(p => `
+        <a class="topic" href="dsa/${p.slug}.html">
+          <div class="thumb">${arrGlyph}</div>
+          <div class="body">
+            <div class="meta"><span class="eyebrow">Pattern · ${p.problems.length} problems</span><span class="pill ready">Live</span></div>
+            <h3 style="font-size:1.3rem">${p.title}</h3>
+            <p>${p.blurb}</p>
+            <span class="used">${p.problems.join(" · ")}</span>
+          </div>
+        </a>`).join("")}</div>` : ""}
+      ${g.patterns.filter(p => p.status !== "ready").length ? `<ul class="planned">${g.patterns.filter(p => p.status !== "ready").map(p => `<li><span class="eyebrow">Coming next</span><h3>${p.title}</h3><p>${p.blurb}</p></li>`).join("")}</ul>` : ""}
+    </div>`).join("");
+
   const tabs = [...document.querySelectorAll('.switch [role="tab"]')];
   function show(name, push) {
     tabs.forEach(t => t.setAttribute("aria-selected", t.dataset.panel === name));
-    ["concepts", "questions"].forEach(id => { document.getElementById(id).hidden = id !== name; });
-    if (push) history.replaceState(null, "", name === "questions" ? "#questions" : location.pathname);
+    ["concepts", "questions", "dsa"].forEach(id => { document.getElementById(id).hidden = id !== name; });
+    if (push) history.replaceState(null, "", name === "concepts" ? location.pathname : "#" + name);
   }
   tabs.forEach(t => t.addEventListener("click", () => show(t.dataset.panel, true)));
   tabs.forEach((t, i) => t.addEventListener("keydown", e => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); show(n.dataset.panel, true); }
   }));
-  show(location.hash === "#questions" ? "questions" : "concepts", false);
+  show(["#questions", "#dsa"].includes(location.hash) ? location.hash.slice(1) : "concepts", false);
 
   document.getElementById("planned").innerHTML = planned.map(t => `
     <li><span class="eyebrow">${t.area}</span><h3>${t.title}</h3><p>${t.blurb}</p></li>`).join("");

@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Two Pointers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=6">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 12px; }
+  .triplets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .triplets span { font: 600 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; background: var(--ok); color: var(--panel); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="two-pointers" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Array</span>
+  </div>
+
+  <header class="intro">
+    <h1>Two Pointers</h1>
+    <p class="lede">Keep two indices into the same array and move them toward each other, or together, based on what you see. Each step throws away at least one element for good, so a problem that looks like it needs every pair can be solved in a single pass.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Why two indices beat a double loop</h2>
+    <p>Many array problems ask about pairs: two numbers that add to a target, two walls that hold the most water, two characters that should match. The obvious approach checks every pair with two nested loops, which is n(n−1)/2 checks. For 10,000 elements that is about 50 million.</p>
+    <p>Two pointers works when the array has an <b>order</b> you can exploit, such as sorted values or mirrored positions. Then one comparison tells you which pointer can never be part of the answer, so you move it and never look back. Each step retires one element, so the whole scan takes at most n steps.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Direct</h3><p>Pointers start at both ends and walk inward, comparing mirrored positions. There is no decision to make; both always move.</p><a href="#p1">Problem 1: Palindrome check</a></div>
+      <div><h3>Reduction</h3><p>On sorted data, compare the pair against a goal and move only the pointer that cannot help. This turns an O(n²) search into O(n).</p><a href="#p2">Problem 2: Pair with target sum</a><a href="#p3">Problem 3: Container with most water</a></div>
+      <div><h3>Subproblem</h3><p>Fix one element with an outer loop, then solve the rest as a two-pointer reduction. Three-element problems become O(n²) instead of O(n³).</p><a href="#p4">Problem 4: Three numbers summing to zero</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is a <b>sorted</b> array, or sorting it doesn't break the question.</li>
+      <li>You are looking for a <b>pair</b> (or a triple) that meets a condition such as a target sum.</li>
+      <li>The answer depends on <b>both ends</b> of a range: palindromes, reversing, widths between walls.</li>
+      <li>You are asked to do it <b>in place</b> or with O(1) extra memory. A hash map would also work for many pair problems, but uses O(n) space.</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signal:</b> if the order of elements matters and you can't sort (for example "return the original indices" on unsorted data), a hash map is usually the better tool.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">L, R = 0, len(a) - 1
+while L &lt; R:
+    <span class="c"># look at a[L] and a[R]</span>
+    if found(a[L], a[R]):
+        return answer
+    if a[L] can't be part of any answer with anything in a[L+1..R]:
+        L += 1
+    else:                  <span class="c"># then a[R] can't be part of any answer</span>
+        R -= 1</pre>
+    <p>The only thing that changes between problems is the rule for which side to discard. Your job in an interview is to <b>state that rule and prove it</b>. The proof is usually one sentence about sorted order.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Palindrome check" data-num="P1">
+    <span class="eyebrow">Problem 1 · Direct</span>
+    <h2>Is it a palindrome?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a string, return <span class="mono">true</span> if it reads the same forwards and backwards, ignoring case and any character that isn't a letter or digit.</p>
+      <div class="io"><div><span>Input</span>"No lemon, no melon"</div><div><span>Output</span>true</div><div><span>Why</span>letters only: nolemonnomelon</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do the two ends tell you?</summary><p>The first real character must equal the last real character, the second must equal the second-to-last, and so on. Walk inward from both ends and skip anything that isn't a letter or digit. You never need to build a cleaned copy of the string.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Cleaning into a new string first: O(n) space</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Pair with target sum" data-num="P2">
+    <span class="eyebrow">Problem 2 · Reduction</span>
+    <h2>Pair with a target sum in a sorted array</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given an array sorted in increasing order and a target, return the indices of two different elements that add up to the target, or report that none exist.</p>
+      <div class="io"><div><span>Input</span>[1, 3, 4, 6, 8, 11], target 10</div><div><span>Output</span>[2, 3] (4 + 6)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: if the sum is too small, what can you rule out?</summary><p>If <span class="mono">a[L] + a[R]</span> is less than the target, then <span class="mono">a[L]</span> plus <i>any</i> element at or before R is also too small, because a[R] is the largest of them. So a[L] can't be in any answer. Move L right. The same logic in reverse rules out a[R] when the sum is too large.</p></details>
+    <div id="viz2"></div>
+    <div class="aside"><p><b>Read the grid:</b> each cell is one pair (row = L, column = R). Two nested loops would visit every cell in the upper triangle. Each two-pointer step crosses off a whole row or column at once, and the dark cell is the pair being checked.</p></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Brute force: O(n²) pairs</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Container with most water" data-num="P3">
+    <span class="eyebrow">Problem 3 · Reduction</span>
+    <h2>Container with the most water</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Each number is the height of a vertical wall, one unit apart. Pick two walls. Together with the ground they hold water up to the shorter wall. Return the largest amount of water any pair can hold.</p>
+      <div class="io"><div><span>Input</span>[1, 8, 6, 2, 5, 4, 8, 3, 7]</div><div><span>Output</span>49 (walls 1 and 8: min(8, 7) × 7)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: which wall is safe to give up?</summary><p>Start with the widest pair. The water is limited by the shorter wall. Moving the taller wall inward can only make the width smaller while the height stays capped by the same short wall, so it can never help. The shorter wall has already given its best possible answer, so discard it.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Brute force: O(n²)</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Three numbers summing to zero" data-num="P4">
+    <span class="eyebrow">Problem 4 · Subproblem</span>
+    <h2>All triplets that sum to zero</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given an array of integers, return every distinct triplet of values that adds up to zero. Each triplet should appear only once.</p>
+      <div class="io"><div><span>Input</span>[-1, 0, 1, 2, -1, -4]</div><div><span>Output</span>[[-1, -1, 2], [-1, 0, 1]]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: how do you turn three into two?</summary><p>Sort the array. Fix the first number <span class="mono">a[i]</span>. You now need two numbers after it that sum to <span class="mono">−a[i]</span>, which is exactly Problem 2. Skip equal neighbours for i and L so each triplet is reported once.</p></details>
+    <div id="viz4"></div>
+    <div class="cx"><span class="good">Time O(n²)</span><span class="good">Extra space O(1) besides the output</span><span class="meh">Brute force: O(n³)</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why you never skip the answer</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>If an answer exists, it lies inside the current range <span class="mono">[L, R]</span>. It's true at the start, when the range is the whole array.</p></div>
+      <div><span class="q">Each step</span><p>A pointer moves only after we've shown its element pairs with nothing left in the range. So the answer is still inside <span class="mono">[L, R]</span> after the move.</p></div>
+      <div><span class="q">Termination</span><p>Every step shrinks the range by one, so the loop ends after at most n − 1 steps. That's the O(n).</p></div>
+      <div><span class="q">In an interview</span><p>Say the invariant out loud, then give the one-line reason for each move. Interviewers look for that argument more than the code.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  // ---------- The idea: a static picture ----------
+  document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawArray([1, 3, 4, 6, 8, 11], { ptr: { L: 0, R: 5 }, mark: { 0: "active", 5: "active" } })}<p style="font-size:14px;color:var(--muted)">One comparison of a[L] and a[R] decides which end to discard. Six elements need at most five steps.</p></div>`;
+
+  // ---------- Problem 1: palindrome ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def is_palindrome(s):",
+      "  L, R = 0, len(s) - 1",
+      "  while L < R:",
+      "    if not s[L].isalnum(): L += 1; continue",
+      "    if not s[R].isalnum(): R -= 1; continue",
+      "    if s[L].lower() != s[R].lower(): return False",
+      "    L += 1; R -= 1",
+      "  return True"
+    ],
+    inputs: [{ key: "s", label: "String", value: "No lemon, no melon" }],
+    presets: [
+      { label: "No lemon, no melon", values: { s: "No lemon, no melon" } },
+      { label: "race a car (not one)", values: { s: "race a car" } },
+      { label: "Was it a cat I saw?", values: { s: "Was it a cat I saw?" } }
+    ],
+    build({ s }) {
+      if (!s.length) return { error: "Type a string." };
+      if (s.length > 24) return { error: "Use at most 24 characters so every step fits on screen." };
+      const a = [...s], frames = [], done = {}, alnum = c => /[a-z0-9]/i.test(c);
+      let L = 0, R = a.length - 1;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, a, L, R, mark: { ...done, ...mark }, vars: { L, R, "s[L]": `"${a[L] ?? ""}"`, "s[R]": `"${a[R] ?? ""}"` } });
+      snap(1, "Start with L at the first character and R at the last.");
+      while (L < R) {
+        snap(2, `L = ${L} is left of R = ${R}, so keep going.`);
+        if (!alnum(a[L])) { snap(3, `"${a[L]}" isn't a letter or digit. Skip it by moving L right.`, { [L]: "skip" }); done[L] = "done"; L++; continue; }
+        if (!alnum(a[R])) { snap(4, `"${a[R]}" isn't a letter or digit. Skip it by moving R left.`, { [R]: "skip" }); done[R] = "done"; R--; continue; }
+        if (a[L].toLowerCase() !== a[R].toLowerCase()) {
+          snap(5, `"${a[L]}" and "${a[R]}" differ. <b class="bad">Return false</b>: it's not a palindrome.`, { [L]: "miss", [R]: "miss" });
+          return { frames };
+        }
+        snap(5, `"${a[L]}" matches "${a[R]}" (ignoring case).`, { [L]: "hit", [R]: "hit" });
+        done[L] = "done"; done[R] = "done"; L++; R--;
+        snap(6, "Both ends are checked. Move both pointers inward.");
+      }
+      snap(7, `The pointers met without a mismatch. <b class="ok">Return true</b>.`);
+      return { frames };
+    },
+    draw(f) { return drawArray(f.a, { ptr: { L: f.L, R: f.R }, mark: f.mark }); }
+  });
+
+  // ---------- Problem 2: pair with target sum ----------
+  function drawGrid(n, a, f) {
+    if (n > 10) return `<p style="font-size:13px;color:var(--muted)">The pair grid is shown for 10 elements or fewer.</p>`;
+    const c = 26, off = 30, W = off + n * c + 4;
+    let s = "";
+    for (let j = 0; j < n; j++) s += `<text x="${off + j * c + c / 2}" y="18" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${a[j]}</text>`;
+    for (let i = 0; i < n; i++) {
+      s += `<text x="${off - 8}" y="${off + i * c + c / 2 + 4}" text-anchor="end" font-family="var(--mono)" font-size="10" fill="var(--muted)">${a[i]}</text>`;
+      for (let j = 0; j < n; j++) {
+        const x = off + j * c, y = off + i * c, key = i + "," + j;
+        if (j <= i) { s += `<rect x="${x + 1}" y="${y + 1}" width="${c - 2}" height="${c - 2}" rx="3" fill="none"/>`; continue; }
+        const cur = f.L === i && f.R === j, found = f.found && cur, gone = f.gone.has(key);
+        const fill = found ? "var(--ok)" : cur ? "var(--accent)" : gone ? "var(--paper)" : "var(--panel)";
+        s += `<rect x="${x + 1}" y="${y + 1}" width="${c - 2}" height="${c - 2}" rx="3" fill="${fill}" stroke="${gone && !cur ? "var(--line)" : "var(--muted)"}" stroke-width="1"/>`;
+        if (gone && !cur) s += `<path d="M${x + 7} ${y + 7} l${c - 14} ${c - 14}" stroke="var(--line)" stroke-width="1.5"/>`;
+      }
+    }
+    s += `<text x="${off}" y="${off + n * c + 16}" font-family="var(--mono)" font-size="10" fill="var(--muted)">rows = L, columns = R</text>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${off + n * c + 22}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Grid of all pairs">${s}</svg></div>`;
+  }
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def pair_sum(a, target):",
+      "  L, R = 0, len(a) - 1",
+      "  while L < R:",
+      "    s = a[L] + a[R]",
+      "    if s == target: return [L, R]",
+      "    if s < target: L += 1",
+      "    else: R -= 1",
+      "  return None"
+    ],
+    inputs: [{ key: "a", label: "Sorted array", value: "1, 3, 4, 6, 8, 11" }, { key: "t", label: "Target", value: "10" }],
+    presets: [
+      { label: "Found in the middle", values: { a: "1, 3, 4, 6, 8, 11", t: "10" } },
+      { label: "No pair exists", values: { a: "2, 5, 9, 12, 15", t: "13" } },
+      { label: "Needs both ends", values: { a: "-4, -1, 0, 3, 7, 10, 12", t: "8" } }
+    ],
+    build({ a, t }) {
+      const p = parseNums(a); if (p.error) return p;
+      const arr = p.nums, target = Number(t);
+      if (!Number.isFinite(target)) return { error: "Enter a whole-number target." };
+      if (arr.some((x, i) => i && x < arr[i - 1])) return { error: "The array must be sorted in increasing order. This pattern relies on it." };
+      const n = arr.length, frames = [], gone = new Set();
+      let L = 0, R = n - 1, checks = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, arr, L, R, gone: new Set(gone), vars: { L, R, target, checks, "brute force": n * (n - 1) / 2 }, ...extra });
+      snap(1, "Start with the smallest element (L) and the largest (R).");
+      while (L < R) {
+        const s = arr[L] + arr[R]; checks++;
+        snap(3, `a[${L}] + a[${R}] = ${arr[L]} + ${arr[R]} = ${s}.`);
+        if (s === target) { snap(4, `${s} equals the target. <b class="ok">Return [${L}, ${R}]</b> after only ${checks} checks.`, { found: true }); return { frames }; }
+        if (s < target) {
+          for (let j = L + 1; j <= R; j++) gone.add(L + "," + j);
+          snap(5, `${s} < ${target}. Even the largest partner a[${R}] isn't enough for a[${L}] = ${arr[L]}, so rule out the whole row and move L right.`);
+          L++;
+        } else {
+          for (let i = L; i < R; i++) gone.add(i + "," + R);
+          snap(6, `${s} > ${target}. Even the smallest partner a[${L}] is too much for a[${R}] = ${arr[R]}, so rule out the whole column and move R left.`);
+          R--;
+        }
+      }
+      snap(7, `The pointers met. <b class="bad">No pair</b> adds up to ${target}. That took ${checks} checks instead of ${n * (n - 1) / 2}.`);
+      return { frames };
+    },
+    draw(f) {
+      const mark = {}; if (f.L < f.R) { mark[f.L] = f.found ? "hit" : "active"; mark[f.R] = f.found ? "hit" : "active"; }
+      return `<div class="stage-row"><span class="stage-label">Array</span>${drawArray(f.arr, { ptr: { L: f.L, R: f.R }, mark })}<span class="stage-label">Every possible pair</span>${drawGrid(f.arr.length, f.arr, f)}</div>`;
+    }
+  });
+
+  // ---------- Problem 3: container with most water ----------
+  function drawBars(h, f) {
+    const n = h.length, bw = Math.max(22, Math.min(46, Math.floor(600 / n) - 8)), gap = 8, maxH = Math.max(...h, 1), H = 170, base = 190;
+    const W = n * (bw + gap) + 20, y = v => base - v / maxH * H, x = k => 10 + k * (bw + gap);
+    let s = "";
+    if (f.best) {
+      const [bl, br, bh] = f.best;
+      s += `<rect x="${x(bl) + bw / 2}" y="${y(bh)}" width="${x(br) - x(bl)}" height="${base - y(bh)}" fill="none" stroke="var(--ok)" stroke-width="2" stroke-dasharray="5 4"/>`;
+    }
+    if (f.L < f.R) {
+      const wh = Math.min(h[f.L], h[f.R]);
+      s += `<rect x="${x(f.L) + bw / 2}" y="${y(wh)}" width="${x(f.R) - x(f.L)}" height="${base - y(wh)}" fill="var(--accent)" opacity=".22"/>`;
+    }
+    h.forEach((v, k) => {
+      const c = k === f.L ? "var(--accent)" : k === f.R ? "var(--amber)" : "var(--muted)";
+      s += `<rect x="${x(k)}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="3" fill="${c}" opacity="${k === f.L || k === f.R ? 1 : .45}"/>`;
+      s += `<text x="${x(k) + bw / 2}" y="${y(v) - 5}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--ink)">${v}</text>`;
+      s += `<text x="${x(k) + bw / 2}" y="${base + 14}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${k}</text>`;
+      if (k === f.L || k === f.R) s += `<text x="${x(k) + bw / 2}" y="${base + 30}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${k === f.L ? "L" : "R"}</text>`;
+    });
+    s += `<line x1="6" y1="${base}" x2="${W - 6}" y2="${base}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${base + 36}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Wall heights with water between L and R">${s}</svg></div>
+      <p style="font-size:13px;color:var(--muted)">Blue fill: water between L and R now. Green dashed outline: the best found so far.</p>`;
+  }
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def max_water(h):",
+      "  L, R, best = 0, len(h) - 1, 0",
+      "  while L < R:",
+      "    area = min(h[L], h[R]) * (R - L)",
+      "    best = max(best, area)",
+      "    if h[L] < h[R]: L += 1",
+      "    else: R -= 1",
+      "  return best"
+    ],
+    inputs: [{ key: "h", label: "Wall heights", value: "1, 8, 6, 2, 5, 4, 8, 3, 7" }],
+    presets: [
+      { label: "Classic example", values: { h: "1, 8, 6, 2, 5, 4, 8, 3, 7" } },
+      { label: "Tall walls in the middle", values: { h: "2, 3, 10, 5, 7, 8, 9" } },
+      { label: "Rising", values: { h: "1, 2, 3, 4, 5, 6" } }
+    ],
+    build({ h }) {
+      const p = parseNums(h); if (p.error) return p;
+      const a = p.nums; if (a.some(x => x < 0)) return { error: "Heights can't be negative." };
+      const frames = []; let L = 0, R = a.length - 1, best = 0, bestPair = null;
+      const snap = (line, msg, area) => frames.push({ line, msg, h: a, L, R, best: bestPair, vars: { L, R, area: area ?? "–", best } });
+      snap(1, "Start with the widest container: the first and last walls.");
+      while (L < R) {
+        const area = Math.min(a[L], a[R]) * (R - L);
+        snap(3, `Water = min(${a[L]}, ${a[R]}) × (${R} − ${L}) = ${area}.`, area);
+        if (area > best) { best = area; bestPair = [L, R, Math.min(a[L], a[R])]; snap(4, `${area} is the new best.`, area); }
+        else snap(4, `${area} doesn't beat the best of ${best}.`, area);
+        if (a[L] < a[R]) { snap(5, `The left wall (${a[L]}) is shorter. Every narrower container using it holds less, so discard it: L moves right.`, area); L++; }
+        else { snap(6, `The right wall (${a[R]}) is ${a[L] === a[R] ? "the same height" : "shorter"}. Discard it: R moves left.`, area); R--; }
+      }
+      snap(7, `The pointers met. <b class="ok">The most water is ${best}</b>.`);
+      return { frames };
+    },
+    draw(f) { return drawBars(f.h, f); }
+  });
+
+  // ---------- Problem 4: three sum ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def three_sum(a):",
+      "  a.sort(); res = []",
+      "  for i in range(len(a) - 2):",
+      "    if i > 0 and a[i] == a[i-1]: continue",
+      "    L, R = i + 1, len(a) - 1",
+      "    while L < R:",
+      "      s = a[i] + a[L] + a[R]",
+      "      if s == 0:",
+      "        res.append([a[i], a[L], a[R]])",
+      "        L += 1",
+      "        while L<R and a[L]==a[L-1]: L += 1",
+      "      elif s < 0: L += 1",
+      "      else: R -= 1",
+      "  return res"
+    ],
+    inputs: [{ key: "a", label: "Array (any order)", value: "-1, 0, 1, 2, -1, -4" }],
+    presets: [
+      { label: "Classic example", values: { a: "-1, 0, 1, 2, -1, -4" } },
+      { label: "Lots of repeats", values: { a: "0, 0, 0, 0, -2, 2, 1, -1" } },
+      { label: "No answer", values: { a: "1, 2, -5, 8, 9" } }
+    ],
+    build({ a }) {
+      const p = parseNums(a, { min: 3, max: 12 }); if (p.error) return p;
+      const arr = [...p.nums].sort((x, y) => x - y), n = arr.length, frames = [], res = [];
+      let i = -1, L = -1, R = -1;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, arr, i, L, R, res: res.map(t => t.slice()), mark, vars: i < 0 ? { found: res.length } : { i, L: L < 0 ? "–" : L, R: R < 0 ? "–" : R, found: res.length } });
+      snap(1, `Sort first: [${arr.join(", ")}]. Sorting is what makes the two-pointer step valid.`);
+      for (i = 0; i < n - 2; i++) {
+        L = -1; R = -1;
+        if (i > 0 && arr[i] === arr[i - 1]) { snap(3, `a[${i}] = ${arr[i]} equals the previous value. Any triplet starting with it was already found, so skip.`, { [i]: "skip" }); continue; }
+        L = i + 1; R = n - 1;
+        snap(4, `Fix a[${i}] = ${arr[i]}. Now find two numbers after it that sum to ${-arr[i]}.`, { [i]: "active" });
+        while (L < R) {
+          const s = arr[i] + arr[L] + arr[R];
+          if (s === 0) {
+            res.push([arr[i], arr[L], arr[R]]);
+            snap(8, `${arr[i]} + ${arr[L]} + ${arr[R]} = 0. <b class="ok">Found a triplet.</b>`, { [i]: "active", [L]: "hit", [R]: "hit" });
+            L++;
+            while (L < R && arr[L] === arr[L - 1]) { snap(10, `a[${L}] = ${arr[L]} repeats the last L value. Skip it to avoid a duplicate triplet.`, { [i]: "active", [L]: "skip" }); L++; }
+          } else if (s < 0) { snap(11, `${arr[i]} + ${arr[L]} + ${arr[R]} = ${s}, too small. Move L right.`, { [i]: "active", [L]: "miss" }); L++; }
+          else { snap(12, `${arr[i]} + ${arr[L]} + ${arr[R]} = ${s}, too big. Move R left.`, { [i]: "active", [R]: "miss" }); R--; }
+        }
+      }
+      i = -1; L = -1; R = -1;
+      snap(13, res.length ? `<b class="ok">Done: ${res.length} distinct triplet${res.length > 1 ? "s" : ""}.</b>` : `<b class="bad">Done: no triplet sums to zero.</b>`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawArray(f.arr, { ptr: { i: f.i, L: f.L, R: f.R }, mark: f.mark })}
+        <span class="stage-label">Triplets found</span><div class="triplets">${f.res.length ? f.res.map(t => `<span>[${t.join(", ")}]</span>`).join("") : `<em style="color:var(--muted);font-size:13px">none yet</em>`}</div></div>`;
+    }
+  });
+</script>
+</body>
+</html>
