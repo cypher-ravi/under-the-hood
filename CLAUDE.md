@@ -22,6 +22,6 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 - `shared/stepper.js`: `Stepper(root, { code, inputs, presets, build(values) -> {frames}|{error}, draw(frame) })`, plus `drawArray(values, {ptr, mark})` and `parseNums(text)`. `dsa/two-pointers.html` is the reference example.
 
 ## Roadmap (next up first)
-- DSA: Sliding Window (fixed + variable), Simultaneous Traversal, Interval Merging and Overlap, then Linked List, Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
+- DSA: Simultaneous Traversal, Interval Merging and Overlap, then Linked List, Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
 - Design questions: Ticketmaster, Rate Limiter, WhatsApp, News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
 - Concepts: Geohash and Quadtrees, Quorum and CAP, LSM Tree, B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.

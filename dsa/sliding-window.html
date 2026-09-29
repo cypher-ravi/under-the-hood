@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sliding Window</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=6">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 12px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { font: 600 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; background: var(--ok); color: var(--panel); }
+  .chips em { color: var(--muted); font-size: 13px; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .counts div { font: 600 12px/1.35 var(--mono); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 5px 8px; text-align: center; min-width: 44px; background: var(--panel); }
+  .counts div b { display: block; font-size: 15px; }
+  .counts div small { color: var(--muted); font-weight: 500; }
+  .counts div.eq { border-color: var(--ok); }
+  .counts div.eq b { color: var(--ok); }
+  .counts div.ne b { color: var(--bad); }
+  .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .tmpl-pair h3 { font-size: 14px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="sliding-window" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Array</span>
+  </div>
+
+  <header class="intro">
+    <h1>Sliding Window</h1>
+    <p class="lede">Keep a contiguous range of the array and a small summary of what is inside it. Move the right edge to take one element in and the left edge to let one go, updating the summary as you go. Nothing gets recomputed from scratch, so every subarray you care about is checked in one pass.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Neighbouring subarrays share almost everything</h2>
+    <p>Take the subarray from index 2 to 5 and the one from 3 to 6. They share indices 3, 4 and 5. If you already know the sum of the first, the sum of the second is that sum, <b>plus</b> the element that came in on the right, <b>minus</b> the one that left on the left. That is two operations, not four.</p>
+    <p>A brute-force scan recomputes every range from scratch, which costs O(n·k) for windows of size k, or O(n²) when the size can vary. A sliding window keeps a running summary (a sum, a letter count, a set) and patches it by one element at each move. Each index enters the window once and leaves at most once, so the whole scan is O(n).</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Fixed size</h3><p>The window length k is given. Every step adds one on the right and drops one on the left, so the size never changes.</p><a href="#p1">Problem 1: Best sum of k in a row</a><a href="#p2">Problem 2: Find every anagram</a></div>
+      <div><h3>Variable, longest</h3><p>Grow the right edge as long as the window stays valid. When it breaks, shrink from the left until it is valid again, then record the size.</p><a href="#p3">Problem 3: Longest run without repeats</a></div>
+      <div><h3>Variable, shortest</h3><p>Grow until the window first becomes valid, then shrink from the left for as long as it stays valid, recording each size on the way.</p><a href="#p4">Problem 4: Shortest subarray reaching a target</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The question is about a <b>contiguous</b> piece of the input: a subarray, a substring, a run of days.</li>
+      <li>It asks for the <b>longest</b>, <b>shortest</b>, <b>maximum</b>, <b>minimum</b> or <b>count</b> of such pieces.</li>
+      <li>A window size <b>k</b> is given outright (fixed window), or there is a condition like "at most two distinct", "no repeats" or "sum at least T" (variable window).</li>
+      <li>The condition is <b>monotone</b>: if a window breaks it, every larger window containing it breaks it too. That is what makes shrinking from the left safe.</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signals:</b> if the elements don't have to be next to each other (a subsequence), you are probably looking at DP. If a sum condition allows negative numbers, growing the window can make the sum smaller, so monotonicity fails; prefix sums with a hash map are the usual fix.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The two skeletons you adapt</h2>
+    <div class="tmpl-pair">
+      <div><h3>Fixed size k</h3>
+<pre class="tmpl">state = summary(a[0:k])
+record(state)
+for R in range(k, len(a)):
+    add(a[R])          <span class="c"># comes in on the right</span>
+    remove(a[R - k])   <span class="c"># leaves on the left</span>
+    record(state)</pre></div>
+      <div><h3>Variable size</h3>
+<pre class="tmpl">L = 0
+for R in range(len(a)):
+    add(a[R])
+    while window_is_bad():   <span class="c"># or: while still good</span>
+        remove(a[L])
+        L += 1
+    record(R - L + 1)</pre></div>
+    </div>
+    <p>What changes between problems is the <b>state</b> you keep (a sum, a count per letter, a set) and the <b>condition</b> that tells you when to shrink. In an interview, name both before writing code. For "longest" problems you record after shrinking; for "shortest" problems you record inside the shrink loop, while the window is still valid.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Best sum of k in a row" data-num="P1">
+    <span class="eyebrow">Problem 1 · Fixed size</span>
+    <h2>Largest sum of k consecutive numbers</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given an array of integers and a number k, return the largest sum you can get by adding up k elements that sit next to each other.</p>
+      <div class="io"><div><span>Input</span>[2, 1, 5, 1, 3, 2], k = 3</div><div><span>Output</span>9 (5 + 1 + 3)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: how does one window's sum become the next?</summary><p>Moving the window one step right brings in <span class="mono">a[R]</span> and pushes out <span class="mono">a[R − k]</span>. Everything in between stays. So the new sum is the old sum plus one number minus another, no loop over the window needed.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Re-adding every window: O(n·k)</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Find every anagram" data-num="P2">
+    <span class="eyebrow">Problem 2 · Fixed size</span>
+    <h2>Every place an anagram starts</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a text and a shorter pattern, both in lowercase letters, return every index in the text where a rearrangement of the pattern begins.</p>
+      <div class="io"><div><span>Input</span>text "cbaebabacd", pattern "abc"</div><div><span>Output</span>[0, 6] ("cba" and "bac")</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what makes two strings anagrams?</summary><p>They have the same count of each letter. The window must be exactly as long as the pattern, so it is a fixed window. Keep a letter count for the window, add the new right letter, remove the old left letter, and compare with the pattern's counts. Comparing 26 counters is constant work; to go further, track how many letters currently match and update that number instead.</p></details>
+    <div id="viz2"></div>
+    <div class="cx"><span class="good">Time O(n) with a 26-letter alphabet</span><span class="good">Space O(1)</span><span class="meh">Sorting every window: O(n·m log m)</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Longest run without repeats" data-num="P3">
+    <span class="eyebrow">Problem 3 · Variable, longest</span>
+    <h2>Longest substring with no repeated character</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a string, return the length of the longest stretch of consecutive characters in which no character appears twice.</p>
+      <div class="io"><div><span>Input</span>"abcabcbb"</div><div><span>Output</span>3 ("abc")</div></div>
+    </div>
+    <details class="hint"><summary>Think first: when the window breaks, where can it restart?</summary><p>Keep the window's characters in a set. When the new character <span class="mono">s[R]</span> is already inside, no window that still contains the earlier copy can be valid, so drop characters from the left until that copy is gone. Then add <span class="mono">s[R]</span> and record the size. A map from character to last index lets L jump there in one move instead of stepping.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(alphabet)</span><span class="meh">Checking every substring: O(n²) or worse</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Shortest subarray reaching a target" data-num="P4">
+    <span class="eyebrow">Problem 4 · Variable, shortest</span>
+    <h2>Shortest subarray whose sum reaches a target</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given an array of positive integers and a target, return the length of the shortest run of consecutive elements whose sum is at least the target. Return 0 if no run gets there.</p>
+      <div class="io"><div><span>Input</span>[2, 3, 1, 2, 4, 3], target 7</div><div><span>Output</span>2 ([4, 3])</div></div>
+    </div>
+    <details class="hint"><summary>Think first: once the sum is big enough, what should you try?</summary><p>Grow R until the sum reaches the target. That window is valid, so record its length, then see whether it still works with the leftmost element removed. Keep shrinking while it stays valid. Because every number is positive, removing an element always lowers the sum, so once it drops below the target there is no point shrinking further.</p></details>
+    <div id="viz4"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Trying every start: O(n²)</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why the left edge never needs to go back</h2>
+    <div class="qa">
+      <div><span class="q">Monotone rule</span><p>The condition must behave well under growth: if <span class="mono">[L, R]</span> is invalid, then every window that contains it is invalid too. Repeats stay repeats, and with positive numbers a sum only grows.</p></div>
+      <div><span class="q">Invariant</span><p>After each step, L is the smallest start for which <span class="mono">[L, R]</span> is valid. Any start before L was ruled out for some earlier R, and by the rule above it stays ruled out for every larger R. So L only ever moves right.</p></div>
+      <div><span class="q">Cost</span><p>R moves n times. L moves at most n times in total, even though a single step can move it several places. The inner <span class="mono">while</span> loop looks like O(n²) but adds up to O(n) over the whole run.</p></div>
+      <div><span class="q">In an interview</span><p>State the window state, the shrink condition and why it is monotone. Then point out the amortized argument: each element enters once and leaves once.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  // ---------- A window drawn over an array ----------
+  // opts: L, R (window, empty when L > R), mark {index: "in"|"out"|"dup"|"done"}, best [l, r] dashed outline.
+  function drawWindow(values, { L, R, mark = {}, best = null } = {}) {
+    const n = values.length, cw = Math.max(34, Math.min(52, Math.floor(640 / Math.max(n, 1)) - 6)), gap = 6;
+    const W = n * (cw + gap) - gap + 20, x = k => 10 + k * (cw + gap), top = 26;
+    const esc = v => String(v).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const open = L >= 0 && R >= 0 && L <= R && R < n;
+    let s = "";
+    if (best) s += `<rect x="${x(best[0]) - 6}" y="${top - 6}" width="${x(best[1]) - x(best[0]) + cw + 12}" height="${cw + 12}" rx="10" fill="none" stroke="var(--ok)" stroke-width="2" stroke-dasharray="5 4"/>`;
+    if (open) s += `<rect x="${x(L) - 3}" y="${top - 3}" width="${x(R) - x(L) + cw + 6}" height="${cw + 6}" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>`;
+    const stroke = { in: "var(--ok)", out: "var(--bad)", dup: "var(--amber)" };
+    values.forEach((v, k) => {
+      const m = mark[k], inside = open && k >= L && k <= R;
+      const fill = m === "out" ? "var(--paper)" : "var(--panel)";
+      const txt = m === "out" ? "var(--muted)" : "var(--ink)";
+      s += `<rect x="${x(k)}" y="${top}" width="${cw}" height="${cw}" rx="6" fill="${fill}" stroke="${stroke[m] || (inside ? "var(--accent)" : "var(--line)")}" stroke-width="${stroke[m] ? 2.5 : 1.3}"${inside || m ? "" : ` opacity=".6"`}/>`;
+      s += `<text x="${x(k) + cw / 2}" y="${top + cw / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${String(v).length > 3 ? 12 : 16}" font-weight="600" fill="${txt}"${inside || m ? "" : ` opacity=".6"`}>${esc(v)}</text>`;
+      s += `<text x="${x(k) + cw / 2}" y="14" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${k}</text>`;
+    });
+    const ptrs = [["L", L, "var(--accent)"], ["R", R, "var(--amber)"]].filter(([, v]) => v >= 0 && v < n);
+    const used = {};
+    ptrs.forEach(([label, v, c]) => {
+      const cx = x(v) + cw / 2, slot = used[v] = (used[v] || 0) + 1, y = top + cw + 10 + (slot - 1) * 22;
+      s += `<path d="M${cx} ${y} l-5 7 h10 z" fill="${c}"/>`;
+      s += `<text x="${cx}" y="${y + 19}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${label}</text>`;
+    });
+    const H = top + cw + 10 + Math.max(1, ...Object.values(used)) * 22 + 4;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Array with the current window highlighted">${s}</svg></div>`;
+  }
+  const legend = `<p style="font-size:13px;color:var(--muted)">Blue band: the current window. Green border: just came in. Red border: just left. Green dashed outline: the best window so far.</p>`;
+
+  // ---------- The idea: a static picture ----------
+  document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawWindow([4, 2, 7, 1, 5, 3, 6], { L: 2, R: 5, mark: { 1: "out", 5: "in" } })}<p style="font-size:14px;color:var(--muted)">The window moved from [1..4] to [2..5]: 3 came in on the right, 2 left on the left. The sum goes from 15 to 15 + 3 − 2 = 16 without touching 7, 1 or 5.</p></div>`;
+
+  // ---------- Problem 1: max sum of k in a row ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def max_sum(a, k):",
+      "  s = sum(a[:k])",
+      "  best = s",
+      "  for R in range(k, len(a)):",
+      "    s += a[R] - a[R - k]",
+      "    best = max(best, s)",
+      "  return best"
+    ],
+    inputs: [{ key: "a", label: "Array", value: "2, 1, 5, 1, 3, 2" }, { key: "k", label: "k", value: "3" }],
+    presets: [
+      { label: "Classic example", values: { a: "2, 1, 5, 1, 3, 2", k: "3" } },
+      { label: "With negatives", values: { a: "4, -2, 7, 1, -5, 6, 3, -1, 2", k: "2" } },
+      { label: "Best at the end", values: { a: "1, 1, 1, 1, 1, 9, 9, 9", k: "3" } }
+    ],
+    build({ a, k }) {
+      const p = parseNums(a); if (p.error) return p;
+      const arr = p.nums, n = arr.length, K = Number(k);
+      if (!Number.isInteger(K) || K < 1 || K > n) return { error: `k must be a whole number from 1 to ${n}.` };
+      const frames = []; let s = 0, best = 0, bestR = [0, K - 1], ops = 0, L = 0, R = K - 1;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, arr, L, R, mark, best: bestR, vars: { L, R, s, best, "adds so far": ops, "brute force": (n - K + 1) * K } });
+      for (let j = 0; j < K; j++) { s += arr[j]; ops++; }
+      snap(1, `Add up the first window, indices 0 to ${K - 1}: sum = ${s}.`);
+      best = s; snap(2, `That is the best so far: ${best}.`);
+      for (R = K; R < n; R++) {
+        L = R - K + 1;
+        const prev = s; s += arr[R] - arr[R - K]; ops += 2;
+        snap(4, `Slide right. ${arr[R]} comes in, ${arr[R - K]} leaves: ${prev} + ${arr[R]} − ${arr[R - K]} = ${s}.`, { [R]: "in", [R - K]: "out" });
+        if (s > best) { best = s; bestR = [L, R]; snap(5, `${s} beats the old best. <b class="ok">New best: ${best}</b>.`); }
+        else snap(5, `${s} doesn't beat the best of ${best}.`);
+      }
+      snap(6, `No more room to slide. <b class="ok">The largest sum is ${best}</b>${ops < (n - K + 1) * K ? `, using ${ops} additions instead of ${(n - K + 1) * K}` : `. With k = ${K} there is little to save; the gap grows with k`}.`);
+      return { frames };
+    },
+    draw(f) { return drawWindow(f.arr, f) + legend; }
+  });
+
+  // ---------- Problem 2: find all anagrams ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def find_anagrams(s, p):",
+      "  need, have = Counter(p), Counter()",
+      "  out = []",
+      "  for R in range(len(s)):",
+      "    have[s[R]] += 1",
+      "    if R >= len(p):",
+      "      have[s[R - len(p)]] -= 1",
+      "    if have == need:",
+      "      out.append(R - len(p) + 1)",
+      "  return out"
+    ],
+    inputs: [{ key: "s", label: "Text", value: "cbaebabacd" }, { key: "p", label: "Pattern", value: "abc" }],
+    presets: [
+      { label: "Classic example", values: { s: "cbaebabacd", p: "abc" } },
+      { label: "Overlapping", values: { s: "abab", p: "ab" } },
+      { label: "Repeated letters", values: { s: "aabbaaba", p: "aab" } }
+    ],
+    build({ s, p }) {
+      s = s.trim(); p = p.trim();
+      if (!/^[a-z]+$/.test(s) || !/^[a-z]+$/.test(p)) return { error: "Use lowercase letters a to z only, with no spaces." };
+      if (s.length > 16) return { error: "Keep the text to 16 letters so every step fits on screen." };
+      if (p.length > s.length) return { error: "The pattern must not be longer than the text." };
+      const m = p.length, need = {}, have = {}, out = [], frames = [];
+      for (const c of p) need[c] = (need[c] || 0) + 1;
+      let L = 0, R = -1;
+      const eq = () => Object.keys({ ...need, ...have }).every(c => (need[c] || 0) === (have[c] || 0));
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, a: [...s], L, R, mark, need: { ...need }, have: { ...have }, out: out.slice(), vars: { L: R < 0 ? "–" : L, R: R < 0 ? "–" : R, "window size": R < 0 ? 0 : R - L + 1, found: out.length } });
+      snap(1, `Count the pattern's letters. The window must be exactly ${m} letters long.`);
+      for (R = 0; R < s.length; R++) {
+        have[s[R]] = (have[s[R]] || 0) + 1;
+        const drop = R >= m ? R - m : -1;
+        L = Math.max(0, drop);
+        if (drop >= 0) {
+          snap(4, `"${s[R]}" comes in on the right.`, { [R]: "in" });
+          if (--have[s[drop]] === 0) delete have[s[drop]];
+          L = drop + 1;
+          snap(6, `The window is now ${m + 1} long, so "${s[drop]}" at index ${drop} leaves on the left.`, { [R]: "in", [drop]: "out" });
+        } else snap(4, `"${s[R]}" comes in on the right.${R < m - 1 ? " The window isn't full yet." : ""}`, { [R]: "in" });
+        if (R >= m - 1) {
+          if (eq()) { out.push(L); snap(8, `Every letter count matches. <b class="ok">An anagram starts at ${L}</b>: "${s.slice(L, R + 1)}".`); }
+          else snap(7, `"${s.slice(L, R + 1)}" has different letter counts from "${p}". Not an anagram.`);
+        }
+      }
+      R = s.length - 1;
+      snap(9, out.length ? `<b class="ok">Done: anagrams start at [${out.join(", ")}]</b>.` : `<b class="bad">Done: no anagram of "${p}" appears.</b>`);
+      return { frames };
+    },
+    draw(f) {
+      const letters = [...new Set([...Object.keys(f.need), ...Object.keys(f.have)])].sort();
+      const cells = letters.map(c => { const n = f.need[c] || 0, h = f.have[c] || 0; return `<div class="${n === h ? "eq" : "ne"}">${c}<b>${h}</b><small>need ${n}</small></div>`; }).join("");
+      return `<div class="stage-row">${drawWindow(f.a, f)}
+        <span class="stage-label">Letters in the window vs the pattern</span><div class="counts">${cells || `<em style="color:var(--muted);font-size:13px">empty</em>`}</div>
+        <span class="stage-label">Anagrams found at</span><div class="chips">${f.out.length ? f.out.map(i => `<span>${i}</span>`).join("") : `<em>none yet</em>`}</div></div>`;
+    }
+  });
+
+  // ---------- Problem 3: longest substring without repeats ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def longest_unique(s):",
+      "  seen, L, best = set(), 0, 0",
+      "  for R in range(len(s)):",
+      "    while s[R] in seen:",
+      "      seen.remove(s[L])",
+      "      L += 1",
+      "    seen.add(s[R])",
+      "    best = max(best, R - L + 1)",
+      "  return best"
+    ],
+    inputs: [{ key: "s", label: "String", value: "abcabcbb" }],
+    presets: [
+      { label: "Classic example", values: { s: "abcabcbb" } },
+      { label: "Repeat in the middle", values: { s: "pwwkew" } },
+      { label: "Long tail", values: { s: "abbacdefga" } },
+      { label: "All the same", values: { s: "bbbbb" } }
+    ],
+    build({ s }) {
+      if (!s.length) return { error: "Type a string." };
+      if (s.length > 16) return { error: "Use at most 16 characters so every step fits on screen." };
+      const a = [...s].map(c => c === " " ? "␣" : c), frames = [], seen = new Set();
+      let L = 0, R = -1, best = 0, bestR = null;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, a, L, R, mark, best: bestR, seen: [...seen], vars: { L, R: R < 0 ? "–" : R, "window size": R < 0 ? 0 : Math.max(0, R - L + 1), best } });
+      snap(1, "Start with an empty window at the left end.");
+      for (R = 0; R < a.length; R++) {
+        snap(2, `Try to extend the window with "${a[R]}" at index ${R}.`, { [R]: "in" });
+        while (seen.has(a[R])) {
+          snap(3, `"${a[R]}" is already inside the window. Shrink from the left until that copy is gone.`, { [R]: "dup", [a.indexOf(a[R], L)]: "dup" });
+          seen.delete(a[L]);
+          snap(4, `Drop "${a[L]}" at index ${L}.`, { [R]: "dup", [L]: "out" });
+          L++;
+        }
+        seen.add(a[R]);
+        snap(6, `"${a[R]}" is new to the window. Add it.`, { [R]: "in" });
+        const len = R - L + 1;
+        if (len > best) { best = len; bestR = [L, R]; snap(7, `Window length ${len}. <b class="ok">New best: ${best}</b>.`); }
+        else snap(7, `Window length ${len}, not longer than the best of ${best}.`);
+      }
+      R = a.length - 1;
+      snap(8, `R reached the end. <b class="ok">The longest run without repeats has length ${best}</b>${bestR ? `: "${a.slice(bestR[0], bestR[1] + 1).join("")}"` : ""}.`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawWindow(f.a, f)}
+        <span class="stage-label">seen (characters in the window)</span><div class="chips">${f.seen.length ? f.seen.map(c => `<span>${c}</span>`).join("") : `<em>empty</em>`}</div></div>${legend}`;
+    }
+  });
+
+  // ---------- Problem 4: shortest subarray with sum >= target ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def min_len(a, target):",
+      "  L, s, best = 0, 0, inf",
+      "  for R in range(len(a)):",
+      "    s += a[R]",
+      "    while s >= target:",
+      "      best = min(best, R - L + 1)",
+      "      s -= a[L]",
+      "      L += 1",
+      "  return 0 if best == inf else best"
+    ],
+    inputs: [{ key: "a", label: "Positive numbers", value: "2, 3, 1, 2, 4, 3" }, { key: "t", label: "Target", value: "7" }],
+    presets: [
+      { label: "Classic example", values: { a: "2, 3, 1, 2, 4, 3", t: "7" } },
+      { label: "One big number", values: { a: "1, 2, 1, 9, 1, 1, 3", t: "8" } },
+      { label: "Never reaches", values: { a: "1, 1, 2, 1, 1", t: "20" } }
+    ],
+    build({ a, t }) {
+      const p = parseNums(a); if (p.error) return p;
+      const arr = p.nums, target = Number(t), n = arr.length;
+      if (arr.some(x => x <= 0)) return { error: "Use positive numbers only. With zero or negatives, adding an element can fail to raise the sum, and the shrink rule breaks." };
+      if (!Number.isInteger(target) || target < 1) return { error: "Enter a positive whole-number target." };
+      const frames = []; let L = 0, R = -1, s = 0, best = Infinity, bestR = null;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, arr, L, R, mark, best: bestR, vars: { L, R: R < 0 ? "–" : R, s, target, best: best === Infinity ? "∞" : best } });
+      snap(1, "Start with an empty window and a sum of 0.");
+      for (R = 0; R < n; R++) {
+        s += arr[R];
+        snap(3, `Take in ${arr[R]} at index ${R}. Sum is now ${s}${s < target ? `, still short of ${target}` : ""}.`, { [R]: "in" });
+        while (s >= target) {
+          const len = R - L + 1;
+          if (len < best) { best = len; bestR = [L, R]; snap(5, `${s} ≥ ${target}, and the window is ${len} long. <b class="ok">New shortest: ${best}</b>.`); }
+          else snap(5, `${s} ≥ ${target}, but length ${len} isn't shorter than ${best}.`);
+          s -= arr[L];
+          snap(6, `See whether it still works without ${arr[L]} at index ${L}. Sum drops to ${s}.`, { [L]: "out" });
+          L++;
+        }
+      }
+      R = n - 1;
+      snap(8, best === Infinity ? `<b class="bad">No run reaches ${target}. Return 0.</b>` : `<b class="ok">The shortest run reaching ${target} has length ${best}</b>.`);
+      return { frames };
+    },
+    draw(f) { return drawWindow(f.arr, f) + legend; }
+  });
+</script>
+</body>
+</html>
