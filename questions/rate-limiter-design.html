@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a Rate Limiter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .race { display: grid; grid-template-columns: 1fr 120px 1fr; gap: 10px; align-items: start; }
+  .race .col { display: grid; gap: 6px; }
+  .race h4 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; }
+  .race .ev { font: 500 12.5px/1.4 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+  .race .ev.now { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .race .ev.ok { border-color: var(--ok); color: var(--ok); }
+  .race .ev.bad { border-color: var(--bad); color: var(--bad); }
+  .race .store { text-align: center; border: 2px solid var(--accent); border-radius: 14px; padding: 12px 6px; background: var(--panel); display: grid; gap: 4px; }
+  .race .store b { font: 700 1.8rem/1 var(--mono); }
+  .race .store span { font: 500 11px/1.3 var(--mono); color: var(--muted); }
+  .verdict { font: 600 14px/1.4 var(--body); padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); }
+  .verdict.bad { color: var(--bad); border-color: var(--bad); }
+  .verdict.ok { color: var(--ok); border-color: var(--ok); }
+  @media (max-width: 560px) { .race { grid-template-columns: 1fr 90px 1fr; } .race .ev { font-size: 11px; } }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="rate-limiter-design" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a Rate Limiter</h1>
+    <p class="lede">Build the service that stops any one client from sending more than its share of requests to an API, across dozens of gateway servers, while adding almost no latency and never becoming the reason the API is down. The algorithms (token bucket, sliding window) are the easy part. The hard parts are shared state, races between servers, and what to do when the limiter itself fails.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own. For the algorithms themselves, see the <a href="../topics/rate-limiter.html">Rate Limiters</a> concept page.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Pin down who is being limited, by what rule, and what happens when the limiter is unavailable. Those three answers shape the whole design.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the system should</h3>
+        <ul>
+          <li>Limit requests per client, identified by user ID, API key or IP address.</li>
+          <li>Support rules per endpoint, such as 100 requests a minute per API key, or 5 login attempts a minute per IP.</li>
+          <li>Reject extra requests with HTTP 429 and tell the client when to retry.</li>
+          <li>Let operators change rules without a deploy.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Add only a few milliseconds per request, because it sits in front of every request.</li>
+          <li>Enforce the limit accurately across every gateway server, not per server.</li>
+          <li>Keep the API up if the limiter fails. Most endpoints fail open; sensitive ones like login fail closed.</li>
+          <li>Handle about 1 million requests a second at peak from tens of millions of clients.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> a rate limiter is a counter that many machines must update at once, on every request, in under a millisecond or two. Almost every decision below is about keeping that shared counter fast, correct and optional.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>Rule</h3><code>match: endpoint, client type
+limit: 100
+window: 60 s
+algorithm: token bucket
+on_failure: open | closed</code></div>
+      <div class="entity"><h3>Client key</h3><code>what we count against:
+user ID, API key or IP,
+combined with the rule,
+e.g. rl:key_abc:/v1/charges</code></div>
+      <div class="entity"><h3>Counter state</h3><code>tokens: 3.4
+last_refill: 1759213200.12
+(expires when idle)</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">There are two interfaces: the internal check the gateway calls, and what the client sees when it's limited.</p>
+<pre class="api"><span class="c">// Internal: called by the gateway on every request</span>
+check(client_key, endpoint) → { allowed: true, remaining: 3, reset_at: 1759213260 }
+
+<span class="c">// What a limited client receives</span>
+<span class="verb">HTTP/1.1</span> 429 Too Many Requests
+Retry-After: 12
+RateLimit-Limit: 100
+RateLimit-Remaining: 0
+RateLimit-Reset: 12</pre>
+    <div class="aside"><p><b>Why tell the client?</b> Well-behaved clients read <span class="mono">Retry-After</span> and back off instead of retrying immediately, which would add even more load at the worst moment. The remaining-quota headers let them slow down before they hit the wall.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">One client with a limit of <b>5 requests per 10 seconds</b> sends traffic through each stage. The counter under the diagram shows how many of its requests actually got through in the last 10 seconds. Anything above 5 means the limit leaked.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="burst">Send a burst of 8</button>
+          <button id="steady" aria-pressed="true">Steady traffic: on</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 380" role="img" aria-label="Architecture diagram with animated requests"></svg></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="race" data-nav="Deep dive: the race" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: two gateways, one counter</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Two gateway servers handle requests from the same client at the same moment. The count in Redis is 4 and the limit is 5, so only one should get through. Step through three ways of updating the counter.</p>
+    <div id="raceViz"></div>
+    <div class="aside"><p><b>The rule:</b> the check and the update must happen as one indivisible step on the server that owns the counter. <span class="mono">INCR</span> is atomic on its own. For a token bucket, which needs read, refill, compare and write, put all of it in one Lua script. Redis runs each script to completion before the next command, so no other request can sneak in between.</p></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: scale and failure" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: scale, latency and failure</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Move the sliders. The numbers decide how many Redis shards you need and how much a failure would cost.</p>
+    <div class="calc">
+      <label class="field" for="rps"><span class="row"><span>Peak requests per second</span><b class="mono num" id="rpsOut"></b></span><input type="range" id="rps" min="4" max="7" step="0.25" value="6"></label>
+      <label class="field" for="clients"><span class="row"><span>Active clients</span><b class="mono num" id="clientsOut"></b></span><input type="range" id="clients" min="5" max="9" step="0.25" value="7.5"></label>
+      <label class="field" for="rules"><span class="row"><span>Rules checked per request</span><b class="mono num" id="rulesOut"></b></span><input type="range" id="rules" min="1" max="4" value="2"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+    <h3 style="margin-top:6px">When Redis is unreachable</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Choice</th><th>What happens</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td><b>Fail open</b></td><td>Allow the request and log it. Limits stop working until Redis recovers.</td><td>Most API traffic. A short period without limits beats an outage.</td></tr>
+        <tr><td><b>Fail closed</b></td><td>Reject the request. Nobody gets through.</td><td>Login, password reset, SMS sending: anywhere abuse costs more than downtime.</td></tr>
+        <tr><td><b>Local fallback</b></td><td>Each gateway enforces limit ÷ number of gateways from memory until Redis returns.</td><td>A middle ground. Roughly right, with no shared state.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One request through a token bucket in Redis</h2>
+    <p class="kicker">Rule: 100 requests per 60 seconds per API key, as a token bucket holding up to 100 tokens that refills at 100 ÷ 60 ≈ 1.67 tokens a second.</p>
+    <ol class="steps">
+      <li><div><h3>Request arrives at a gateway</h3><p><span class="mono">POST /v1/charges</span> with API key <span class="mono">key_abc</span>. The gateway looks up the matching rule in its in-memory copy of the rules. There's no network call, since rules change rarely and are pushed to gateways.</p></div></li>
+      <li><div><h3>Pick the shard</h3><p>The counter key is <span class="mono">rl:key_abc:/v1/charges</span>. Hashing it picks one of the Redis shards, so the same client always lands on the same shard and its count lives in exactly one place.</p></div></li>
+      <li><div><h3>Run the script</h3><p>One <span class="mono">EVALSHA</span> call runs the Lua script atomically. It reads <span class="mono">tokens = 0.4</span> and <span class="mono">last_refill</span> 1.8 seconds ago. It refills 1.8 × 1.67 = 3.0 tokens, making 3.4. That's at least 1, so it spends one (2.4 left), writes both values back with a 60-second expiry, and returns allowed.</p></div></li>
+      <li><div><h3>Forward and annotate</h3><p>The gateway forwards the request and adds <span class="mono">RateLimit-Remaining: 2</span> to the response. The whole check cost one round trip to Redis, typically well under a millisecond inside a data center.</p></div></li>
+      <li><div><h3>Three more requests in the same instant</h3><p>They take the bucket to 1.4, then 0.4. The third finds 0.4 tokens, below 1, so the script returns rejected with a wait of (1 − 0.4) ÷ 1.67 ≈ 0.36 s. The client gets <span class="mono">429</span> with <span class="mono">Retry-After: 1</span>.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A shared counter per client and rule, checked and updated on every request, deciding allow or reject.</p></div>
+      <div><span class="q">Why it's hard</span><p>Many servers see the same client, so the counter must be shared. Sharing adds a network hop and opens the door to races.</p></div>
+      <div><span class="q">Key insight</span><p>Move the decision to where the data lives. One atomic script on the counter's own shard removes the race and costs a single round trip.</p></div>
+      <div><span class="q">Where it bends</span><p>Across regions, one global counter is too slow. Give each region its own share of the limit, and accept being approximately right.</p></div>
+      <div><span class="q">Failure</span><p>A limiter protects the API, so it must never be the cause of an outage. Decide fail open or closed per rule.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>How rate limiting grew up</h2>
+    <p>For years, a limited API had no standard way to say so. Services returned 503, 403, or custom errors. In April 2012, RFC 6585 added status code <b>429 Too Many Requests</b>, and a <span class="mono">Retry-After</span> header to say when to come back.</p>
+    <p>In March 2017, Stripe engineer Paul Tarjan described how Stripe limits its API. It uses token buckets in Redis, and not one limiter but four: a per-user request rate limit, a limit on concurrent requests, and two load shedders that drop low-priority traffic when the fleet is under strain. The post also urged making limiters fail open, putting them behind feature flags as a kill switch, and dark-launching new rules to see what they <i>would</i> block before turning them on.</p>
+    <p>In 2021, GitHub described moving its API rate limiter from Memcached to sharded, replicated Redis with Lua scripts for atomic updates. The move was forced partly because Memcached's cache eviction could silently drop live counters.</p>
+    <ol class="timeline">
+      <li><span class="year">2012</span><p>RFC 6585 defines HTTP 429 Too Many Requests.</p></li>
+      <li><span class="year">2017</span><p>Stripe publishes "Scaling your API with rate limiters": token buckets in Redis, four limiter types, fail open.</p></li>
+      <li><span class="year">2021</span><p>GitHub moves its API rate limiter to sharded Redis with Lua scripts.</p></li>
+      <li><span class="year">Today</span><p>API gateways such as AWS API Gateway, Envoy and Nginx ship token-bucket or window limiters out of the box.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Limit by IP?</b> Many users can share one IP behind a company NAT or mobile carrier. Prefer API keys or user IDs, and keep IP limits generous.</li>
+        <li><b>Several regions:</b> split each limit across regions, or sync counts asynchronously and accept a brief overshoot.</li>
+        <li><b>Hot keys:</b> one huge client can overload one shard. Keep a short-lived local token allowance in the gateway and refill it from Redis in batches.</li>
+        <li><b>Client behaviour:</b> retry with exponential backoff and jitter, honouring <span class="mono">Retry-After</span>, so rejected clients don't retry in lockstep.</li>
+        <li><b>Rolling out a new rule:</b> run it in shadow mode first and log what it would block.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-rate-limiter">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : Math.round(n).toString();
+  const bytes = b => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(0) + " MB";
+
+  // ================= Live design simulation =================
+  const LIMIT = 5, WINDOW = 10, RACE = 0.35;   // limit per window (s); non-atomic write delay (s)
+  const N = {
+    client: { x: 70, y: 190, label: "Client", sub: "one API key" },
+    lb: { x: 205, y: 190, label: "Load balancer", sub: "round robin" },
+    g1: { x: 365, y: 90 }, g2: { x: 365, y: 190 }, g3: { x: 365, y: 290 },
+    redis: { x: 560, y: 190, label: "Redis", sub: "shared counter" },
+    shardA: { x: 560, y: 120, label: "Redis shard 1", sub: "owns key_abc" },
+    shardB: { x: 560, y: 270, label: "Redis shard 2", sub: "other keys" },
+    rules: { x: 560, y: 36, label: "Rules config", sub: "pushed to gateways" },
+    api: { x: 730, y: 190, label: "API servers", sub: "handlers" }
+  };
+  const STAGES = [
+    {
+      name: "1 · Per-server", gw: "API server", sub: "own counter", nodes: ["client", "lb", "g1", "g2", "g3"],
+      route: (g, ok) => ["client", "lb", g, "lb", "client"], mode: "local",
+      adds: "Each API server keeps its own counter in memory and rejects a client once that server has seen 5 requests in 10 seconds.",
+      why: "It's the simplest possible design: no network hop and no shared state. Try a burst and watch the true count.",
+      breaks: "The load balancer spreads one client across all servers, so each server allows 5 and the client really gets up to 15. Restarting a server also resets its counts."
+    },
+    {
+      name: "2 · Shared counter", gw: "API server", sub: "", nodes: ["client", "lb", "g1", "g2", "g3", "redis"],
+      route: (g, ok) => ["client", "lb", g, "redis", g, "lb", "client"], mode: "race",
+      adds: "All servers read and write one counter per client in Redis: read the count, check it, then write count + 1.",
+      why: "One shared counter per client gives one source of truth, whichever server handles the request.",
+      breaks: "Reading and writing are separate steps. Requests that arrive together all read the same old count and are all allowed. Send a burst: amber dots got through by mistake. See deep dive 5a."
+    },
+    {
+      name: "3 · Atomic gateway", gw: "Gateway", sub: "checks limit", nodes: ["client", "lb", "g1", "g2", "g3", "redis", "api"],
+      route: (g, ok) => ok ? ["client", "lb", g, "redis", g, "api", g, "lb", "client"] : ["client", "lb", g, "redis", g, "lb", "client"], mode: "atomic",
+      adds: "A gateway layer in front of the API runs one atomic Lua script in Redis per request. Rejected requests never reach the API servers.",
+      why: "Check and update happen in one indivisible step on the server that holds the counter, so the race is gone and the count is exact. It costs one round trip.",
+      breaks: "At a million requests a second, one Redis node is both a bottleneck and a single point of failure."
+    },
+    {
+      name: "4 · Scale out", gw: "Gateway", sub: "rules in memory", nodes: ["client", "lb", "g1", "g2", "g3", "shardA", "shardB", "rules", "api"],
+      route: (g, ok) => ok ? ["client", "lb", g, "shardA", g, "api", g, "lb", "client"] : ["client", "lb", g, "shardA", g, "lb", "client"], mode: "atomic",
+      adds: "Counters are sharded across Redis nodes by hashing the client key, each shard has a replica, and rules are pushed to gateways rather than fetched per request.",
+      why: "Every client's counter lives on exactly one shard, so it stays exact while total capacity grows with the shard count. Gateways fall back to fail-open or local limits if a shard is down.",
+      breaks: "Nothing major at this scale. Multi-region limits and very hot single clients are the usual follow-ups."
+    }
+  ];
+  let stage = 0, dots = [], t = 0, steady = true, nextArrival = 0.2, rr = 0, queue = [];
+  let local = {}, shared = { value: 0, log: [] }, allowedTimes = [], peak = 0;
+
+  function resetSim() {
+    dots = []; queue = []; local = { g1: [], g2: [], g3: [] }; shared = { log: [], pending: [] }; allowedTimes = []; peak = 0;
+  }
+  function trueCount() { return allowedTimes.filter(x => x > t - WINDOW).length; }
+  function decide() {
+    const g = ["g1", "g2", "g3"][rr++ % 3], mode = STAGES[stage].mode;
+    let ok, mistake = false;
+    if (mode === "local") {
+      local[g] = local[g].filter(x => x > t - WINDOW);
+      ok = local[g].length < LIMIT; if (ok) local[g].push(t);
+    } else if (mode === "race") {
+      // a request reads the committed count; its own write only lands RACE seconds later
+      shared.log = shared.log.filter(x => x > t - WINDOW);
+      const committed = shared.log.filter(x => x <= t - RACE).length;
+      const trulyAllowed = shared.log.length < LIMIT;
+      ok = committed < LIMIT;
+      if (ok) { shared.log.push(t); mistake = !trulyAllowed; }
+    } else {
+      shared.log = shared.log.filter(x => x > t - WINDOW);
+      ok = shared.log.length < LIMIT; if (ok) shared.log.push(t);
+    }
+    if (ok) { allowedTimes.push(t); peak = Math.max(peak, trueCount()); }
+    const route = STAGES[stage].route(g, ok);
+    dots.push({ route, seg: 0, f: 0, x: N.client.x, y: N.client.y, ok, mistake });
+  }
+  function step(dt) {
+    t += dt;
+    if (steady && t >= nextArrival) { decide(); nextArrival = t + 0.9 + Math.random() * 0.8; }
+    while (queue.length && queue[0] <= t) { queue.shift(); decide(); }
+    const SPEED = 300;
+    dots.forEach(d => {
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.route.length - 1) {
+        const a = N[d.route[d.seg]], b = N[d.route[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = N[d.route[d.seg]], b2 = N[d.route[Math.min(d.seg + 1, d.route.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.route.length - 1) d.done = true;
+    });
+    dots = dots.filter(d => !d.done);
+  }
+  function draw() {
+    const st = STAGES[stage], edges = new Set();
+    const add = p => p.forEach((n, i) => { if (i) edges.add([p[i - 1], n].sort().join("|")); });
+    ["g1", "g2", "g3"].forEach(g => { add(st.route(g, true)); add(st.route(g, false)); });
+    if (st.nodes.includes("rules")) ["g1", "g2", "g3"].forEach(g => edges.add(["rules", g].sort().join("|")));
+    if (st.nodes.includes("shardB")) ["g1", "g2", "g3"].forEach(g => edges.add(["shardB", g].sort().join("|")));
+    let s = "";
+    edges.forEach(e => { const [a, b] = e.split("|").map(k => N[k]); const dashed = e.includes("rules"); s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--line)" stroke-width="2" ${dashed ? 'stroke-dasharray="4 5"' : ""}/>`; });
+    dots.forEach(d => {
+      const c = d.mistake ? "var(--amber)" : d.ok ? "var(--ok)" : "var(--bad)";
+      s += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="${c}" stroke="var(--panel)" stroke-width="1.5"/>`;
+    });
+    st.nodes.forEach(k => {
+      const n = N[k], w = 124, h = 46, isG = k[0] === "g" && k.length === 2;
+      const label = isG ? `${st.gw} ${k[1]}` : n.label;
+      let sub = isG ? st.sub : n.sub;
+      if (isG && st.mode === "local") sub = `count ${local[k].filter(x => x > t - WINDOW).length}/${LIMIT}`;
+      if ((k === "redis" || k === "shardA") && st.mode !== "local") sub = `key_abc: ${shared.log.filter(x => x > t - WINDOW).length}/${LIMIT}`;
+      const store = ["redis", "shardA", "shardB", "rules"].includes(k);
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${store ? 14 : 6}" fill="var(--panel)" stroke="${store ? "var(--accent)" : "var(--ink)"}" stroke-width="1.6"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="13.5" font-weight="700" fill="var(--ink)">${label}</text>`;
+      if (sub) s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${sub}</text>`;
+    });
+    const c = trueCount();
+    s += `<text x="12" y="356" font-family="var(--mono)" font-size="12" font-weight="600" fill="${c > LIMIT ? "var(--bad)" : "var(--ink)"}">allowed in last 10 s: ${c} (limit ${LIMIT})</text>`;
+    s += `<text x="12" y="374" font-family="var(--mono)" font-size="11" fill="${peak > LIMIT ? "var(--bad)" : "var(--muted)"}">peak so far: ${peak}${peak > LIMIT ? "  ▲ limit leaked" : ""} · green allowed · red 429 · amber allowed by mistake</text>`;
+    $("arch").innerHTML = s;
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); };
+  $("burst").onclick = () => { for (let k = 0; k < 8; k++) queue.push(t + k * 0.08); };
+  $("steady").onclick = e => { steady = !steady; e.target.setAttribute("aria-pressed", steady); e.target.textContent = `Steady traffic: ${steady ? "on" : "off"}`; };
+
+  // ================= Race condition stepper =================
+  Stepper($("raceViz"), {
+    code: [
+      "# gateways A and B, same client, same moment",
+      "# 1) read, then write: two commands",
+      "c = GET k; if c < L: SET k c+1",
+      "# 2) increment first: one atomic command",
+      "c = INCR k; allowed = c <= L",
+      "# 3) Lua: read, refill, spend, atomically",
+      "allowed = EVALSHA bucket k now"
+    ],
+    inputs: [
+      { key: "approach", label: "Approach: naive, incr or lua", value: "naive" },
+      { key: "count", label: "Count before", value: "4" },
+      { key: "limit", label: "Limit", value: "5" }
+    ],
+    presets: [
+      { label: "1 · Read, then write", values: { approach: "naive", count: "4", limit: "5" } },
+      { label: "2 · INCR first", values: { approach: "incr", count: "4", limit: "5" } },
+      { label: "3 · Lua script", values: { approach: "lua", count: "4", limit: "5" } }
+    ],
+    build({ approach, count, limit }) {
+      const a = approach.trim().toLowerCase(), c0 = Number(count), L = Number(limit);
+      if (!["naive", "incr", "lua"].includes(a)) return { error: 'Approach must be "naive", "incr" or "lua".' };
+      if (!Number.isInteger(c0) || !Number.isInteger(L) || c0 < 0 || L < 1 || c0 > 99 || L > 99) return { error: "Use whole numbers: count 0–99, limit 1–99." };
+      const frames = [], A = [], B = [];
+      let v = c0, allowed = 0;
+      const line = a === "naive" ? 2 : a === "incr" ? 4 : 6;
+      const snap = (msg, now, extra = {}) => frames.push({ line, msg, v, A: A.map(x => ({ ...x })), B: B.map(x => ({ ...x })), now, allowed, L, ...extra, vars: { redis: v, limit: L, "allowed so far": allowed } });
+      snap(`Two requests from the same client arrive at gateway A and gateway B at the same moment. Redis holds ${v}, and the limit is ${L}.`);
+      if (a === "naive") {
+        A.push({ t: `GET → ${v}` }); const ra = v; snap("A reads the count.", "A");
+        B.push({ t: `GET → ${v}` }); const rb = v; snap("B reads the count before A has written anything. It sees the same value.", "B");
+        const okA = ra < L; A.push({ t: okA ? `${ra} < ${L}: allow` : `${ra} ≥ ${L}: reject`, c: okA ? "ok" : "bad" }); if (okA) allowed++; snap(`A decides based on ${ra}.`, "A");
+        const okB = rb < L; B.push({ t: okB ? `${rb} < ${L}: allow` : `${rb} ≥ ${L}: reject`, c: okB ? "ok" : "bad" }); if (okB) allowed++; snap(`B decides based on the same stale ${rb}.`, "B");
+        if (okA) { v = ra + 1; A.push({ t: `SET ${v}` }); snap(`A writes ${v}.`, "A"); }
+        if (okB) { v = rb + 1; B.push({ t: `SET ${v}` }); snap(`B writes ${v}, overwriting A's update with the same number.`, "B"); }
+        const leak = c0 + allowed - L;
+        snap(leak > 0 ? `<b class="bad">Both were allowed.</b> ${c0 + allowed} requests got through against a limit of ${L}, yet Redis says ${v}. The lost update hides the leak.` : `No leak this time, but only because the count wasn't close to the limit.`, null, { verdict: leak > 0 ? "bad" : "ok" });
+      } else {
+        const name = a === "incr" ? "INCR" : "the Lua script";
+        const run = (who, evs) => {
+          const before = v;
+          let ok;
+          if (a === "incr") { v++; ok = v <= L; evs.push({ t: `INCR → ${v}` }); }
+          else { ok = before < L; if (ok) v++; evs.push({ t: ok ? `script: ${before} < ${L}, spend → ${v}` : `script: ${before} ≥ ${L}, no change` }); }
+          snap(`${who}'s call to ${name} runs as one indivisible step. Nothing else runs in Redis until it finishes.`, who);
+          evs.push({ t: ok ? "allow" : "reject (429)", c: ok ? "ok" : "bad" }); if (ok) allowed++;
+          snap(`${who} is ${ok ? "allowed" : "rejected"}${who === "B" ? `, because it saw A's update` : ""}.`, who);
+        };
+        run("A", A); run("B", B);
+        snap(`<b class="ok">Exactly ${allowed} allowed.</b> ${c0 + allowed} requests in total, never more than the limit of ${L}.${a === "incr" && v > L ? ` The counter reads ${v}, above the limit. That's fine, because each decision uses the value INCR returned.` : ""}`, null, { verdict: "ok" });
+      }
+      return { frames };
+    },
+    draw(f) {
+      const col = (name, evs, key) => `<div class="col"><h4>Gateway ${name}</h4>${evs.map((e, k) => `<div class="ev ${e.c || ""} ${f.now === key && k === evs.length - 1 ? "now" : ""}">${e.t}</div>`).join("") || `<div class="ev" style="color:var(--muted)">waiting</div>`}</div>`;
+      return `<div class="race">${col("A", f.A, "A")}<div class="store"><span>Redis</span><b>${f.v}</b><span>limit ${f.L}</span></div>${col("B", f.B, "B")}</div>
+        ${f.verdict ? `<div class="verdict ${f.verdict}">${f.verdict === "bad" ? "The limit leaked: both requests were allowed." : "The limit held."}</div>` : ""}`;
+    }
+  });
+
+  // ================= Scale estimates =================
+  function renderScale() {
+    const rps = Math.pow(10, +$("rps").value), clients = Math.pow(10, +$("clients").value), rules = +$("rules").value;
+    const ops = rps * rules, perShard = 100000, shards = Math.max(1, Math.ceil(ops / perShard * 1.5));
+    const mem = clients * rules * 100;
+    $("rpsOut").textContent = fmt(rps); $("clientsOut").textContent = fmt(clients); $("rulesOut").textContent = rules;
+    $("scaleResults").innerHTML = `
+      <div><span>Redis script calls per second</span><b>${fmt(ops)}</b></div>
+      <div><span>Shards (≈100K calls/s each, 50% headroom)</span><b>${shards}</b></div>
+      <div><span>Counter memory (≈100 B per key)</span><b>${bytes(mem)}</b></div>
+      <div><span>Requests rejected per second if Redis fails closed</span><b style="color:var(--bad)">${fmt(rps)}</b></div>`;
+    $("scaleNotes").innerHTML = [
+      shards > 1 ? `${fmt(ops)} calls a second is more than one Redis node should take, so <b>shard by client key</b> across ${shards} nodes. Each client's counter still lives on exactly one shard.` : `One Redis node (plus a replica) can handle ${fmt(ops)} calls a second.`,
+      `Counters take about ${bytes(mem)}. Give every key an expiry of one window so idle clients cost nothing.`,
+      `Keep the check to one round trip: rules cached in the gateway, one script call per rule, or one script that checks all ${rules} rules together.`,
+      `If Redis fails and every rule fails closed, all ${fmt(rps)} requests a second get 429. That's why most rules fail open.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["rps", "clients", "rules"].forEach(id => $(id).oninput = renderScale);
+
+  // ================= boot =================
+  resetSim(); renderExplain(); renderScale();
+  for (let k = 0; k < 120; k++) step(0.03);
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

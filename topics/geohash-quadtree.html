@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Geohash and Quadtrees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 10px; padding: 12px; }
+  #map { width: 100%; height: auto; display: block; cursor: crosshair; border-radius: var(--radius); touch-action: manipulation; }
+  .tabs { display: flex; gap: 6px; }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .hash { font: 700 1.9rem/1 var(--mono); letter-spacing: .06em; color: var(--accent); }
+  .hash small { font-size: 1rem; color: var(--muted); letter-spacing: 0; font-weight: 500; }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .results div { border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; display: grid; gap: 3px; }
+  .results b { font: 600 1.25rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .results span { font-size: 12px; color: var(--muted); }
+  .bits { font: 500 12px/1.5 var(--mono); }
+  .bits td, .bits th { padding: 3px 10px 3px 0; white-space: nowrap; }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .modepane[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Proximity search</span>
+  </div>
+
+  <header class="intro">
+    <h1>Geohash and Quadtrees</h1>
+    <p class="lede">"Find drivers within 2 km" can't use an ordinary index. A B-tree sorts by one number, and a location is two. Both techniques here turn 2D space into something you can index: a geohash turns a point into a string whose prefix means "nearby", and a quadtree keeps splitting busy areas into four until each box holds only a few points.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="tabs" role="tablist" aria-label="Index type">
+        <button role="tab" aria-selected="true" data-mode="geo">Geohash grid</button>
+        <button role="tab" aria-selected="false" data-mode="quad">Quadtree</button>
+      </div>
+      <svg id="map" viewBox="0 0 640 548" role="img" aria-label="Map of drivers. Click to move the rider."></svg>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>Rider (click the map to move)</span>
+        <span><i style="background:var(--ok)"></i>Driver within radius</span>
+        <span><i style="background:var(--amber)"></i>Checked, but too far</span>
+        <span><i style="background:var(--bad)"></i>Missed by the search</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <span class="eyebrow">Rider's geohash</span>
+        <div class="hash" id="hash" style="margin-top:6px"></div>
+      </div>
+      <label class="field" for="radius"><span class="row"><span>Search radius</span><b class="mono num" id="radiusOut"></b></span><input type="range" id="radius" min="0.5" max="6" step="0.5" value="2"></label>
+      <div class="modepane" id="geoPane">
+        <label class="field" for="prec"><span class="row"><span>Geohash length (precision)</span><b class="mono num" id="precOut"></b></span><input type="range" id="prec" min="4" max="6" value="5"></label>
+      </div>
+      <div class="modepane" id="quadPane" hidden>
+        <label class="field" for="cap"><span class="row"><span>Max drivers per box before it splits</span><b class="mono num" id="capOut"></b></span><input type="range" id="cap" min="1" max="12" value="4"></label>
+      </div>
+      <div class="controls">
+        <button id="crowd">Add a stadium crowd</button>
+        <button id="reset">Reset drivers</button>
+      </div>
+      <div class="results" id="results"></div>
+      <p id="note" style="font-size:14px"></p>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Encoding a point in Bengaluru, bit by bit</h2>
+    <p class="kicker">The point is latitude 12.9716, longitude 77.5946. A geohash halves the world again and again, alternating longitude and latitude, and writes 1 when the point is in the upper half.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Bit</th><th>Axis</th><th>Range</th><th>Midpoint</th><th>Point is…</th><th>Bit</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td>lon</td><td class="mono">−180 … 180</td><td class="mono">0</td><td>above</td><td class="mono hl">1</td></tr>
+        <tr><td class="mono">2</td><td>lat</td><td class="mono">−90 … 90</td><td class="mono">0</td><td>above</td><td class="mono hl">1</td></tr>
+        <tr><td class="mono">3</td><td>lon</td><td class="mono">0 … 180</td><td class="mono">90</td><td>below</td><td class="mono hl">0</td></tr>
+        <tr><td class="mono">4</td><td>lat</td><td class="mono">0 … 90</td><td class="mono">45</td><td>below</td><td class="mono hl">0</td></tr>
+        <tr><td class="mono">5</td><td>lon</td><td class="mono">0 … 90</td><td class="mono">45</td><td>above</td><td class="mono hl">1</td></tr>
+        <tr><td class="mono">6</td><td>lat</td><td class="mono">0 … 45</td><td class="mono">22.5</td><td>below</td><td class="mono hl">0</td></tr>
+        <tr><td class="mono">7</td><td>lon</td><td class="mono">45 … 90</td><td class="mono">67.5</td><td>above</td><td class="mono hl">1</td></tr>
+        <tr><td class="mono">8</td><td>lat</td><td class="mono">0 … 22.5</td><td class="mono">11.25</td><td>above</td><td class="mono hl">1</td></tr>
+        <tr><td class="mono">9</td><td>lon</td><td class="mono">67.5 … 90</td><td class="mono">78.75</td><td>below</td><td class="mono hl">0</td></tr>
+        <tr><td class="mono">10</td><td>lat</td><td class="mono">11.25 … 22.5</td><td class="mono">16.875</td><td>below</td><td class="mono hl">0</td></tr>
+      </tbody>
+    </table></div>
+    <ol class="steps">
+      <li><div><h3>Group bits in fives and encode in base 32</h3><p>Bits 1–5 are <span class="mono">11001</span> = 25, which is <b class="mono">t</b> in the alphabet <span class="mono">0123456789bcdefghjkmnpqrstuvwxyz</span> (a, i, l and o are left out to avoid confusion). Bits 6–10 are <span class="mono">01100</span> = 12, which is <b class="mono">d</b>. Continuing gives <b class="mono">tdr1v9</b>.</p></div></li>
+      <li><div><h3>Each character narrows the box</h3><p>Every character adds 5 bits and shrinks the cell by 32 times. At the equator, 4 characters is about 39 × 20 km, 5 is about 4.9 × 4.9 km, 6 is about 1.2 × 0.6 km, and 7 is about 153 × 153 m.</p></div></li>
+      <li><div><h3>Shared prefix means same box</h3><p>Every point inside the 5-character cell <span class="mono">tdr1v</span> has a geohash starting with <span class="mono">tdr1v</span>. So "everything in this cell" is a simple prefix search, which an ordinary database index handles: <span class="mono">WHERE geohash LIKE 'tdr1v%'</span>.</p></div></li>
+      <li><div><h3>The catch: edges</h3><p>The points at longitude 77.6069 and 77.6079 (same latitude) are only about 108 m apart, but they fall on either side of a cell edge: <span class="mono">tdr1v</span> and <span class="mono">tdr1y</span>. Meanwhile two opposite corners of <span class="mono">tdr1v</span> are almost 7 km apart. A shared prefix proves closeness, but a different prefix doesn't prove distance. That's why real searches look at the rider's cell <b>and its 8 neighbours</b>, then filter by exact distance.</p></div></li>
+      <li><div><h3>The quadtree alternative</h3><p>A quadtree starts with one box for the whole city. When a box holds more than a set number of drivers, say 4, it splits into four quarters and hands its drivers down. Busy downtown ends up with tiny boxes, and empty outskirts stay as one big box. A search visits only the boxes that overlap the search circle.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>Squeezing two dimensions into one</h2>
+    <p>The core trick is older than the web. In 1966, G. M. Morton at IBM described a way to file geographic records for a geodetic database. He interleaved the bits of the two coordinates into one number, so records close on the map tended to sit close together in the file. The path this ordering traces through space zigzags like the letter Z, and it's now called the Z-order or Morton curve.</p>
+    <p>In 1974, Raphael Finkel and Jon Bentley named the <b>quadtree</b> in a paper on retrieving records by composite keys. Instead of a fixed grid, it adapts: split any region that gets too crowded into four, recursively. Games, image compression and map tiles all came to use the same idea.</p>
+    <p>In February 2008, Gustavo Niemeyer launched geohash.org and placed the <b>geohash</b> in the public domain. It was the Z-order idea again, apparently reinvented independently, with the bits written in a readable base-32 string. The string form made it easy to store in any database and to share as a short link to a place.</p>
+    <ol class="timeline">
+      <li><span class="year">1966</span><p>Morton describes interleaving coordinate bits to file geographic data in order: the Z-order curve.</p></li>
+      <li><span class="year">1974</span><p>Finkel and Bentley name the quadtree in Acta Informatica.</p></li>
+      <li><span class="year">2008</span><p>Niemeyer publishes geohash and releases it into the public domain.</p></li>
+      <li><span class="year">2016</span><p>Redis 3.2 adds GEO commands built on geohash-encoded sorted sets.</p></li>
+      <li><span class="year">2018</span><p>Uber open-sources H3, which uses hexagons so every neighbour is the same distance away.</p></li>
+      <li><span class="year">Today</span><p>Elasticsearch, MongoDB, Redis and PostGIS index locations with geohash-style cells, quadtrees, R-trees or Google's S2 cells.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>Ways to index points on a map so "what's near here?" touches a small, nearby part of the data instead of all of it.</p></div>
+      <div><span class="q">Why</span><p>Indexes sort by one key. Sorting by latitude alone finds a thin strip around the world, not a circle around you.</p></div>
+      <div><span class="q">When</span><p>The 1960s and 70s for the underlying ideas. Geohash came in 2008, just as phones with GPS made "near me" queries common.</p></div>
+      <div><span class="q">Where</span><p>IBM (Morton's file ordering), academic computer science (Finkel and Bentley), and an independent developer (Niemeyer's geohash.org).</p></div>
+      <div><span class="q">How</span><p>Geohash: interleave the bits so nearby points share a prefix, then search the cell and its neighbours. Quadtree: split crowded boxes recursively, then search only the boxes that overlap the circle.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> turn "close in two dimensions" into "close in one ordering" (geohash), or keep the space as a tree whose shape follows the data (quadtree).</p>
+      <p><b>The trade-off:</b> geohash cells are fixed, so a crowded cell holds too many points and an empty one wastes a lookup. Quadtrees adapt to density, but must be rebalanced as points move.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>With a 2 km radius, precision 6 has cells smaller than the circle, so the 3 × 3 block can't cover it. Red drivers are missed. Pick a precision whose cell is at least as big as the radius.</li>
+        <li>At precision 4 nothing is missed, but almost every driver is checked. Too coarse is correct but slow.</li>
+        <li>Add a stadium crowd. The geohash cell over the stadium balloons in candidates, while the quadtree splits that area into many small boxes.</li>
+        <li>Move the rider near a cell edge in geohash mode. The rider's own cell covers little of the circle, and the neighbours do most of the work.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Which for a ride-hailing app?</b> Drivers report their location every few seconds. Updating a geohash is one string change, which suits Redis or a database index. A quadtree must move points between nodes and occasionally re-split, so it usually lives in memory on dedicated servers.</p>
+        <p><b>Which for a restaurant search?</b> Restaurants rarely move and density varies a lot, so a quadtree or R-tree built once works well.</p>
+        <p><b>Always:</b> search the neighbouring cells as well, then filter candidates by true distance.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const B32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+  const LAT0 = 12.85, LAT1 = 13.10, LON0 = 77.45, LON1 = 77.75, W = 640, H = 548;
+  const KM_LAT = 111.32, KM_LON = 111.32 * Math.cos(12.975 * Math.PI / 180);
+  const px = lon => (lon - LON0) / (LON1 - LON0) * W, py = lat => (LAT1 - lat) / (LAT1 - LAT0) * H;
+
+  function encode(lat, lon, p) {
+    let la = [-90, 90], lo = [-180, 180], even = true, bits = 0, n = 0, out = "";
+    while (out.length < p) {
+      const r = even ? lo : la, v = even ? lon : lat, mid = (r[0] + r[1]) / 2;
+      if (v >= mid) { bits = bits * 2 + 1; r[0] = mid; } else { bits = bits * 2; r[1] = mid; }
+      even = !even; if (++n === 5) { out += B32[bits]; bits = 0; n = 0; }
+    }
+    return { hash: out, la, lo };
+  }
+  function cellSize(p) { const lonBits = Math.ceil(5 * p / 2), latBits = Math.floor(5 * p / 2); return { dLon: 360 / 2 ** lonBits, dLat: 180 / 2 ** latBits }; }
+  const dist = (a, b) => Math.hypot((a.lat - b.lat) * KM_LAT, (a.lon - b.lon) * KM_LON);
+
+  // seeded random so the map looks the same on every visit
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const gauss = r => Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r());
+  let drivers, rider = { lat: 12.9716, lon: 77.5946 }, mode = "geo";
+  function makeDrivers() {
+    const r = rng(7), out = [];
+    for (let i = 0; i < 140; i++) out.push({ lat: LAT0 + r() * (LAT1 - LAT0), lon: LON0 + r() * (LON1 - LON0) });
+    [[12.9716, 77.5946, 0.018], [12.935, 77.624, 0.012], [13.03, 77.55, 0.014]].forEach(([la, lo, s]) => {
+      for (let i = 0; i < 45; i++) out.push({ lat: la + gauss(r) * s, lon: lo + gauss(r) * s });
+    });
+    return out.filter(d => d.lat > LAT0 && d.lat < LAT1 && d.lon > LON0 && d.lon < LON1);
+  }
+
+  // ---------- quadtree ----------
+  function buildQuad(points, cap) {
+    function node(la0, la1, lo0, lo1, pts, depth) {
+      const n = { la0, la1, lo0, lo1, pts: null, kids: null };
+      if (pts.length <= cap || depth >= 9) { n.pts = pts; return n; }
+      const lam = (la0 + la1) / 2, lom = (lo0 + lo1) / 2;
+      const q = [[], [], [], []];
+      pts.forEach(p => q[(p.lat >= lam ? 0 : 2) + (p.lon >= lom ? 1 : 0)].push(p));
+      n.kids = [node(lam, la1, lo0, lom, q[0], depth + 1), node(lam, la1, lom, lo1, q[1], depth + 1), node(la0, lam, lo0, lom, q[2], depth + 1), node(la0, lam, lom, lo1, q[3], depth + 1)];
+      return n;
+    }
+    return node(LAT0, LAT1, LON0, LON1, points, 0);
+  }
+
+  function compute() {
+    const R = +$("radius").value, p = +$("prec").value, cap = +$("cap").value;
+    const truth = new Set(drivers.filter(d => dist(d, rider) <= R));
+    const res = { R, truth, checked: new Set(), missed: new Set(), cells: [], nodes: [], visited: [] };
+    if (mode === "geo") {
+      const { dLon, dLat } = cellSize(p), me = encode(rider.lat, rider.lon, p);
+      const cLat = (me.la[0] + me.la[1]) / 2, cLon = (me.lo[0] + me.lo[1]) / 2;
+      const set = new Set();
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+        const e = encode(cLat + a * dLat, cLon + b * dLon, p); set.add(e.hash);
+        res.cells.push({ la: e.la, lo: e.lo, own: a === 0 && b === 0, hash: e.hash });
+      }
+      drivers.forEach(d => { if (set.has(encode(d.lat, d.lon, p).hash)) res.checked.add(d); });
+      res.hash = me.hash; res.cell = { dLon, dLat };
+    } else {
+      const root = buildQuad(drivers, cap);
+      const bb = { la0: rider.lat - R / KM_LAT, la1: rider.lat + R / KM_LAT, lo0: rider.lon - R / KM_LON, lo1: rider.lon + R / KM_LON };
+      let visits = 0;
+      (function walk(n) {
+        res.nodes.push(n);
+        if (n.la1 < bb.la0 || n.la0 > bb.la1 || n.lo1 < bb.lo0 || n.lo0 > bb.lo1) return;
+        visits++;
+        if (n.pts) { res.visited.push(n); n.pts.forEach(d => res.checked.add(d)); }
+        else n.kids.forEach(walk);
+      })(root);
+      (function all(n) { if (n.kids) n.kids.forEach(all); })(root);
+      res.visits = visits; res.hash = encode(rider.lat, rider.lon, 6).hash;
+    }
+    truth.forEach(d => { if (!res.checked.has(d)) res.missed.add(d); });
+    return res;
+  }
+
+  function draw() {
+    const res = compute(), p = +$("prec").value;
+    let s = `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>`;
+    if (mode === "geo") {
+      const { dLon, dLat } = res.cell;
+      res.cells.forEach(c => {
+        s += `<rect x="${px(c.lo[0])}" y="${py(c.la[1])}" width="${px(c.lo[1]) - px(c.lo[0])}" height="${py(c.la[0]) - py(c.la[1])}" fill="var(--accent-soft)" opacity="${c.own ? 1 : .6}" stroke="var(--accent)" stroke-width="${c.own ? 2 : 1}"/>`;
+      });
+      for (let lo = Math.ceil(LON0 / dLon) * dLon; lo < LON1; lo += dLon) s += `<line x1="${px(lo)}" y1="0" x2="${px(lo)}" y2="${H}" stroke="var(--line)" stroke-width="1"/>`;
+      for (let la = Math.ceil(LAT0 / dLat) * dLat; la < LAT1; la += dLat) s += `<line x1="0" y1="${py(la)}" x2="${W}" y2="${py(la)}" stroke="var(--line)" stroke-width="1"/>`;
+      if (p <= 5) res.cells.forEach(c => {
+        const x = px(c.lo[0]) + 6, y = py(c.la[1]) + 16;
+        if (x > 0 && x < W - 40 && y > 0 && y < H) s += `<text x="${x}" y="${y}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--accent)">${c.hash}</text>`;
+      });
+    } else {
+      res.nodes.forEach(n => { s += `<rect x="${px(n.lo0)}" y="${py(n.la1)}" width="${px(n.lo1) - px(n.lo0)}" height="${py(n.la0) - py(n.la1)}" fill="none" stroke="var(--line)" stroke-width="1"/>`; });
+      res.visited.forEach(n => { s += `<rect x="${px(n.lo0)}" y="${py(n.la1)}" width="${px(n.lo1) - px(n.lo0)}" height="${py(n.la0) - py(n.la1)}" fill="var(--accent-soft)" opacity=".75" stroke="var(--accent)" stroke-width="1.2"/>`; });
+    }
+    const rx = res.R / KM_LON / (LON1 - LON0) * W, ry = res.R / KM_LAT / (LAT1 - LAT0) * H;
+    s += `<ellipse cx="${px(rider.lon)}" cy="${py(rider.lat)}" rx="${rx}" ry="${ry}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    drivers.forEach(d => {
+      const c = res.missed.has(d) ? "var(--bad)" : res.truth.has(d) ? "var(--ok)" : res.checked.has(d) ? "var(--amber)" : "var(--muted)";
+      const r = res.truth.has(d) || res.missed.has(d) ? 4 : res.checked.has(d) ? 3.4 : 2.4;
+      s += `<circle cx="${px(d.lon)}" cy="${py(d.lat)}" r="${r}" fill="${c}" opacity="${c === "var(--muted)" ? .5 : 1}"/>`;
+    });
+    s += `<circle cx="${px(rider.lon)}" cy="${py(rider.lat)}" r="8" fill="var(--accent)" stroke="var(--panel)" stroke-width="2.5"/>`;
+    s += `<text x="10" y="${H - 10}" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">central Bengaluru · about 32 × 28 km</text>`;
+    $("map").innerHTML = s;
+
+    $("radiusOut").textContent = res.R + " km";
+    $("precOut").textContent = p; $("capOut").textContent = $("cap").value;
+    if (mode === "geo") {
+      const cw = res.cell.dLon * KM_LON, ch = res.cell.dLat * KM_LAT;
+      $("hash").innerHTML = `${res.hash} <small>cell ≈ ${cw.toFixed(1)} × ${ch.toFixed(1)} km</small>`;
+      $("results").innerHTML = `
+        <div><span>Drivers checked (9 cells)</span><b>${res.checked.size}</b></div>
+        <div><span>Actually within ${res.R} km</span><b style="color:var(--ok)">${res.truth.size}</b></div>
+        <div><span>Missed</span><b style="color:${res.missed.size ? "var(--bad)" : "var(--ink)"}">${res.missed.size}</b></div>
+        <div><span>Without an index</span><b>${drivers.length}</b></div>`;
+      const small = Math.min(cw, ch) < res.R;
+      $("note").innerHTML = small ? `<b style="color:var(--bad)">The cells are smaller than the radius,</b> so the rider's cell and its 8 neighbours don't cover the whole circle. Use a shorter geohash, or search more rings of neighbours.` : res.checked.size > res.truth.size * 4 && res.truth.size ? `Correct, but ${res.checked.size - res.truth.size} of the drivers checked are too far away. A longer geohash would check fewer.` : `The 3 × 3 block covers the circle, and most drivers checked are genuinely close.`;
+    } else {
+      $("hash").innerHTML = `${res.hash} <small>quadtree doesn't need it</small>`;
+      $("results").innerHTML = `
+        <div><span>Drivers checked (leaf boxes)</span><b>${res.checked.size}</b></div>
+        <div><span>Actually within ${res.R} km</span><b style="color:var(--ok)">${res.truth.size}</b></div>
+        <div><span>Tree nodes visited</span><b>${res.visits} of ${res.nodes.length}</b></div>
+        <div><span>Without an index</span><b>${drivers.length}</b></div>`;
+      $("note").innerHTML = `The tree visits only boxes that overlap the circle. It never misses a driver, because a box is skipped only when it lies entirely outside the circle's bounding square.`;
+    }
+  }
+
+  $("map").addEventListener("click", e => {
+    const r = $("map").getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+    rider = { lon: LON0 + x / W * (LON1 - LON0), lat: LAT1 - y / H * (LAT1 - LAT0) };
+    draw();
+  });
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-selected", x === b));
+    $("geoPane").hidden = mode !== "geo"; $("quadPane").hidden = mode !== "quad";
+    draw();
+  });
+  ["radius", "prec", "cap"].forEach(id => $(id).oninput = draw);
+  $("crowd").onclick = () => { const r = rng(drivers.length); for (let i = 0; i < 120; i++) drivers.push({ lat: 12.9788 + gauss(r) * 0.004, lon: 77.5996 + gauss(r) * 0.004 }); draw(); };
+  $("reset").onclick = () => { drivers = makeDrivers(); draw(); };
+
+  drivers = makeDrivers();
+  draw();
+</script>
+</body>
+</html>

@@ -46,8 +46,15 @@ window.TOPICS = [
     usedIn: "AWS API Gateway, Stripe, Cloudflare, Nginx",
     glyph: "lanes"
   },
-  { slug: "geohash-quadtree", title: "Geohash and Quadtrees", area: "Proximity search", status: "planned",
-    blurb: "Find nearby drivers or restaurants by splitting the map into cells that share prefixes." },
+  {
+    slug: "geohash-quadtree",
+    title: "Geohash and Quadtrees",
+    area: "Proximity search",
+    status: "ready",
+    blurb: "Drop a rider on a map of drivers and compare a geohash grid with a quadtree: what each search checks, and what the grid can miss.",
+    usedIn: "Uber, Redis GEO, Elasticsearch, MongoDB",
+    glyph: "grid"
+  },
   { slug: "quorum", title: "Quorum Replication and CAP", area: "Databases", status: "planned",
     blurb: "Tune N, R and W, partition the network, and watch reads go stale or writes fail." },
   { slug: "lsm-tree", title: "LSM Tree", area: "Scaling writes", status: "planned",
@@ -76,7 +83,13 @@ window.QUESTIONS = [
     blurb: "Watch the design grow from one server to a scaled read path, generate codes three ways, and size it with live estimates.",
     concepts: ["lru-cache", "consistent-hashing", "bloom-filter", "rate-limiter"]
   },
-  { slug: "rate-limiter-design", title: "Design a Rate Limiter", status: "planned", blurb: "A shared limiter for an API gateway: where it runs, Redis and Lua, and failing open or closed." },
+  {
+    slug: "rate-limiter-design",
+    title: "Design a Rate Limiter",
+    status: "ready",
+    blurb: "Watch a per-server limiter leak, step two gateways through a race on one counter, and size a sharded Redis tier that fails safely.",
+    concepts: ["rate-limiter", "consistent-hashing", "lru-cache"]
+  },
   {
     slug: "ticketmaster",
     title: "Design Ticketmaster",
@@ -104,7 +117,9 @@ window.DSA = [
     { slug: "sliding-window", title: "Sliding Window", status: "ready",
       blurb: "Fixed and variable windows grown and shrunk in one pass: best k-sum, anagrams, longest run without repeats and shortest sum.",
       problems: ["Best sum of k in a row", "Find every anagram", "Longest run without repeats", "Shortest subarray reaching a target"] },
-    { slug: "simultaneous-traversal", title: "Simultaneous Traversal", status: "planned", blurb: "Walk two sorted arrays at once to merge, intersect or match subsequences." },
+    { slug: "simultaneous-traversal", title: "Simultaneous Traversal", status: "ready",
+      blurb: "One pointer per sorted array: merge, match a subsequence, intersect, and merge in place from the back, stepped line by line.",
+      problems: ["Merge two sorted arrays", "Is it a subsequence?", "Common elements", "Merge in place"] },
     { slug: "intervals", title: "Interval Merging and Overlap", status: "planned", blurb: "Sort by start, merge overlaps, and sweep a line to count meeting rooms." }
   ] },
   { area: "Linked List", patterns: [

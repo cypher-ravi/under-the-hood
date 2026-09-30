@@ -8,6 +8,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Raft Consensus](topics/raft.html) | Distributed systems | Watch leader election, send client writes, crash and restart servers |
 | [Bloom Filter](topics/bloom-filter.html) | Data structures | Add and check words, catch false positives, tune bits and hash count against the formula |
 | [Rate Limiters](topics/rate-limiter.html) | Backend | Four algorithms side by side on the same traffic, including a burst across a window boundary |
+| [Geohash and Quadtrees](topics/geohash-quadtree.html) | Proximity search | Move a rider on a map of drivers, compare a geohash grid with a quadtree, see what each search checks or misses |
 | [LRU Cache](topics/lru-cache.html) | Data structures | Step through the hash map and linked list, replay access patterns, compare with the optimal policy |
 
 ## Design questions
@@ -15,6 +16,8 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | Question | Concepts used |
 | --- | --- |
 | [Design a URL Shortener](questions/bitly.html) | LRU cache, consistent hashing, Bloom filter, rate limiting |
+| [Design Ticketmaster](questions/ticketmaster.html) | Rate limiting, caching, consistent hashing |
+| [Design a Rate Limiter](questions/rate-limiter-design.html) | Rate limiting algorithms, consistent hashing |
 
 Each question page follows the same interview steps: requirements, core entities, API, high-level design (drawn live and evolved one component at a time), then deep dives with interactive estimates. The step order follows Hello Interview's delivery framework; the breakdowns are original.
 
@@ -23,6 +26,8 @@ Each question page follows the same interview steps: requirements, core entities
 | Pattern | Problems (each with a step-through visualizer) |
 | --- | --- |
 | [Two Pointers](dsa/two-pointers.html) | Palindrome check, pair with target sum, container with most water, three sum |
+| [Sliding Window](dsa/sliding-window.html) | Best sum of k in a row, every anagram, longest run without repeats, shortest subarray reaching a target |
+| [Simultaneous Traversal](dsa/simultaneous-traversal.html) | Merge two sorted arrays, subsequence check, common elements, merge in place |
 
 Pattern pages teach the idea from first principles, how to spot it, and a template, then step through each problem's solution line by line with editable inputs. Patterns are grouped by data structure; the pattern-first structure is inspired by Codeintuition. `shared/stepper.js` is the reusable step-through engine.
 

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="shared/lab.css?v=6">
+<link rel="stylesheet" href="shared/lab.css?v=7">
 <style>
   .hero { display: grid; gap: 14px; padding-block: 12px 4px; }
   .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); }
@@ -137,6 +137,16 @@
           s += ok ? `<circle cx="${x}" cy="${y}" r="5" fill="var(--ok)"/>` : `<path d="M${x - 4} ${y - 4} l8 8 m0 -8 l-8 8" stroke="var(--bad)" stroke-width="2"/>`;
         }
       });
+      return s;
+    },
+    grid() {
+      let s = "";
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+        const on = (i === 2 || i === 3) && j === 1, near = i >= 1 && i <= 4 && j <= 2;
+        s += `<rect x="${80 + i * 40}" y="${40 + j * 40}" width="40" height="40" fill="${on ? "var(--accent-soft)" : near ? "var(--paper)" : "none"}" stroke="var(--line)" stroke-width="1.2"/>`;
+      }
+      [[110, 60], [150, 95], [205, 110], [230, 90], [260, 140], [300, 70], [180, 150], [130, 135]].forEach(([x, y], k) => { s += `<circle cx="${x}" cy="${y}" r="4.5" fill="${k === 2 || k === 3 ? "var(--ok)" : "var(--muted)"}"/>`; });
+      s += `<circle cx="200" cy="100" r="36" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="200" cy="100" r="6" fill="var(--accent)"/>`;
       return s;
     },
     cluster() {

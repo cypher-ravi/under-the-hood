@@ -8,7 +8,7 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
   **No Claude co-author trailer or any Claude attribution** in commits, PRs or pages.
 - No build step, no dependencies. Plain HTML/CSS/JS, one file per page. Fonts from Google Fonts only.
 - Colors only through tokens in `shared/lab.css` (light and dark). Every page must fit a 400px-wide screen with no sideways scroll.
-- After changing `shared/lab.css`, bump the `?v=N` query on every page's stylesheet link (currently `v=6`).
+- After changing `shared/lab.css`, bump the `?v=N` query on every page's stylesheet link (currently `v=7`).
 - Write explanations and problem statements in our own words. Credit Hello Interview (design questions) and Codeintuition (DSA pattern structure) as inspiration; never copy their text.
 - Verify facts (dates, names, numbers) with a quick search before putting them in a "story" section.
 - Check each new page once with Playwright (desktop + 400px width, look for console errors), then push.
@@ -22,6 +22,6 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 - `shared/stepper.js`: `Stepper(root, { code, inputs, presets, build(values) -> {frames}|{error}, draw(frame) })`, plus `drawArray(values, {ptr, mark})` and `parseNums(text)`. `dsa/two-pointers.html` is the reference example.
 
 ## Roadmap (next up first)
-- DSA: Simultaneous Traversal, Interval Merging and Overlap, then Linked List, Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
-- Design questions: Rate Limiter, WhatsApp, News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
-- Concepts: Geohash and Quadtrees, Quorum and CAP, LSM Tree, B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.
+- DSA: Interval Merging and Overlap, then Linked List, Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
+- Design questions: WhatsApp, News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
+- Concepts: Quorum and CAP, LSM Tree, B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.

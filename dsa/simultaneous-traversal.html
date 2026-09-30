@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simultaneous Traversal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 10px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .empty { font-size: 13px; color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="simultaneous-traversal" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Array</span>
+  </div>
+
+  <header class="intro">
+    <h1>Simultaneous Traversal</h1>
+    <p class="lede">Walk two sequences at the same time, one pointer in each. At every step you compare the two current elements, act on one (or both), and advance only the pointer you used. Two sorted arrays can be merged, intersected or matched in a single pass, without nested loops and without sorting again.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>The smallest remaining element is always at a front</h2>
+    <p>Take two sorted piles of cards. The smallest card left anywhere must be on top of one of the two piles, because each pile is sorted. So you only ever need to compare two cards, the two tops, to know what comes next. Take that card, and the pile it came from shows a new top.</p>
+    <p>Each comparison uses up at least one element, so the whole walk takes at most <span class="mono">n + m</span> steps. The alternatives are slower. Comparing every element of one array with every element of the other takes <span class="mono">n × m</span> steps. Gluing the arrays together and sorting again takes <span class="mono">(n + m) log(n + m)</span> and throws away the order you already had.</p>
+    <div id="ideaViz"></div>
+    <h3>Four shapes of the same walk</h3>
+    <div class="variants">
+      <div><h3>Merge</h3><p>Take the smaller front each time. Output everything, in order.</p><a href="#p1">Problem 1: Merge two sorted arrays</a></div>
+      <div><h3>Match</h3><p>One sequence must appear inside the other in order. Advance the pattern only on a match.</p><a href="#p2">Problem 2: Is it a subsequence?</a></div>
+      <div><h3>Intersect</h3><p>Equal fronts are a match and both advance. Otherwise drop the smaller front.</p><a href="#p3">Problem 3: Common elements</a></div>
+      <div><h3>Backwards</h3><p>Walk from the ends to fill a buffer in place without overwriting unread values.</p><a href="#p4">Problem 4: Merge in place</a></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>There are <b>two</b> inputs (arrays, strings or lists), and both are <b>sorted</b> or ordered.</li>
+      <li>The task is to <b>combine</b> them (merge), <b>compare</b> them (common elements, differences) or check that one <b>follows</b> the other (subsequence).</li>
+      <li>The expected complexity is <b>O(n + m)</b>, or the statement says the inputs are already sorted, which is a hint not to sort again.</li>
+      <li>You must write into one of the inputs <b>in place</b>, and it has spare room at the end.</li>
+    </ul>
+    <div class="aside"><p><b>Compared with Two Pointers:</b> there, both pointers live in the same array and usually move toward each other. Here each pointer owns its own sequence, and both usually move forward.</p></div>
+  </section>
+
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">i, j = 0, 0
+while i &lt; len(A) and j &lt; len(B):
+    <span class="c"># look at A[i] and B[j]</span>
+    if they match:
+        use both; i += 1; j += 1
+    elif A[i] &lt; B[j]:
+        use or skip A[i]; i += 1
+    else:
+        use or skip B[j]; j += 1
+<span class="c"># one side ran out: handle what's left of the other</span></pre>
+    <p>Problems differ only in what "use" means and in what to do with the leftovers once one side runs out. Forgetting the leftovers is the most common bug with this pattern.</p>
+  </section>
+
+  <section class="panel article problem" id="p1" data-nav="Merge two sorted arrays" data-num="P1">
+    <span class="eyebrow">Problem 1 · Merge</span>
+    <h2>Merge two sorted arrays</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given two arrays, each sorted in increasing order, return a single array with every element from both, also sorted.</p>
+      <div class="io"><div><span>Input</span>A = [1, 4, 7, 9], B = [2, 3, 8]</div><div><span>Output</span>[1, 2, 3, 4, 7, 8, 9]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: which element goes out next?</summary><p>The next output is the smaller of the two fronts, A[i] or B[j]. Take it and advance only that pointer. When one array runs out, the rest of the other is already sorted and larger than everything written, so copy it straight across.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(n + m) for the output</span><span class="meh">Concatenate and sort: O((n + m) log(n + m))</span></div>
+  </section>
+
+  <section class="panel article problem" id="p2" data-nav="Is it a subsequence?" data-num="P2">
+    <span class="eyebrow">Problem 2 · Match</span>
+    <h2>Is it a subsequence?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a short string <span class="mono">s</span> and a longer string <span class="mono">t</span>, return <span class="mono">true</span> if you can delete some characters of <span class="mono">t</span> (possibly none), without reordering the rest, and get <span class="mono">s</span>.</p>
+      <div class="io"><div><span>Input</span>s = "ace", t = "abcde"</div><div><span>Output</span>true (a, c, e appear in order)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: is it ever wrong to match early?</summary><p>No. If <span class="mono">s[i]</span> equals <span class="mono">t[j]</span>, matching it now leaves the most of <span class="mono">t</span> for the rest of <span class="mono">s</span>. So scan <span class="mono">t</span> once, and advance <span class="mono">i</span> only on a match. If <span class="mono">i</span> reaches the end of <span class="mono">s</span>, you're done.</p></details>
+    <div id="viz2"></div>
+    <div class="cx"><span class="good">Time O(len t)</span><span class="good">Space O(1)</span></div>
+  </section>
+
+  <section class="panel article problem" id="p3" data-nav="Common elements" data-num="P3">
+    <span class="eyebrow">Problem 3 · Intersect</span>
+    <h2>Common elements of two sorted arrays</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given two sorted arrays, return the elements they share. If a value appears twice in both, include it twice.</p>
+      <div class="io"><div><span>Input</span>A = [1, 2, 2, 4, 6, 8], B = [2, 2, 3, 6, 9]</div><div><span>Output</span>[2, 2, 6]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: the fronts differ. Which one can go?</summary><p>If A[i] is smaller than B[j], then A[i] is smaller than everything left in B too, because B is sorted. It can't match anything, so skip it. Equal fronts are a match: record it and advance both.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(1) besides the output</span><span class="meh">Nested loops: O(n × m)</span></div>
+  </section>
+
+  <section class="panel article problem" id="p4" data-nav="Merge in place" data-num="P4">
+    <span class="eyebrow">Problem 4 · Backwards</span>
+    <h2>Merge into the first array, in place</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Array A holds <span class="mono">m</span> sorted values followed by <span class="mono">n</span> empty slots. Array B holds <span class="mono">n</span> sorted values. Merge B into A so that A ends up fully sorted, without using another array.</p>
+      <div class="io"><div><span>Input</span>A = [1, 4, 7, _, _, _], B = [2, 5, 6]</div><div><span>Output</span>A = [1, 2, 4, 5, 6, 7]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: why does merging from the front go wrong?</summary><p>Writing at the front of A would overwrite values of A you haven't placed yet. The empty space is at the <i>end</i>, so fill it from the end: compare the two largest remaining values and put the larger one in the last free slot. The write pointer can never overtake the read pointer in A.</p></details>
+    <div id="viz4"></div>
+    <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(1)</span></div>
+  </section>
+
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why a single pass is enough</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>Everything before <span class="mono">i</span> in A and before <span class="mono">j</span> in B has already been handled correctly, and nothing after them has.</p></div>
+      <div><span class="q">Each step</span><p>Because both arrays are sorted, the front that is smaller can't pair with anything later in the other array. Handling it now keeps the invariant true.</p></div>
+      <div><span class="q">Termination</span><p>Every step advances at least one pointer, so the loop runs at most n + m times.</p></div>
+      <div><span class="q">History</span><p>This merge step is the heart of merge sort, which is usually credited to John von Neumann in 1945. External sorting on tape drives relied on it for decades, because tapes can only be read in order.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const label = t => `<span class="stage-label">${t}</span>`;
+  const outRow = (arr, fresh) => arr.length ? drawArray(arr, { mark: fresh >= 0 ? { [fresh]: "hit" } : {} }) : `<span class="empty">empty</span>`;
+
+  document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${label("A")}${drawArray([1, 4, 7, 9], { ptr: { i: 0 }, mark: { 0: "active" } })}${label("B")}${drawArray([2, 3, 8], { ptr: { j: 0 }, mark: { 0: "active" } })}<p style="font-size:14px;color:var(--muted)">Only the two fronts, 1 and 2, can be the smallest remaining value. Compare them, take the smaller, move that pointer.</p></div>`;
+
+  // ---------- P1 merge ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def merge(A, B):",
+      "  i, j, out = 0, 0, []",
+      "  while i < len(A) and j < len(B):",
+      "    if A[i] <= B[j]: out.append(A[i]); i += 1",
+      "    else: out.append(B[j]); j += 1",
+      "  out += A[i:]   # leftovers of A",
+      "  out += B[j:]   # leftovers of B",
+      "  return out"
+    ],
+    inputs: [{ key: "a", label: "A (sorted)", value: "1, 4, 7, 9" }, { key: "b", label: "B (sorted)", value: "2, 3, 8" }],
+    presets: [
+      { label: "Interleaved", values: { a: "1, 4, 7, 9", b: "2, 3, 8" } },
+      { label: "B entirely after A", values: { a: "1, 2, 3", b: "7, 8, 9, 10" } },
+      { label: "Duplicates", values: { a: "2, 2, 5", b: "2, 5, 5, 6" } }
+    ],
+    build({ a, b }) {
+      const pa = parseNums(a, { min: 1, max: 8 }); if (pa.error) return pa;
+      const pb = parseNums(b, { min: 1, max: 8 }); if (pb.error) return pb;
+      const A = pa.nums, B = pb.nums;
+      if (A.some((x, k) => k && x < A[k - 1]) || B.some((x, k) => k && x < B[k - 1])) return { error: "Both arrays must be sorted in increasing order." };
+      const frames = [], out = []; let i = 0, j = 0;
+      const snap = (line, msg, fresh = -1, mark = {}) => frames.push({ line, msg, A, B, i, j, out: out.slice(), fresh, mark, vars: { i, j, "out size": out.length, steps: frames.length } });
+      snap(1, "Start both pointers at the front. The output is empty.");
+      while (i < A.length && j < B.length) {
+        if (A[i] <= B[j]) { out.push(A[i]); snap(3, `A[${i}] = ${A[i]} ≤ B[${j}] = ${B[j]}. It's the smallest remaining value, so append it and move i.`, out.length - 1, { a: i }); i++; }
+        else { out.push(B[j]); snap(4, `B[${j}] = ${B[j]} < A[${i}] = ${A[i]}. Append B[${j}] and move j.`, out.length - 1, { b: j }); j++; }
+      }
+      if (i < A.length) { const rest = A.slice(i); out.push(...rest); i = A.length; snap(5, `B is used up. The rest of A (${rest.join(", ")}) is sorted and larger than everything so far, so copy it across.`, out.length - 1); }
+      if (j < B.length) { const rest = B.slice(j); out.push(...rest); j = B.length; snap(6, `A is used up. Copy the rest of B (${rest.join(", ")}).`, out.length - 1); }
+      snap(7, `<b class="ok">Done:</b> ${out.length} elements in ${frames.length - 1} steps, no sorting needed.`);
+      return { frames };
+    },
+    draw(f) {
+      const ma = {}, mb = {};
+      for (let k = 0; k < f.i; k++) ma[k] = "done"; for (let k = 0; k < f.j; k++) mb[k] = "done";
+      if (f.mark.a !== undefined) ma[f.mark.a] = "hit"; if (f.mark.b !== undefined) mb[f.mark.b] = "hit";
+      return `<div class="stage-row">${label("A")}${drawArray(f.A, { ptr: { i: f.i }, mark: ma })}${label("B")}${drawArray(f.B, { ptr: { j: f.j }, mark: mb })}${label("Output")}${outRow(f.out, f.fresh)}</div>`;
+    }
+  });
+
+  // ---------- P2 subsequence ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def is_subsequence(s, t):",
+      "  i, j = 0, 0",
+      "  while i < len(s) and j < len(t):",
+      "    if s[i] == t[j]: i += 1   # matched",
+      "    j += 1",
+      "  return i == len(s)"
+    ],
+    inputs: [{ key: "s", label: "s (short)", value: "ace" }, { key: "t", label: "t (long)", value: "abcde" }],
+    presets: [
+      { label: "ace in abcde", values: { s: "ace", t: "abcde" } },
+      { label: "aec in abcde (order matters)", values: { s: "aec", t: "abcde" } },
+      { label: "code in concede", values: { s: "code", t: "concede" } }
+    ],
+    build({ s, t }) {
+      if (!s.length || !t.length) return { error: "Type both strings." };
+      if (s.length > 10 || t.length > 16) return { error: "Keep s to 10 characters and t to 16 so every step fits." };
+      const S = [...s], T = [...t], frames = [], matched = {}; let i = 0, j = 0;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, S, T, i, j, sm: { ...matched, ...mark.s }, tm: mark.t || {}, vars: { i, j, "matched": `${i} of ${S.length}` } });
+      snap(1, "i walks through s, j walks through t.");
+      while (i < S.length && j < T.length) {
+        if (S[i] === T[j]) {
+          matched[i] = "hit"; snap(3, `s[${i}] = "${S[i]}" matches t[${j}]. Advance i and j.`, { t: { [j]: "hit" } }); i++; j++;
+        } else { snap(4, `t[${j}] = "${T[j]}" isn't "${S[i]}". Skip it: advance only j.`, { t: { [j]: "miss" }, s: { [i]: "active" } }); j++; }
+      }
+      const ok = i === S.length;
+      snap(5, ok ? `Every character of s was found in order. <b class="ok">Return true</b>.` : `t ran out with "${S.slice(i).join("")}" still unmatched. <b class="bad">Return false</b>.`);
+      return { frames };
+    },
+    draw(f) { return `<div class="stage-row">${label("s")}${drawArray(f.S, { ptr: { i: f.i }, mark: f.sm })}${label("t")}${drawArray(f.T, { ptr: { j: f.j }, mark: f.tm })}</div>`; }
+  });
+
+  // ---------- P3 common elements ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def common(A, B):",
+      "  i, j, out = 0, 0, []",
+      "  while i < len(A) and j < len(B):",
+      "    if A[i] == B[j]:",
+      "      out.append(A[i]); i += 1; j += 1",
+      "    elif A[i] < B[j]: i += 1",
+      "    else: j += 1",
+      "  return out"
+    ],
+    inputs: [{ key: "a", label: "A (sorted)", value: "1, 2, 2, 4, 6, 8" }, { key: "b", label: "B (sorted)", value: "2, 2, 3, 6, 9" }],
+    presets: [
+      { label: "With repeats", values: { a: "1, 2, 2, 4, 6, 8", b: "2, 2, 3, 6, 9" } },
+      { label: "Nothing shared", values: { a: "1, 3, 5, 7", b: "2, 4, 6" } },
+      { label: "One inside the other", values: { a: "3, 4, 5", b: "1, 2, 3, 4, 5, 6, 7" } }
+    ],
+    build({ a, b }) {
+      const pa = parseNums(a, { min: 1, max: 9 }); if (pa.error) return pa;
+      const pb = parseNums(b, { min: 1, max: 9 }); if (pb.error) return pb;
+      const A = pa.nums, B = pb.nums;
+      if (A.some((x, k) => k && x < A[k - 1]) || B.some((x, k) => k && x < B[k - 1])) return { error: "Both arrays must be sorted in increasing order." };
+      const frames = [], out = [], ma = {}, mb = {}; let i = 0, j = 0;
+      const snap = (line, msg, fresh = -1) => frames.push({ line, msg, A, B, i, j, out: out.slice(), fresh, ma: { ...ma }, mb: { ...mb }, vars: { i, j, found: out.length } });
+      snap(1, "Start at both fronts.");
+      while (i < A.length && j < B.length) {
+        if (A[i] === B[j]) { out.push(A[i]); ma[i] = "hit"; mb[j] = "hit"; snap(4, `A[${i}] = B[${j}] = ${A[i]}. A match: record it and advance both.`, out.length - 1); i++; j++; }
+        else if (A[i] < B[j]) { ma[i] = "done"; snap(5, `${A[i]} < ${B[j]}. ${A[i]} is smaller than everything left in B, so it can't match. Skip it.`); i++; }
+        else { mb[j] = "done"; snap(6, `${B[j]} < ${A[i]}. ${B[j]} can't match anything left in A. Skip it.`); j++; }
+      }
+      snap(7, out.length ? `One array ran out, so nothing else can match. <b class="ok">Result: [${out.join(", ")}]</b>.` : `<b class="bad">No common elements.</b>`);
+      return { frames };
+    },
+    draw(f) { return `<div class="stage-row">${label("A")}${drawArray(f.A, { ptr: { i: f.i }, mark: f.ma })}${label("B")}${drawArray(f.B, { ptr: { j: f.j }, mark: f.mb })}${label("Common")}${outRow(f.out, f.fresh)}</div>`; }
+  });
+
+  // ---------- P4 merge in place from the back ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def merge_in_place(A, m, B, n):",
+      "  i, j, k = m - 1, n - 1, m + n - 1",
+      "  while j >= 0:",
+      "    if i >= 0 and A[i] > B[j]:",
+      "      A[k] = A[i]; i -= 1",
+      "    else:",
+      "      A[k] = B[j]; j -= 1",
+      "    k -= 1"
+    ],
+    inputs: [{ key: "a", label: "A's values (sorted)", value: "1, 4, 7" }, { key: "b", label: "B (sorted)", value: "2, 5, 6" }],
+    presets: [
+      { label: "Interleaved", values: { a: "1, 4, 7", b: "2, 5, 6" } },
+      { label: "B all smaller", values: { a: "5, 6, 7", b: "1, 2" } },
+      { label: "B all larger", values: { a: "1, 2", b: "8, 9, 10" } }
+    ],
+    build({ a, b }) {
+      const pa = parseNums(a, { min: 1, max: 6 }); if (pa.error) return pa;
+      const pb = parseNums(b, { min: 1, max: 6 }); if (pb.error) return pb;
+      const vals = pa.nums, B = pb.nums;
+      if (vals.some((x, k) => k && x < vals[k - 1]) || B.some((x, k) => k && x < B[k - 1])) return { error: "Both arrays must be sorted in increasing order." };
+      const m = vals.length, n = B.length, A = [...vals, ...Array(n).fill("_")], frames = [], placed = {}, usedB = {};
+      let i = m - 1, j = n - 1, k = m + n - 1;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, A: A.slice(), B, i, j, k, placed: { ...placed }, usedB: { ...usedB }, ...extra, vars: { i, j, k } });
+      snap(1, `A has ${m} values and ${n} empty slots. Start i and j at the last values, and k at the last slot.`);
+      while (j >= 0) {
+        if (i >= 0 && A[i] > B[j]) {
+          snap(3, `A[${i}] = ${A[i]} > B[${j}] = ${B[j]}, so ${A[i]} is the largest value left.`, { cmp: true });
+          A[k] = A[i]; placed[k] = "hit"; snap(4, `Write ${A[i]} into slot ${k}, then move i left.`); i--;
+        } else {
+          snap(3, i >= 0 ? `B[${j}] = ${B[j]} ≥ A[${i}] = ${A[i]}, so ${B[j]} goes next.` : `A's values are all placed. Only B is left.`, { cmp: true });
+          A[k] = B[j]; placed[k] = "hit"; usedB[j] = "done"; snap(6, `Write ${B[j]} into slot ${k}, then move j left.`); j--;
+        }
+        k--;
+        snap(7, "Move k one slot left.");
+      }
+      snap(2, `B is used up. The values still in A below i are already in place. <b class="ok">A = [${A.join(", ")}]</b>.`);
+      return { frames };
+    },
+    draw(f) {
+      const ma = { ...f.placed };
+      for (let x = f.i + 1; x <= f.k; x++) if (!ma[x]) ma[x] = "done";   // stale copies, about to be overwritten
+      if (f.cmp && f.i >= 0) ma[f.i] = "active";
+      const mb = { ...f.usedB }; if (f.cmp && f.j >= 0) mb[f.j] = "active";
+      return `<div class="stage-row">${label("A (values, then empty slots)")}${drawArray(f.A, { ptr: { i: f.i, k: f.k }, mark: ma })}${label("B")}${drawArray(f.B, { ptr: { j: f.j }, mark: mb })}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

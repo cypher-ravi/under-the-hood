@@ -279,7 +279,7 @@ pre.api .c { color: var(--muted); }
 @media (max-width: 900px) { .qlayout section[id] { scroll-margin-top: 120px; } }
 
 /* ---------- Gallery switch ---------- */
-.switch { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); justify-self: start; max-width: 100%; }
+.switch { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); justify-self: start; max-width: 100%; }
 .switch button { border: 0; border-radius: 999px; padding: 10px 16px; font: 600 14px/1 var(--body); background: transparent; color: var(--muted); display: inline-flex; gap: 8px; align-items: center; }
 .switch button span { font: 600 11px/1 var(--mono); padding: 3px 6px; border-radius: 999px; background: var(--paper); color: var(--muted); }
 .switch button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
@@ -326,3 +326,7 @@ details.hint[open] summary { margin-bottom: 8px; }
 .cx span.meh { color: var(--bad); border-color: currentColor; }
 pre.tmpl { margin: 0; font: 500 13px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; }
 pre.tmpl .c { color: var(--muted); }
+@media (max-width: 520px) {
+  .switch { border-radius: 16px; }
+  .switch button { padding: 9px 12px; font-size: 13px; }
+}
