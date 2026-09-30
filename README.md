@@ -31,6 +31,16 @@ Each question page follows the same interview steps: requirements, core entities
 
 Pattern pages teach the idea from first principles, how to spot it, and a template, then step through each problem's solution line by line with editable inputs. Patterns are grouped by data structure; the pattern-first structure is inspired by Codeintuition. `shared/stepper.js` is the reusable step-through engine.
 
+## AI lessons
+
+A from-zero AI course in 60 lessons (plus deep dives), one concept per lesson, published twice a week.
+
+| Lesson | Part | What you can do |
+| --- | --- | --- |
+| [01 · What AI actually is](lessons/01-what-ai-is.html) | Foundations | Slide a spam-filter threshold over eight emails, then watch the computer try every value and keep the best |
+
+Each lesson has the same sections: where we are, why it matters, the intuition, how it works (every symbol defined), a diagram or widget computing real values, a worked example by hand and in Python, common misconceptions, three check-yourself questions, the one-line takeaway, what comes next, and optional further reading. The full curriculum is in `window.LESSONS` in [`topics/registry.js`](topics/registry.js).
+
 ## Concept pages
 
 Every topic page has the same sections: the simulation, a worked example traced by hand, the story of who invented it and why, a first-principles summary (what, why, when, where, how), and an interview angle.
@@ -57,6 +67,7 @@ index.html            gallery, renders cards from topics/registry.js
 shared/lab.css        theme tokens (light + dark) and shared components
 topics/registry.js    list of topics and their status
 topics/<slug>.html    one self-contained page per topic
+lessons/<NN>-<slug>.html  one self-contained page per AI lesson
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a topic.

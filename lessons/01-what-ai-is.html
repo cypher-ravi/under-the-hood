@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 01 · What AI actually is</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.best { background: var(--accent-soft); font-weight: 600; }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab .controls { align-items: center; gap: .8rem 1.2rem; margin-top: .6rem; }
+  .lab .controls label { font: 500 .85rem/1.4 var(--mono); }
+  input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); min-width: 0; }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 01 of 60</span><span>~18 min read</span></div>
+  <h1><span class="num">01</span> · What AI actually is</h1>
+  <p class="lede">AI, machine learning and deep learning are three nested ideas, not three names for the same thing. By the end of this page you will be able to say exactly how they differ, and you will have watched a machine "learn" a rule from eight examples.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>The very first step</h2>
+<p>This is Lesson 01, the start of a 60-lesson path from "what is AI" to transformers and agents, so there is nothing to connect back to yet. Everything later in the course, from gradient descent to transformers, sits inside the map we draw today.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Everyone says "AI". Few mean the same thing.</h2>
+<p>A chess engine from 1997, the spam filter in your Gmail, the face unlock on your phone and ChatGPT are all called "AI". They work in very different ways. As an engineer, knowing which kind of system you are looking at tells you what it needs (rules or data), how it fails, and how you would debug it.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>Two ways to teach someone to cook</h2>
+<p>Imagine you want someone to make good dosa batter.</p>
+<p><strong>Way one: write the recipe.</strong> "Soak 3 cups rice and 1 cup urad dal for 6 hours, grind, add salt, ferment overnight." You, the expert, turned your knowledge into explicit steps. The learner just follows them. If the batter fails in a cold Bangalore winter, you have to notice and add a new rule: "in cold weather, ferment 4 hours longer."</p>
+<p><strong>Way two: let them taste.</strong> You hand over no recipe. Instead, they make a hundred batches, and after each one you only say "good" or "not good". Slowly they work out the ratios and timings themselves, including the cold-weather adjustment you never told them about, because the failed winter batches taught it.</p>
+<p>Way one is <mark>classic programming</mark> (and early AI). Way two is <mark>machine learning</mark>. The whole field is about making way two work reliably on a computer.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Three nested circles</h2>
+
+<dl class="defn">
+  <dt>Artificial intelligence (AI)</dt>
+  <dd>The broad goal: getting computers to do tasks that we would call "intelligent" if a person did them, such as playing chess, understanding speech, planning a route or answering a question. AI says nothing about <em>how</em>. The name dates from a 1956 summer workshop at Dartmouth College.</dd>
+  <dt>Machine learning (ML)</dt>
+  <dd>One way to build AI: instead of writing the rules yourself, you give the computer <strong>examples</strong> and a procedure that <strong>adjusts a program's settings until it does well on those examples</strong>. Arthur Samuel, who built a checkers program in the 1950s that improved by playing itself, is usually credited with describing ML as giving computers the ability to learn without being explicitly programmed.</dd>
+  <dt>Deep learning (DL)</dt>
+  <dd>One family of ML methods, where the program being tuned is a large <strong>neural network</strong>: many layers of simple arithmetic units stacked on top of each other ("deep" means many layers). It took off around 2012, when a network called AlexNet beat every other method at recognising objects in photos by a wide margin.</dd>
+</dl>
+
+<figure>
+<svg viewBox="0 0 680 360" role="img" aria-label="Nested regions: AI contains machine learning, which contains deep learning, which contains large language models.">
+  <rect x="10" y="10" width="660" height="340" rx="22" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <rect x="80" y="70" width="520" height="270" rx="18" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <rect x="150" y="130" width="380" height="200" rx="14" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <rect x="220" y="195" width="240" height="125" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="30" y="40" font-size="15" font-weight="600" fill="currentColor">Artificial intelligence</text>
+  <text x="30" y="58" font-size="11.5" fill="var(--muted)">any technique: hand-written rules, search, logic, learning</text>
+  <text x="100" y="98" font-size="15" font-weight="600" fill="currentColor">Machine learning</text>
+  <text x="100" y="116" font-size="11.5" fill="var(--muted)">rules learned from examples</text>
+  <text x="170" y="158" font-size="15" font-weight="600" fill="currentColor">Deep learning</text>
+  <text x="170" y="176" font-size="11.5" fill="var(--muted)">learning with many-layered neural networks</text>
+  <text x="340" y="245" font-size="15" font-weight="600" fill="var(--accent)" text-anchor="middle">Large language models</text>
+  <text x="340" y="265" font-size="11.5" fill="currentColor" text-anchor="middle">ChatGPT, Claude, Gemini</text>
+  <text x="340" y="282" font-size="11.5" fill="currentColor" text-anchor="middle">(Part 3 of this course)</text>
+  <text x="640" y="40" font-size="11" fill="var(--muted)" text-anchor="end">e.g. 1997 chess engine</text>
+  <text x="590" y="98" font-size="11" fill="var(--muted)" text-anchor="end">e.g. spam filter</text>
+  <text x="520" y="158" font-size="11" fill="var(--muted)" text-anchor="end">e.g. face unlock</text>
+</svg>
+<figcaption>Each circle is a subset of the one around it. All deep learning is machine learning, and all machine learning is AI, but not the other way round.</figcaption>
+</figure>
+
+<h3>The key flip: who writes the rules?</h3>
+<p>In ordinary programming, you write a function. Data goes in, answers come out, and the logic in the middle is yours. Machine learning flips which parts you supply. You provide <strong>data plus the answers you want</strong>, and the learning procedure produces the logic.</p>
+
+<figure>
+<svg viewBox="0 0 680 270" role="img" aria-label="Traditional programming takes rules and data to produce answers; machine learning takes data and answers to produce rules, called a model, which is then used on new data.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <text x="10" y="22" font-size="12" fill="var(--muted)" letter-spacing="1">TRADITIONAL PROGRAMMING</text>
+  <rect x="10" y="36" width="120" height="34" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="70" y="58" font-size="13" text-anchor="middle" fill="currentColor">Rules (you write)</text>
+  <rect x="10" y="80" width="120" height="34" rx="6" fill="none" stroke="currentColor"/><text x="70" y="102" font-size="13" text-anchor="middle" fill="currentColor">Data</text>
+  <line x1="130" y1="53" x2="238" y2="72" stroke="currentColor" marker-end="url(#ar)"/>
+  <line x1="130" y1="97" x2="238" y2="80" stroke="currentColor" marker-end="url(#ar)"/>
+  <rect x="240" y="56" width="140" height="40" rx="6" fill="none" stroke="currentColor"/><text x="310" y="81" font-size="13" text-anchor="middle" fill="currentColor">Run program</text>
+  <line x1="380" y1="76" x2="478" y2="76" stroke="currentColor" marker-end="url(#ar)"/>
+  <rect x="480" y="58" width="120" height="36" rx="6" fill="none" stroke="currentColor"/><text x="540" y="81" font-size="13" text-anchor="middle" fill="currentColor">Answers</text>
+
+  <text x="10" y="150" font-size="12" fill="var(--muted)" letter-spacing="1">MACHINE LEARNING</text>
+  <rect x="10" y="164" width="120" height="34" rx="6" fill="none" stroke="currentColor"/><text x="70" y="186" font-size="13" text-anchor="middle" fill="currentColor">Data</text>
+  <rect x="10" y="208" width="120" height="34" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="70" y="230" font-size="13" text-anchor="middle" fill="currentColor">Answers (labels)</text>
+  <line x1="130" y1="181" x2="238" y2="200" stroke="currentColor" marker-end="url(#ar)"/>
+  <line x1="130" y1="225" x2="238" y2="208" stroke="currentColor" marker-end="url(#ar)"/>
+  <rect x="240" y="184" width="140" height="40" rx="6" fill="none" stroke="currentColor"/><text x="310" y="209" font-size="13" text-anchor="middle" fill="currentColor">Learning algorithm</text>
+  <line x1="380" y1="204" x2="478" y2="204" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="429" y="196" font-size="11" text-anchor="middle" fill="var(--muted)">produces</text>
+  <rect x="480" y="186" width="120" height="36" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="540" y="209" font-size="13" text-anchor="middle" fill="var(--accent)" font-weight="600">Rules = model</text>
+  <line x1="540" y1="222" x2="540" y2="252" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="552" y="250" font-size="11" fill="var(--muted)">then used on new data</text>
+</svg>
+<figcaption>The highlighted box is what a human supplies. In ML, you stop hand-writing rules and start curating examples.</figcaption>
+</figure>
+
+<h3>A little notation, gently</h3>
+<p>We will use three symbols all course long. Here they are with no scary parts:</p>
+<ul>
+  <li><code>x</code> is the <strong>input</strong>: what the system looks at. For a spam filter, maybe "how many exclamation marks are in this email".</li>
+  <li><code>y</code> is the <strong>output</strong> or <strong>label</strong>: the answer. Here, spam (1) or not spam (0).</li>
+  <li><code>f</code> is the <strong>model</strong>: a function that turns <code>x</code> into a guess for <code>y</code>. We write the guess as <code>f(x)</code>.</li>
+</ul>
+<p>A model usually has some adjustable numbers inside it, called <strong>parameters</strong>. Think of them as knobs. Our toy spam model has one knob, a threshold <code>t</code>:</p>
+<pre><code>f(x) = spam      if x ≥ t
+f(x) = not spam  otherwise</code></pre>
+<p>A human could pick <code>t</code> by gut feel. <mark>Learning means picking <code>t</code> automatically, by trying values and keeping the one that makes the fewest mistakes on known examples.</mark> That's it. Deep learning is the same idea with millions or billions of knobs and a cleverer way to turn them (Lesson 08, gradient descent), but the shape of the idea never changes:</p>
+<ol>
+  <li>Choose a model shape with knobs (here: "spam if <code>x ≥ t</code>").</li>
+  <li>Choose a way to score it (here: count the mistakes).</li>
+  <li>Adjust the knobs to improve the score on examples.</li>
+  <li>Use the tuned model on new inputs it has never seen.</li>
+</ol>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Tune the knob yourself</h2>
+<div class="lab" id="lab">
+  <h3>Spam-filter threshold lab</h3>
+  <p style="margin-top:0">Eight emails, placed by how many "!" they contain. <span class="spam">Orange</span> ones are really spam; <span class="ham">green</span> ones are real mail. Everything right of the dashed line gets flagged as spam. Slide the line, or press <em>Let it learn</em> to watch the computer try every threshold and keep the best.</p>
+  <svg id="plot" viewBox="0 0 640 170" role="img" aria-label="Number line of eight emails by exclamation count, with a movable threshold."></svg>
+  <div class="controls">
+    <label for="t">threshold t = <b id="tval">1</b></label>
+    <input type="range" id="t" min="0" max="6" step="1" value="1">
+    <button id="learn">Let it learn</button>
+    <button id="reset" class="ghost">Reset</button>
+  </div>
+  <div class="readout">
+    <span>mistakes: <b id="err">2</b> / 8</span>
+    <span>accuracy: <b id="acc">75.0%</b></span>
+    <span class="msg" id="msg">Try a few values. Which one makes the fewest mistakes?</span>
+  </div>
+</div>
+<p>Notice two things. First, <strong>no threshold is perfect</strong>: email G has only one "!" but is spam. Real data is messy, and the goal is fewest mistakes, not zero. Second, the "learning" was nothing magical. It was a search over knob settings, guided by a score. Keep that picture; it is the heart of the whole course.</p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>Learning the threshold by hand</h2>
+<p>Here are the same eight emails as a table. <code>x</code> is the "!" count, <code>y</code> is the true label.</p>
+<div class="tbl"><table>
+<thead><tr><th>Email</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th><th>H</th></tr></thead>
+<tbody>
+<tr><td>x (“!” count)</td><td>0</td><td>1</td><td>0</td><td>2</td><td>3</td><td>5</td><td>1</td><td>4</td></tr>
+<tr><td>y (label)</td><td class="ham">ok</td><td class="ham">ok</td><td class="ham">ok</td><td class="ham">ok</td><td class="spam">spam</td><td class="spam">spam</td><td class="spam">spam</td><td class="spam">spam</td></tr>
+</tbody></table></div>
+<p>Now try each threshold and count the mistakes. Take <code>t = 2</code> as an example: the rule flags D, E, F, H (all have <code>x ≥ 2</code>). D is really ok, so that is one mistake. G is spam but has <code>x = 1</code>, so it slips through: a second mistake. Total: 2.</p>
+<div class="tbl"><table>
+<thead><tr><th>t</th><th>Flagged as spam</th><th>Wrong ones</th><th>Mistakes</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>all 8</td><td>A, B, C, D</td><td>4</td></tr>
+<tr><td>1</td><td>B, D, E, F, G, H</td><td>B, D</td><td>2</td></tr>
+<tr><td>2</td><td>D, E, F, H</td><td>D, G</td><td>2</td></tr>
+<tr><td class="best">3</td><td class="best">E, F, H</td><td class="best">G</td><td class="best">1</td></tr>
+<tr><td>4</td><td>F, H</td><td>E, G</td><td>2</td></tr>
+<tr><td>5</td><td>F</td><td>E, G, H</td><td>3</td></tr>
+<tr><td>6</td><td>none</td><td>E, F, G, H</td><td>4</td></tr>
+</tbody></table></div>
+<p>The winner is <code>t = 3</code> with 1 mistake, so 7 out of 8 correct, which is 87.5% accuracy. Our "trained model" is now the rule <strong>spam if the email has 3 or more "!"</strong>. Nobody wrote the 3; the data chose it.</p>
+<p>The same thing in Python, in plain code with no libraries:</p>
+<pre><code><span class="c"># the training examples</span>
+x = [0, 1, 0, 2, 3, 5, 1, 4]   <span class="c"># "!" count per email</span>
+y = [0, 0, 0, 0, 1, 1, 1, 1]   <span class="c"># 1 = spam, 0 = ok</span>
+
+<span class="c"># the model: one knob, t</span>
+def predict(xi, t):
+    return 1 if xi &gt;= t else 0
+
+<span class="c"># the score: how many examples it gets wrong</span>
+def mistakes(t):
+    return sum(predict(xi, t) != yi for xi, yi in zip(x, y))
+
+<span class="c"># "learning": try every knob setting, keep the best</span>
+best_t = min(range(0, 7), key=mistakes)
+print(best_t, mistakes(best_t))       <span class="c"># 3 1</span>
+
+<span class="c"># use the learned model on a brand-new email with 6 "!"</span>
+print(predict(6, best_t))             <span class="c"># 1  (spam)</span></code></pre>
+<p>Trying every value works here because there are only 7 options. With a billion knobs, trying every combination is impossible, which is why later lessons build smarter ways to turn the knobs.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"AI means ChatGPT."</span>Chatbots are one small corner (the innermost circle). Route planners, fraud detectors and recommendation systems are AI too, and many of them use no neural network at all.</div>
+  <div><span class="wrong">"The model understands, like a person does."</span>A trained model is a function whose knobs were tuned to fit examples. Our spam model "knows" nothing about spam; it only knows that 3 was a good cut-off for these eight emails. Whether huge models develop something like understanding is debated, but mechanically they are still tuned functions.</div>
+  <div><span class="wrong">"Machine learning is always better than writing rules."</span>If you can write the rule exactly (tax brackets, sorting, validating an email address), write it. ML shines when the rule is too fuzzy or too complex to write down, like "is this a photo of a cat?", and when you have lots of good examples.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. A thermostat that turns on the heater when the temperature drops below 20°C, with 20 set by an engineer. Is that machine learning?</p><summary>Show answer</summary><p class="a">No. It has a threshold like our spam model, but a human chose the 20. It becomes ML only if the threshold is picked automatically from data, for example from records of when people felt cold.</p></details>
+<details><p class="q">2. Put these in order from broadest to narrowest: deep learning, AI, machine learning.</p><summary>Show answer</summary><p class="a">AI ⊃ machine learning ⊃ deep learning. Every deep learning system is an ML system, and every ML system is an AI system.</p></details>
+<details><p class="q">3. In our worked example, suppose email G had 4 "!" instead of 1. What would the best threshold be, and how many mistakes would it make?</p><summary>Show answer</summary><p class="a">Now spam emails have counts 3, 5, 4, 4 and ok emails have 0, 1, 0, 2. Any threshold of 3 separates them perfectly: t = 3 gives 0 mistakes (100%). Changing the data changed what the model learned.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">AI is the goal, machine learning is the method of learning rules from examples instead of writing them, and deep learning is machine learning with large neural networks.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 02 · Data: examples, features, labels, datasets</h2>
+<p>Today the machine learned from eight emails described by a single number. Next we look closely at that raw material: what counts as an example, how you turn a messy email or photo into numbers (features), and why the quality of the data matters more than almost anything else.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free, friendly resources</h2>
+<ul>
+  <li><a href="https://www.elementsofai.com/" target="_blank" rel="noopener">Elements of AI</a> (University of Helsinki): a gentle, non-mathematical course. Chapter 1 covers today's topic.</li>
+  <li><a href="https://developers.google.com/machine-learning/crash-course" target="_blank" rel="noopener">Google Machine Learning Crash Course</a>: more hands-on and code-oriented; a good companion for the next several lessons.</li>
+</ul>
+</section>
+<nav class="pn" aria-label="Lesson navigation">
+  <span class="muted">Start of the course</span>
+  <span class="muted" id="next">Next: Lesson 02 · Data: examples, features, labels, datasets (coming soon)</span>
+</nav>
+</main>
+
+<script>
+(function(){
+  const X=[0,1,0,2,3,5,1,4], Y=[0,0,0,0,1,1,1,1], N="ABCDEFGH";
+  const svg=document.getElementById('plot'), slider=document.getElementById('t');
+  const L=50,R=600, sx=v=>L+(R-L)*v/6;
+  const ns="http://www.w3.org/2000/svg";
+  const el=(n,a,txt)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e;};
+  const mistakes=t=>X.reduce((s,x,i)=>s+(((x>=t)?1:0)!==Y[i]?1:0),0);
+  // static stacking offsets for points sharing x
+  const seen={}, pos=X.map((x,i)=>{seen[x]=(seen[x]||0)+1;return {x,lvl:seen[x]-1};});
+  let marks=[];
+  function draw(t){
+    svg.innerHTML="";
+    // flagged region
+    const tx=sx(t)-((R-L)/12);
+    el('rect',{x:Math.max(tx,L-20),y:12,width:Math.max(0,R+20-Math.max(tx,L-20)),height:110,fill:'var(--accent-soft)'});
+    el('text',{x:R+18,y:26,'font-size':11,'text-anchor':'end',fill:'var(--accent)'},'flagged as spam →');
+    el('line',{x1:L-20,y1:122,x2:R+20,y2:122,stroke:'currentColor','stroke-width':1.2,style:'color:var(--ink)'});
+    for(let v=0;v<=6;v++){el('line',{x1:sx(v),y1:122,x2:sx(v),y2:128,stroke:'var(--ink)'});el('text',{x:sx(v),y:144,'font-size':12,'text-anchor':'middle',fill:'var(--ink)'},v);}
+    el('text',{x:(L+R)/2,y:164,'font-size':11,'text-anchor':'middle',fill:'var(--muted)'},'number of "!" in the email (x)');
+    el('line',{x1:tx,y1:12,x2:tx,y2:122,stroke:'var(--accent)','stroke-width':2,'stroke-dasharray':'5 4'});
+    pos.forEach((p,i)=>{
+      const cx=sx(p.x), cy=100-p.lvl*34, pred=p.x>=t?1:0, wrong=pred!==Y[i];
+      const col=Y[i]?'var(--amber)':'var(--ok)';
+      el('circle',{cx,cy,r:13,fill:col});
+      if(wrong) el('circle',{cx,cy,r:18,fill:'none',stroke:'var(--ink)','stroke-width':1.5,'stroke-dasharray':'3 3'});
+      el('text',{x:cx,y:cy+4.5,'font-size':12,'text-anchor':'middle',fill:'var(--panel)','font-weight':600},N[i]);
+    });
+    const m=mistakes(t);
+    document.getElementById('tval').textContent=t;
+    document.getElementById('err').textContent=m;
+    document.getElementById('acc').textContent=((8-m)/8*100).toFixed(1)+'%';
+  }
+  const msg=document.getElementById('msg');
+  slider.addEventListener('input',()=>{draw(+slider.value);msg.textContent='Dashed rings mark the emails this threshold gets wrong.';});
+  let timer=null;
+  document.getElementById('learn').addEventListener('click',()=>{
+    clearInterval(timer);
+    const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let t=0,best=0,bestM=Infinity,log=[];
+    const step=()=>{
+      const m=mistakes(t); log.push('t='+t+'→'+m);
+      if(m<bestM){bestM=m;best=t;}
+      slider.value=t; draw(t);
+      msg.textContent='Trying… '+log.join('  ');
+      t++;
+      if(t>6){clearInterval(timer);slider.value=best;draw(best);
+        msg.textContent=log.join('  ')+'  ⇒ learned t = '+best+' ('+bestM+' mistake'+(bestM===1?'':'s')+').';}
+    };
+    if(reduce){while(t<=6)step();} else {step();timer=setInterval(step,550);}
+  });
+  document.getElementById('reset').addEventListener('click',()=>{clearInterval(timer);slider.value=1;draw(1);msg.textContent='Try a few values. Which one makes the fewest mistakes?';});
+  draw(1);
+})();
+</script>
+</body>
+</html>

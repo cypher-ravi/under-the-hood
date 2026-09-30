@@ -35,6 +35,8 @@
   .planned .eyebrow { font-size: 10px; }
   .planned p { color: var(--muted); font-size: 14px; }
   footer { color: var(--muted); font-size: 13px; }
+  .lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+  .topic.lesson { grid-template-rows: auto; }
   .qgrid { display: grid; gap: 16px; }
   .qgrid .topic { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); grid-template-rows: auto; }
   .qgrid .topic .thumb { aspect-ratio: auto; border-bottom: 0; border-right: 1px solid var(--line); display: grid; place-items: center; padding: 12px; }
@@ -49,13 +51,14 @@
 <body>
 <main class="wrap">
   <header class="hero">
-    <span class="eyebrow">Concepts, design questions and DSA patterns · <span id="count"></span></span>
+    <span class="eyebrow">Concepts, design questions, DSA patterns and AI lessons · <span id="count"></span></span>
     <h1>Under the <span>Hood</span></h1>
     <p class="lede">Working models of the algorithms and systems behind everyday software. Each topic is a small simulation you can poke at: add servers, crash nodes, change parameters, and watch what happens.</p>
     <div class="switch" role="tablist" aria-label="Browse">
       <button role="tab" id="tab-concepts" aria-controls="concepts" aria-selected="true" data-panel="concepts">Concepts <span id="nConcepts"></span></button>
       <button role="tab" id="tab-questions" aria-controls="questions" aria-selected="false" data-panel="questions">Design questions <span id="nQuestions"></span></button>
       <button role="tab" id="tab-dsa" aria-controls="dsa" aria-selected="false" data-panel="dsa">DSA patterns <span id="nDsa"></span></button>
+      <button role="tab" id="tab-lessons" aria-controls="lessons" aria-selected="false" data-panel="lessons">AI lessons <span id="nLessons"></span></button>
     </div>
   </header>
 
@@ -90,7 +93,16 @@
     <div id="dsaList" style="display:grid;gap:22px"></div>
   </section>
 
-  <footer>Every topic is one self-contained HTML file in <span class="mono">topics/</span>. No build step.</footer>
+  <section id="lessons" role="tabpanel" aria-labelledby="tab-lessons" hidden style="display:grid;gap:14px">
+    <div class="section-head">
+      <h2>AI lessons</h2>
+      <span class="eyebrow">From zero, one concept at a time</span>
+    </div>
+    <p style="color:var(--muted)">A course in AI for software engineers who are new to machine learning. Each lesson teaches one idea: the intuition first, then the mechanics with every symbol defined, then a small worked example by hand and in Python, with a diagram or a widget that computes real values.</p>
+    <div id="lessonList" style="display:grid;gap:22px"></div>
+  </section>
+
+  <footer>Every topic, question, pattern and lesson is one self-contained HTML file. No build step.</footer>
 </main>
 
 <script src="topics/registry.js"></script>
@@ -217,17 +229,38 @@
       ${g.patterns.filter(p => p.status !== "ready").length ? `<ul class="planned">${g.patterns.filter(p => p.status !== "ready").map(p => `<li><span class="eyebrow">Coming next</span><h3>${p.title}</h3><p>${p.blurb}</p></li>`).join("")}</ul>` : ""}
     </div>`).join("");
 
+  const parts = window.LESSONS || [];
+  const lessonsReady = parts.flatMap(p => p.lessons).filter(l => l.status === "ready").length;
+  document.getElementById("nLessons").textContent = lessonsReady;
+  document.getElementById("count").textContent += ` · ${lessonsReady} AI lesson${lessonsReady === 1 ? "" : "s"}`;
+  const nn = n => String(n).padStart(2, "0");
+  document.getElementById("lessonList").innerHTML = parts.map(p => {
+    const r = p.lessons.filter(l => l.status === "ready"), pl = p.lessons.filter(l => l.status !== "ready");
+    return `<div style="display:grid;gap:10px">
+      <h3 style="font-size:1.15rem">${p.part}</h3>
+      ${r.length ? `<div class="lgrid">${r.map(l => `
+        <a class="topic lesson" href="lessons/${l.slug}.html">
+          <div class="body">
+            <div class="meta"><span class="eyebrow">Lesson ${nn(l.num)}</span><span class="pill ready">Live</span></div>
+            <h3 style="font-size:1.3rem">${l.title}</h3>
+            <p>${l.blurb}</p>
+          </div>
+        </a>`).join("")}</div>` : ""}
+      ${pl.length ? `<ul class="planned">${pl.map(l => `<li><span class="eyebrow">Lesson ${nn(l.num)}</span><h3>${l.title}</h3><p>${l.blurb}</p></li>`).join("")}</ul>` : ""}
+    </div>`;
+  }).join("");
+
   const tabs = [...document.querySelectorAll('.switch [role="tab"]')];
   function show(name, push) {
     tabs.forEach(t => t.setAttribute("aria-selected", t.dataset.panel === name));
-    ["concepts", "questions", "dsa"].forEach(id => { document.getElementById(id).hidden = id !== name; });
+    ["concepts", "questions", "dsa", "lessons"].forEach(id => { document.getElementById(id).hidden = id !== name; });
     if (push) history.replaceState(null, "", name === "concepts" ? location.pathname : "#" + name);
   }
   tabs.forEach(t => t.addEventListener("click", () => show(t.dataset.panel, true)));
   tabs.forEach((t, i) => t.addEventListener("keydown", e => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); show(n.dataset.panel, true); }
   }));
-  show(["#questions", "#dsa"].includes(location.hash) ? location.hash.slice(1) : "concepts", false);
+  show(["#questions", "#dsa", "#lessons"].includes(location.hash) ? location.hash.slice(1) : "concepts", false);
 
   document.getElementById("planned").innerHTML = planned.map(t => `
     <li><span class="eyebrow">${t.area}</span><h3>${t.title}</h3><p>${t.blurb}</p></li>`).join("");
