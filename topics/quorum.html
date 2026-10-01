@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quorum Replication and CAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  #net { width: 100%; height: auto; display: block; }
+  #net .rep { cursor: pointer; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+  .mode { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mode button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .stat-row b.okc { color: var(--ok); } .stat-row b.warn { color: var(--bad); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Databases</span>
+  </div>
+
+  <header class="intro">
+    <h1>Quorum Replication and CAP</h1>
+    <p class="lede">Keep N copies of every value. A write counts as done once <b>W</b> copies have it, and a read asks <b>R</b> copies and keeps the newest answer. If <b>R + W &gt; N</b>, every read group overlaps every write group, so a read always meets the latest write. Cut the network in two and you must choose: refuse requests to stay correct, or answer them and risk being wrong. That choice is CAP.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="cfgLabel"></span><span class="eyebrow" id="partLabel"></span></div>
+      <svg id="net" viewBox="0 0 480 400" role="img" aria-label="Clients and replicas. Click a replica to move it across the network partition."></svg>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <label class="field" for="n"><span class="row"><span>Replicas (N) · changing resets</span><b class="mono num" id="nOut"></b></span><input type="range" id="n" min="3" max="7" value="5"></label>
+      <label class="field" for="w"><span class="row"><span>Write quorum (W)</span><b class="mono num" id="wOut"></b></span><input type="range" id="w" min="1" max="5" value="3"></label>
+      <label class="field" for="r"><span class="row"><span>Read quorum (R)</span><b class="mono num" id="rOut"></b></span><input type="range" id="r" min="1" max="5" value="3"></label>
+      <div class="controls">
+        <button class="primary" data-op="write" data-c="1">Client 1 writes</button>
+        <button data-op="read" data-c="1">Client 1 reads</button>
+        <button data-op="write" data-c="2">Client 2 writes</button>
+        <button data-op="read" data-c="2">Client 2 reads</button>
+      </div>
+      <div class="controls">
+        <button id="split">Split the network</button>
+        <button id="sync">Background sync</button>
+        <button id="reset">Reset</button>
+      </div>
+      <div>
+        <span class="eyebrow">If a quorum can't be reached</span>
+        <div class="mode" style="margin-top:8px" role="group" aria-label="Partition behaviour">
+          <button data-mode="cp" aria-pressed="true">Refuse (CP)</button>
+          <button data-mode="ap" aria-pressed="false">Accept anyway (AP)</button>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="repair"> Read repair: fix stale copies a read touched</label>
+      <div class="stat-row"><span>R + W vs N</span><b id="overlap"></b></div>
+      <div class="stat-row"><span>Two writes always overlap (W &gt; N/2)?</span><b id="ww"></b></div>
+      <div class="stat-row"><span>Replicas that can be down: writes · reads</span><b id="tol"></b></div>
+      <div class="stat-row"><span>Acknowledged writes lost so far</span><b id="lost">0</b></div>
+      <div class="compare">
+        <div><span>Predicted stale reads</span><b id="pred"></b><span>C(N−W, R) / C(N, R)</span></div>
+        <div><span>Measured stale reads</span><b id="meas">–</b><span id="measN">press Test</span></div>
+      </div>
+      <button id="test">Test 1,000 write-then-read pairs</button>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Three replicas, traced by hand</h2>
+    <p class="kicker">N = 3 replicas called A, B and C. Each copy stores a value and a timestamp. A read returns the value with the highest timestamp among the copies it hears from.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Start: everyone agrees</h3>
+        <p>A, B and C all hold <span class="mono">x = red @1</span>.</p>
+      </div></li>
+      <li><div>
+        <h3>Write with W = 2</h3>
+        <p>A client writes <span class="mono">x = blue @2</span>. The coordinator sends it to all three, and A and B reply first. Two acks meet W = 2, so the client hears "done". C hasn't got it yet: <span class="mono">A = blue@2, B = blue@2, C = red@1</span>.</p>
+      </div></li>
+      <li><div>
+        <h3>Read with R = 2</h3>
+        <p>The reader happens to ask B and C. It gets <span class="mono">blue@2</span> and <span class="mono">red@1</span>, keeps the higher timestamp, and returns blue. Correct. It had to be: there are only 3 copies, the write touched 2 and the read touched 2, and 2 + 2 = 4 &gt; 3, so at least one copy is in both groups.</p>
+      </div></li>
+      <li><div>
+        <h3>Same write, but R = 1 and W = 1</h3>
+        <p>Now the write finishes after A alone acks. A read that asks only C gets <span class="mono">red@1</span>, an old value, even though the write was acknowledged. With R + W = 2 ≤ 3, the groups don't have to overlap.</p>
+        <p class="formula">P(stale) = C(N−W, R) / C(N, R) = C(2, 1) / C(3, 1) = 2/3</p>
+        <p>Two of the three copies the reader could pick missed the write. Background sync shrinks this window, but doesn't close it.</p>
+      </div></li>
+      <li><div>
+        <h3>A partition: C is cut off with a second client</h3>
+        <p>Back to R = W = 2. The client on C's side wants to write. Only one replica is reachable, and W is 2. A <b>CP</b> system refuses: the client gets an error, but no copy ever disagrees. An <b>AP</b> system accepts the write on C alone: <span class="mono">C = green@3</span>, while the other side writes <span class="mono">A, B = yellow@4</span>.</p>
+      </div></li>
+      <li><div>
+        <h3>The partition heals</h3>
+        <p>Sync compares timestamps, and yellow@4 wins on every copy. Green was acknowledged to its client and is now gone. Last-write-wins quietly drops concurrent writes. Systems that can't afford that keep both versions and let the application merge them, using version vectors to tell "newer" apart from "concurrent".</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>The two rules from 1979:</b> R + W &gt; N makes every read see the latest write. W &gt; N/2 makes every two writes overlap, so they can't both succeed without one seeing the other. Majorities (W = R = ⌊N/2⌋ + 1) satisfy both.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>Votes, a conjecture, and a shopping cart</h2>
+    <p>In 1979, David Gifford at Xerox PARC asked how a file stored on several machines could stay correct when some machines were slow or down. His answer was to give each copy votes. A read needs r votes and a write needs w, and as long as r + w is more than the total, every read group shares a copy with every write group. Version numbers then tell the reader which copy is current. The paper, "Weighted Voting for Replicated Data", appeared at SOSP that year.</p>
+    <p>Twenty years later the web had made availability the thing everyone cared about. In his keynote at PODC in 2000, Eric Brewer argued that a shared-data system can't have all three of consistency, availability and partition tolerance. Two years later Seth Gilbert and Nancy Lynch at MIT proved a precise version of it, and the conjecture became the CAP theorem.</p>
+    <p>In 2007 Amazon's Dynamo paper turned Gifford's votes into three knobs anyone could set: N, R and W. Its common setting was (3, 2, 2). Dynamo chose availability on purpose: a customer should always be able to add an item to their shopping cart. During failures it used a "sloppy" quorum, writing to the next healthy nodes and handing data back later. Cassandra, Riak and Voldemort copied the same knobs.</p>
+    <blockquote class="pull">Partitions are rare, so CAP is really about what you do in the rare moment when they happen.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">1979</span><p>Gifford publishes weighted voting for replicated data at SOSP.</p></li>
+      <li><span class="year">2000</span><p>Brewer presents the CAP conjecture in his PODC keynote.</p></li>
+      <li><span class="year">2002</span><p>Gilbert and Lynch publish a formal proof, making it a theorem.</p></li>
+      <li><span class="year">2007</span><p>Amazon's Dynamo paper popularizes tunable N, R and W, sloppy quorums and hinted handoff.</p></li>
+      <li><span class="year">2010</span><p>Daniel Abadi proposes PACELC: even without a partition, you trade latency against consistency.</p></li>
+      <li><span class="year">2012</span><p>Brewer revisits CAP and calls "pick two of three" misleading. You only give something up during a partition.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>Store each value on N machines. Count a write as done after W acks, and a read as done after R replies, keeping the newest version.</p></div>
+      <div><span class="q">Why</span><p>Waiting for all N copies is slow and fails whenever any one machine is down. Waiting for one is fast but can return old data. Quorums let you pick the point in between.</p></div>
+      <div><span class="q">When</span><p>1979 for quorums, 2000 to 2002 for CAP, and 2007 onwards for the tunable stores that made both everyday tools.</p></div>
+      <div><span class="q">Where</span><p>Xerox PARC (Gifford), UC Berkeley and Inktomi (Brewer), MIT (Gilbert and Lynch), and Amazon (Dynamo).</p></div>
+      <div><span class="q">How</span><p>Overlap does the work. If R + W &gt; N, any R copies include at least one of any W copies, so the newest version is always in the read group.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> you don't need every copy to agree. You need every reader to meet at least one copy that saw the latest write.</p>
+      <p><b>The trade-off:</b> bigger R or W means more consistency, more latency (you wait for the slowest of the group) and less tolerance for failed machines.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Set R = 1 and W = 1 with N = 5, write once, then read a few times. Most reads come back stale. Press Test: the measured rate lands near the predicted 80%.</li>
+        <li>Raise R until R + W &gt; N. The predicted stale rate drops to exactly 0%, and no read in Test is stale.</li>
+        <li>Split the network with CP selected. Client 2's side can't reach a quorum, so its requests fail, while Client 1's majority side keeps working.</li>
+        <li>Switch to AP, let both clients write, then heal and sync. One acknowledged write disappears. Same thing without a partition when W ≤ N/2: two writes can miss each other.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>"Is your database CP or AP?"</b> Answer per operation, not per product. A payment ledger or seat booking should refuse rather than double-sell. A shopping cart, like counter or feed should stay up and reconcile later.</p>
+        <p><b>Does R + W &gt; N give linearizability?</b> Not on its own. Sloppy quorums, clock-based last-write-wins and concurrent writes can still surprise you. Strong guarantees need consensus, such as Raft, or careful read repair.</p>
+        <p><b>Typical choices:</b> N = 3 with R = W = 2 tolerates one failure on both paths. For read-heavy data, W = N and R = 1 makes reads cheap, but any one slow replica blocks writes.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const NAMES = "ABCDEFG";
+  const VALUES = ["blue", "green", "yellow", "teal", "plum", "amber", "coral", "olive", "navy", "mint", "rose", "sand"];
+  let N, R, W, mode = "cp", reps, clock, writes, lastOp, measured, lost, nextVal;
+
+  function reset() {
+    N = +$("n").value;
+    $("w").max = $("r").max = N;
+    W = Math.min(+$("w").value, N); R = Math.min(+$("r").value, N);
+    $("w").value = W; $("r").value = R;
+    reps = Array.from({ length: N }, (_, i) => ({ name: NAMES[i], ts: 1, val: "red", side: 1, pending: [] }));
+    clock = 1; nextVal = 0; lost = 0; measured = null;
+    writes = [{ ts: 1, val: "red", parent: 0, acked: true, client: 0 }];
+    lastOp = null;
+    render();
+  }
+
+  const partitioned = () => reps.some(r => r.side === 2);
+  // Who can client c reach? With no partition, everyone. With one, only replicas on its side.
+  const reachable = c => reps.map((r, i) => i).filter(i => !partitioned() || reps[i].side === c);
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const latestAcked = () => writes.filter(w => w.acked).reduce((m, w) => Math.max(m, w.ts), 0);
+
+  function write(c) {
+    const reach = reachable(c);
+    if (!reach.length) { lastOp = { type: "write", c, ok: false, touched: [], msg: "<b>No replicas reachable.</b>", note: "Move a replica to this client's side first." }; return render(); }
+    if (reach.length < W && mode === "cp") {
+      lastOp = { type: "write", c, ok: false, touched: reach, msg: `Only ${reach.length} replica${reach.length === 1 ? "" : "s"} reachable, but W = ${W}. <b>Write refused.</b>`, note: "Consistency kept, availability lost: the client gets an error instead of a write that the other side can't see." };
+      return render();
+    }
+    const val = VALUES[nextVal++ % VALUES.length], ts = ++clock;
+    // the coordinator sends to every reachable replica; the first W to answer count as the quorum
+    const order = shuffle(reach), quorum = reach.length < W ? order : order.slice(0, W), lagging = reach.length < W ? [] : order.slice(W);
+    const parent = Math.max(...quorum.map(i => reps[i].ts));   // the newest version this write could have seen
+    quorum.forEach(i => { if (ts > reps[i].ts) { reps[i].ts = ts; reps[i].val = val; } });
+    lagging.forEach(i => reps[i].pending.push({ ts, val, side: c }));
+    writes.push({ ts, val, parent, acked: true, client: c });
+    const sloppy = reach.length < W;
+    lastOp = { type: "write", c, ok: true, touched: quorum, lag: lagging, val, ts,
+      msg: sloppy ? `Accepted <b>${val}@${ts}</b> on only ${quorum.length} replica${quorum.length === 1 ? "" : "s"} (W = ${W}).` : `Wrote <b>${val}@${ts}</b>. ${quorum.map(i => reps[i].name).join(", ")} acked first, so the write is done.`,
+      note: sloppy ? "Availability kept, consistency at risk: the other side of the partition can't see this write." : lagging.length ? `${lagging.map(i => reps[i].name).join(", ")} will get it later, on background sync.` : "Every reachable replica is in the quorum." , warn: sloppy };
+    render();
+  }
+
+  function read(c) {
+    const reach = reachable(c);
+    if (!reach.length) { lastOp = { type: "read", c, ok: false, touched: [], msg: "<b>No replicas reachable.</b>", note: "Move a replica to this client's side first." }; return render(); }
+    if (reach.length < R && mode === "cp") {
+      lastOp = { type: "read", c, ok: false, touched: reach, msg: `Only ${reach.length} replica${reach.length === 1 ? "" : "s"} reachable, but R = ${R}. <b>Read refused.</b>`, note: "A CP system would rather return an error than possibly old data." };
+      return render();
+    }
+    const group = reach.length < R ? reach : shuffle(reach).slice(0, R);
+    const best = group.reduce((b, i) => reps[i].ts > reps[b].ts ? i : b, group[0]);
+    const got = { ts: reps[best].ts, val: reps[best].val }, latest = latestAcked();
+    const stale = got.ts < latest;
+    if ($("repair").checked) group.forEach(i => { if (reps[i].ts < got.ts) { reps[i].ts = got.ts; reps[i].val = got.val; } });
+    const latestW = writes.find(w => w.ts === latest);
+    lastOp = { type: "read", c, ok: !stale, touched: group, best,
+      msg: stale ? `Asked ${group.map(i => reps[i].name).join(", ")} and got <b>${got.val}@${got.ts}</b>. Stale: ${latestW.val}@${latest} was already acknowledged.` : `Asked ${group.map(i => reps[i].name).join(", ")} and got <b>${got.val}@${got.ts}</b>, the latest acknowledged write.`,
+      note: stale ? (partitioned() ? "The partition kept every replica on this side from seeing the latest write." : R + W > N ? "This can only happen when an earlier write used a smaller W or skipped the quorum." : `R + W = ${R + W}, not more than N = ${N}, so the read group missed every copy of the latest write.`)
+        : group.length < R ? `A sloppy read from only ${group.length} replica${group.length === 1 ? "" : "s"}, below R = ${R}. Right this time, but nothing guaranteed it.` : R + W > N ? `R + W = ${R + W} > ${N}, so at least one replica asked was in the write quorum.` : "Lucky this time: the groups happened to overlap.",
+      warn: stale };
+    render();
+  }
+
+  function sync() {
+    reps.forEach(r => { r.pending = r.pending.filter(p => { if (partitioned() && p.side !== r.side) return true; if (p.ts > r.ts) { r.ts = p.ts; r.val = p.val; } return false; }); });
+    const before = lost;
+    [1, 2].forEach(side => {
+      const group = reps.filter(r => !partitioned() || r.side === side);
+      if (!group.length) return;
+      const top = group.reduce((b, r) => r.ts > b.ts ? r : b, group[0]);
+      group.forEach(r => { r.ts = top.ts; r.val = top.val; });
+    });
+    // an acknowledged write is lost if no copy holds it and the surviving value's history never saw it
+    if (!partitioned()) {
+      const winner = reps[0].ts, chain = new Set();
+      for (let w = writes.find(x => x.ts === winner); w; w = writes.find(x => x.ts === w.parent)) { chain.add(w.ts); if (!w.parent) break; }
+      writes.forEach(w => { if (w.acked && !chain.has(w.ts) && !w.counted) { w.counted = true; lost++; } });
+    }
+    const gone = lost - before;
+    lastOp = { type: "sync", ok: !gone, touched: [], msg: partitioned() ? "Synced within each side. The two sides still can't talk." : gone ? `<b>Synced, and ${gone} acknowledged write${gone > 1 ? "s were" : " was"} overwritten.</b>` : "<b>Synced.</b> Every replica now holds the newest value.",
+      note: gone ? "Last-write-wins kept the highest timestamp. A write that never saw it was silently dropped, even though its client was told it succeeded." : "Lagging copies caught up. This is anti-entropy: it shrinks the stale window but doesn't close it.", warn: !!gone };
+    render();
+  }
+
+  function split() {
+    if (partitioned()) { reps.forEach(r => r.side = 1); lastOp = { type: "heal", touched: [], ok: true, msg: "<b>Partition healed.</b> The sides can talk again, but copies may differ until a sync or read repair.", note: "Press Background sync to reconcile." }; }
+    else { const k = Math.floor((N - 1) / 2); reps.forEach((r, i) => r.side = i >= N - k ? 2 : 1); lastOp = { type: "split", touched: [], ok: true, msg: `<b>Network split.</b> Client 1 can reach ${N - k} replicas, Client 2 can reach ${k}.`, note: "Click any replica to move it to the other side." }; }
+    render();
+  }
+
+  function C(n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; }
+  function test() {
+    // fresh state each trial: a write lands on W random replicas, then a read asks R random replicas
+    let stale = 0; const T = 1000;
+    for (let t = 0; t < T; t++) {
+      const have = new Set(shuffle([...Array(N).keys()]).slice(0, W));
+      if (!shuffle([...Array(N).keys()]).slice(0, R).some(i => have.has(i))) stale++;
+    }
+    measured = { stale, T };
+    render();
+  }
+
+  function render() {
+    W = +$("w").value; R = +$("r").value;
+    $("nOut").textContent = N; $("wOut").textContent = W; $("rOut").textContent = R;
+    const part = partitioned();
+    $("cfgLabel").textContent = `N = ${N} · W = ${W} · R = ${R}`;
+    $("partLabel").textContent = part ? `partitioned: ${reps.filter(r => r.side === 1).length} | ${reps.filter(r => r.side === 2).length}` : "network healthy";
+    $("split").textContent = part ? "Heal the network" : "Split the network";
+
+    // drawing
+    const cx1 = 46, cx2 = 434, colA = part ? 172 : 240, colB = 308;
+    const sideA = reps.map((r, i) => i).filter(i => reps[i].side === 1), sideB = reps.map((r, i) => i).filter(i => reps[i].side === 2);
+    const pos = {};
+    const place = (list, x) => list.forEach((i, k) => { pos[i] = { x, y: 200 + (k - (list.length - 1) / 2) * 56 }; });
+    place(sideA, colA); place(sideB, colB);
+    let s = "";
+    if (part) s += `<line x1="240" y1="14" x2="240" y2="386" stroke="var(--bad)" stroke-width="2" stroke-dasharray="7 6"/><text x="240" y="396" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--bad)">partition</text>`;
+    const touched = new Set(lastOp ? lastOp.touched : []), lag = new Set(lastOp && lastOp.lag ? lastOp.lag : []);
+    const opColor = !lastOp ? "var(--line)" : lastOp.type === "write" ? (lastOp.ok ? (lastOp.warn ? "var(--amber)" : "var(--accent)") : "var(--bad)") : lastOp.ok ? "var(--ok)" : lastOp.warn ? "var(--bad)" : "var(--bad)";
+    // links from each client to what it can reach
+    [1, 2].forEach(c => {
+      const cx = c === 1 ? cx1 : cx2;
+      reachable(c).forEach(i => {
+        const p = pos[i], on = lastOp && lastOp.c === c && touched.has(i), lg = lastOp && lastOp.c === c && lag.has(i);
+        s += `<line x1="${cx}" y1="200" x2="${p.x}" y2="${p.y}" stroke="${on ? opColor : "var(--line)"}" stroke-width="${on ? 2.6 : 1.3}" ${lg ? 'stroke-dasharray="3 5"' : ""}/>`;
+      });
+    });
+    [1, 2].forEach(c => {
+      const cx = c === 1 ? cx1 : cx2, active = lastOp && lastOp.c === c;
+      s += `<rect x="${cx - 42}" y="176" width="84" height="48" rx="8" fill="${active ? "var(--accent-soft)" : "var(--panel)"}" stroke="var(--ink)" stroke-width="1.6"/>`;
+      s += `<text x="${cx}" y="196" text-anchor="middle" font-family="var(--display)" font-size="13" font-weight="700" fill="var(--ink)">Client ${c}</text>`;
+      s += `<text x="${cx}" y="213" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">reaches ${reachable(c).length}</text>`;
+    });
+    const latest = latestAcked();
+    reps.forEach((r, i) => {
+      const p = pos[i], on = touched.has(i), fresh = r.ts === latest;
+      const stroke = on ? opColor : fresh ? "var(--ok)" : "var(--line)";
+      s += `<g class="rep" data-r="${i}" role="button" aria-label="Replica ${r.name}, holds ${r.val} at ${r.ts}. Click to move across the partition.">`;
+      s += `<rect x="${p.x - 56}" y="${p.y - 22}" width="112" height="44" rx="12" fill="var(--panel)" stroke="${stroke}" stroke-width="${on ? 3 : 1.8}"/>`;
+      s += `<text x="${p.x - 46}" y="${p.y + 6}" font-family="var(--display)" font-size="18" font-weight="700" fill="var(--accent)">${r.name}</text>`;
+      s += `<text x="${p.x - 26}" y="${p.y - 3}" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--ink)">${r.val}@${r.ts}</text>`;
+      s += `<text x="${p.x - 26}" y="${p.y + 13}" font-family="var(--mono)" font-size="10" fill="${r.pending.length ? "var(--amber)" : fresh ? "var(--ok)" : "var(--muted)"}">${r.pending.length ? `${r.pending.length} in flight` : fresh ? "latest" : "behind"}</text>`;
+      s += `</g>`;
+    });
+    $("net").innerHTML = s;
+
+    // verdict
+    const v = $("verdict");
+    if (!lastOp) { v.className = "verdict-box"; v.innerHTML = `<b>Write a value, then read it back.</b><p>Each replica shows its value and timestamp. Click a replica to move it across a network partition.</p>`; }
+    else { v.className = "verdict-box " + (lastOp.ok === false ? "bad" : lastOp.warn ? "warn" : "ok"); v.innerHTML = `<b>${lastOp.msg}</b><p>${lastOp.note}</p>`; }
+
+    // numbers, all from the model
+    const ov = R + W > N;
+    $("overlap").innerHTML = `${R} + ${W} = ${R + W} ${ov ? ">" : "≤"} ${N} · ${ov ? '<span style="color:var(--ok)">always overlap</span>' : '<span style="color:var(--bad)">may miss</span>'}`;
+    $("ww").innerHTML = W > N / 2 ? '<span style="color:var(--ok)">yes</span>' : '<span style="color:var(--bad)">no</span>';
+    $("tol").textContent = `${N - W} · ${N - R}`;
+    $("lost").textContent = lost; $("lost").style.color = lost ? "var(--bad)" : "";
+    $("pred").textContent = (C(N - W, R) / C(N, R) * 100).toFixed(1) + "%";
+    $("meas").textContent = measured ? (measured.stale / measured.T * 100).toFixed(1) + "%" : "–";
+    $("measN").textContent = measured ? `${measured.stale} of ${measured.T} reads stale` : "press Test";
+    document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  }
+
+  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => b.dataset.op === "write" ? write(+b.dataset.c) : read(+b.dataset.c));
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { mode = b.dataset.mode; render(); });
+  $("net").addEventListener("click", e => {
+    const g = e.target.closest("[data-r]"); if (!g) return;
+    const r = reps[+g.dataset.r]; r.side = r.side === 1 ? 2 : 1;
+    lastOp = { type: "move", touched: [], ok: true, msg: `<b>Moved ${r.name} to ${r.side === 2 ? "Client 2's" : "Client 1's"} side.</b>`, note: partitioned() ? `Client 1 reaches ${reachable(1).length}, Client 2 reaches ${reachable(2).length}.` : "No replicas are cut off, so the network is whole again." };
+    render();
+  });
+  $("split").onclick = split; $("sync").onclick = sync; $("test").onclick = test; $("reset").onclick = reset;
+  $("n").oninput = reset;
+  $("w").oninput = () => { measured = null; render(); };
+  $("r").oninput = () => { measured = null; render(); };
+
+  // open in a working state: one write, then one read
+  reset();
+  write(1); read(1);
+</script>
+</body>
+</html>

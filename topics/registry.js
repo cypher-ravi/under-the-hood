@@ -55,8 +55,15 @@ window.TOPICS = [
     usedIn: "Uber, Redis GEO, Elasticsearch, MongoDB",
     glyph: "grid"
   },
-  { slug: "quorum", title: "Quorum Replication and CAP", area: "Databases", status: "planned",
-    blurb: "Tune N, R and W, partition the network, and watch reads go stale or writes fail." },
+  {
+    slug: "quorum",
+    title: "Quorum Replication and CAP",
+    area: "Databases",
+    status: "ready",
+    blurb: "Tune N, R and W, split the network, and watch reads go stale, writes get refused, or acknowledged writes vanish.",
+    usedIn: "DynamoDB, Cassandra, Riak, ScyllaDB",
+    glyph: "quorum"
+  },
   { slug: "lsm-tree", title: "LSM Tree", area: "Scaling writes", status: "planned",
     blurb: "Writes land in memory, flush to sorted files and get compacted, as in Cassandra and RocksDB." },
   { slug: "b-tree", title: "B-Tree Index", area: "Database indexing", status: "planned",
@@ -97,7 +104,13 @@ window.QUESTIONS = [
     blurb: "Step two buyers through a race for one seat, watch abandoned holds expire on a live seat map, and size a waiting room for an on-sale surge.",
     concepts: ["rate-limiter", "lru-cache", "consistent-hashing"]
   },
-  { slug: "whatsapp", title: "Design WhatsApp", status: "planned", blurb: "Persistent connections, delivery receipts and offline inboxes." },
+  {
+    slug: "whatsapp",
+    title: "Design WhatsApp",
+    status: "ready",
+    blurb: "Send messages to an offline phone across four design stages, step a lost ack through retry and dedupe, and size a fleet of socket servers.",
+    concepts: ["consistent-hashing", "quorum", "rate-limiter"]
+  },
   { slug: "news-feed", title: "Design a News Feed", status: "planned", blurb: "Fan-out on write versus on read, and the celebrity problem." },
   { slug: "uber", title: "Design Uber", status: "planned", blurb: "Matching riders to nearby drivers with geospatial indexes and location updates." },
   { slug: "top-k", title: "Design YouTube Top K", status: "planned", blurb: "Most-viewed videos over sliding windows using stream processing and sketches." },
@@ -120,7 +133,9 @@ window.DSA = [
     { slug: "simultaneous-traversal", title: "Simultaneous Traversal", status: "ready",
       blurb: "One pointer per sorted array: merge, match a subsequence, intersect, and merge in place from the back, stepped line by line.",
       problems: ["Merge two sorted arrays", "Is it a subsequence?", "Common elements", "Merge in place"] },
-    { slug: "intervals", title: "Interval Merging and Overlap", status: "planned", blurb: "Sort by start, merge overlaps, and sweep a line to count meeting rooms." }
+    { slug: "intervals", title: "Interval Merging and Overlap", status: "ready",
+      blurb: "Sort by start and make one pass: merge, insert, sweep a line to count meeting rooms, and greedily drop the fewest clashes.",
+      problems: ["Merge overlapping intervals", "Insert an interval", "How many meeting rooms?", "Fewest intervals to remove"] }
   ] },
   { area: "Linked List", patterns: [
     { slug: "fast-slow", title: "Fast and Slow Pointers", status: "planned", blurb: "Find cycles and middles with pointers moving at different speeds." },

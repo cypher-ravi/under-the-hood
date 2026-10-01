@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Interval Merging and Overlap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 10px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .empty { font-size: 13px; color: var(--muted); font-style: italic; }
+  .tl svg { width: 100%; height: auto; display: block; }
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="intervals" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Array</span>
+  </div>
+
+  <header class="intro">
+    <h1>Interval Merging and Overlap</h1>
+    <p class="lede">An interval is a start and an end: a meeting, a booking, a range of pages. Problems about many intervals look tangled until you sort them. Once they're in order of start time, each interval can only collide with the one just before it, and a single left-to-right pass answers merge, insert and overlap questions. Turn starts and ends into events and the same pass counts how many intervals are open at once.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Sorted by start, overlap is a local question</h2>
+    <p>Two intervals <span class="mono">[a, b]</span> and <span class="mono">[c, d]</span> overlap when each starts before the other ends: <span class="mono">a ≤ d</span> and <span class="mono">c ≤ b</span>. Checking every pair takes <span class="mono">n²</span> comparisons. Sorting removes most of that work.</p>
+    <p>If the intervals are sorted by start, then <span class="mono">a ≤ c</span> is already known, so overlap shrinks to one check: <span class="mono">c ≤ b</span>, "does the next one start before the current one ends?" And if the next interval doesn't overlap the block you've built so far, no later interval can either, because later ones start even further right. So you only ever compare the next interval with the last block. Sorting costs <span class="mono">n log n</span>, and the pass costs <span class="mono">n</span>.</p>
+    <div id="ideaViz"></div>
+    <h3>Four shapes of the same pass</h3>
+    <div class="variants">
+      <div><h3>Merge</h3><p>Sort by start. Extend the last block or start a new one.</p><a href="#p1">Problem 1: Merge overlapping intervals</a></div>
+      <div><h3>Insert</h3><p>Already sorted: copy what ends before, absorb what overlaps, copy the rest.</p><a href="#p2">Problem 2: Insert an interval</a></div>
+      <div><h3>Sweep</h3><p>Split into +1 at each start and −1 at each end, sort, and keep a running count.</p><a href="#p3">Problem 3: How many rooms?</a></div>
+      <div><h3>Greedy by end</h3><p>Sort by end. Keep whatever finishes first; drop what clashes with it.</p><a href="#p4">Problem 4: Fewest to remove</a></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is a list of <b>pairs</b> with a start and an end: times, dates, ranges, segments on a line.</li>
+      <li>The question uses words like <b>overlap</b>, <b>conflict</b>, <b>merge</b>, <b>free time</b>, <b>at the same time</b> or <b>how many at once</b>.</li>
+      <li>A brute force compares every pair, and the expected answer is <b>O(n log n)</b>: a strong hint that sorting comes first.</li>
+      <li>You must pick the <b>most</b> non-clashing intervals or remove the <b>fewest</b>: sort by end and be greedy.</li>
+    </ul>
+    <h3>The three cases for two intervals, once sorted by start</h3>
+    <div class="cases">
+      <div class="tl" id="case1"></div>
+      <div class="tl" id="case2"></div>
+      <div class="tl" id="case3"></div>
+    </div>
+    <div class="aside"><p><b>Watch the edges:</b> do <span class="mono">[1, 3]</span> and <span class="mono">[3, 5]</span> overlap? For merging ranges of numbers, usually yes (they share 3). For meetings, usually no (one ends as the other starts). Ask, then pick <span class="mono">≤</span> or <span class="mono">&lt;</span> to match. The problems below say which they use.</p></div>
+  </section>
+
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">intervals.sort(key=lambda x: x[0])       <span class="c"># by start (by end for greedy)</span>
+out = [intervals[0]]
+for start, end in intervals[1:]:
+    last = out[-1]
+    if start &lt;= last[1]:                  <span class="c"># overlaps the last block</span>
+        last[1] = max(last[1], end)      <span class="c"># combine</span>
+    else:
+        out.append([start, end])         <span class="c"># a gap: start a new block</span>
+<span class="c"># sweep variant: events = (start, +1) and (end, -1), sort, running sum</span></pre>
+    <p>Problems differ in the sort key and in what "combine" means: extend the block (merge), count it (rooms), or throw one away (removals). The most common bug is <span class="mono">last[1] = end</span> instead of <span class="mono">max(last[1], end)</span>, which breaks when one interval sits entirely inside another.</p>
+  </section>
+
+  <section class="panel article problem" id="p1" data-nav="Merge overlapping intervals" data-num="P1">
+    <span class="eyebrow">Problem 1 · Merge</span>
+    <h2>Merge overlapping intervals</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a list of intervals in any order, combine every group that overlaps or touches, and return the resulting intervals sorted by start.</p>
+      <div class="io"><div><span>Input</span>[[8, 10], [1, 3], [2, 6], [15, 18]]</div><div><span>Output</span>[[1, 6], [8, 10], [15, 18]]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: after sorting, who can the next interval collide with?</summary><p>Only the last block in the output. Every earlier block ends before the last one starts, and the next interval starts after the last one starts. So compare its start with the last block's end: extend if it's not past it, otherwise start a new block.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the output</span><span class="meh">Compare all pairs: O(n²), and still needs repeated passes</span></div>
+  </section>
+
+  <section class="panel article problem" id="p2" data-nav="Insert an interval" data-num="P2">
+    <span class="eyebrow">Problem 2 · Insert</span>
+    <h2>Insert an interval</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You have a calendar of busy intervals that are already sorted and don't overlap. Add one new interval, merging wherever needed, and return the calendar still sorted and non-overlapping.</p>
+      <div class="io"><div><span>Input</span>busy = [[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], new = [4, 8]</div><div><span>Output</span>[[1, 2], [3, 10], [12, 16]]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: do you need to sort again?</summary><p>No. The list splits into three runs: intervals that end before the new one starts (copy them), intervals that overlap it (absorb them by widening the new interval), and intervals that start after it ends (copy them). One pass, O(n).</p></details>
+    <div id="viz2"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n) for the output</span><span class="meh">Append and re-run merge: O(n log n)</span></div>
+  </section>
+
+  <section class="panel article problem" id="p3" data-nav="How many rooms?" data-num="P3">
+    <span class="eyebrow">Problem 3 · Sweep</span>
+    <h2>How many meeting rooms?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Each interval is a meeting <span class="mono">[start, end)</span>. A room is free again the moment a meeting ends, so <span class="mono">[1, 4)</span> and <span class="mono">[4, 6)</span> can share. What's the smallest number of rooms that fits every meeting?</p>
+      <div class="io"><div><span>Input</span>[[0, 30], [5, 10], [15, 20], [10, 15]]</div><div><span>Output</span>2</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what's the answer, in terms of a single moment?</summary><p>The rooms needed equals the most meetings running at the same instant. Walk through time: each start opens a room (+1), each end frees one (−1). Sort these events, and at equal times put ends before starts so a freed room can be reused. The highest running total is the answer.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the events</span><span class="meh">Check every time point against every meeting: O(n × range)</span></div>
+  </section>
+
+  <section class="panel article problem" id="p4" data-nav="Fewest to remove" data-num="P4">
+    <span class="eyebrow">Problem 4 · Greedy by end</span>
+    <h2>Fewest intervals to remove</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Remove as few intervals as possible so that the rest don't overlap. Intervals that only touch, like <span class="mono">[1, 2]</span> and <span class="mono">[2, 3]</span>, are fine. Return how many you removed.</p>
+      <div class="io"><div><span>Input</span>[[1, 2], [2, 3], [3, 4], [1, 3]]</div><div><span>Output</span>1 (remove [1, 3])</div></div>
+    </div>
+    <details class="hint"><summary>Think first: which interval is always safe to keep?</summary><p>The one that ends earliest. Whatever the best answer keeps first, swapping it for the earliest-ending interval can't cause a new clash, because it ends no later. So sort by end, keep an interval if it starts at or after the last kept end, and remove it otherwise.</p></details>
+    <div id="viz4"></div>
+    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(1) besides sorting</span><span class="meh">Try every subset: O(2ⁿ)</span></div>
+  </section>
+
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why one pass after sorting is enough</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>After handling the first k intervals in sorted order, the output holds the correct merged blocks for those k, and only the last block can still grow.</p></div>
+      <div><span class="q">Each step</span><p>The next interval starts at or after every earlier start. If it starts after the last block ends, a gap separates them, and since later intervals start even further right, nothing can ever bridge that gap.</p></div>
+      <div><span class="q">Sweep</span><p>The count of open intervals only changes at a start or an end, so checking just those event times finds the true maximum. Ends sort first at ties because a half-open interval has already finished.</p></div>
+      <div><span class="q">Greedy</span><p>An exchange argument: replacing the first interval of any best answer with the earliest-ending one keeps it valid and the same size. Repeat on what's left.</p></div>
+      <div><span class="q">History</span><p>Sweeping a line across a set of objects, handling them as events in sorted order, was popularized by Michael Shamos and Dan Hoey's 1976 work on geometric intersection problems. The rooms problem is that sweep in one dimension.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const label = t => `<span class="stage-label">${t}</span>`;
+  const fmtI = iv => `[${iv[0]}, ${iv[1]}]`;
+  const fmtL = list => `[${list.map(fmtI).join(", ")}]`;
+
+  // Draws intervals as bars on a shared number line.
+  // items: [{ s, e, tag?, mark? }], one row each (or opts.oneRow). opts.lo/hi fix the scale. opts.cursor draws a sweep line.
+  function drawIntervals(items, opts = {}) {
+    const lo = opts.lo, hi = opts.hi === lo ? lo + 1 : opts.hi, W = 460, padL = 12, padR = 12;
+    const X = v => padL + (v - lo) / (hi - lo) * (W - padL - padR);
+    const rowH = 28, rows = opts.oneRow ? 1 : Math.max(1, items.length), axisY = 8 + rows * rowH + 6, H = axisY + 22;
+    const colors = { hit: "var(--ok)", active: "var(--accent)", miss: "var(--bad)", skip: "var(--amber)", done: "var(--line)", new: "var(--amber)" };
+    let s = "";
+    // ticks
+    const span = hi - lo, step = span <= 10 ? 1 : span <= 24 ? 2 : span <= 60 ? 5 : 10;
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+      s += `<line x1="${X(v)}" y1="4" x2="${X(v)}" y2="${axisY}" stroke="var(--grid)" stroke-width="1"/>`;
+      s += `<text x="${X(v)}" y="${axisY + 15}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${v}</text>`;
+    }
+    s += `<line x1="${padL}" y1="${axisY}" x2="${W - padR}" y2="${axisY}" stroke="var(--muted)" stroke-width="1.2"/>`;
+    items.forEach((it, k) => {
+      const y = 8 + (opts.oneRow ? 0 : k) * rowH, x1 = X(it.s), x2 = Math.max(X(it.e), x1 + 4), m = it.mark;
+      const fill = m === "hit" ? "var(--ok)" : m === "active" ? "var(--accent)" : m === "new" ? "var(--amber)" : m === "miss" ? "var(--bad)" : m === "done" ? "var(--paper)" : "var(--accent-soft)";
+      const stroke = m ? colors[m] : "var(--accent)";
+      const txt = m === "hit" || m === "active" || m === "new" || m === "miss" ? "var(--panel)" : m === "done" ? "var(--muted)" : "var(--ink)";
+      s += `<rect x="${x1}" y="${y}" width="${x2 - x1}" height="${rowH - 6}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${m && m !== "done" ? 2 : 1.2}" ${m === "done" ? 'stroke-dasharray="4 3"' : ""}/>`;
+      const text = (it.tag ? it.tag + " " : "") + fmtI([it.s, it.e]), inside = (x2 - x1) > text.length * 7.8 + 8;
+      s += `<text x="${inside ? (x1 + x2) / 2 : x2 + text.length * 7.8 + 8 > W ? x1 - 6 : x2 + 6}" y="${y + (rowH - 6) / 2 + 1}" text-anchor="${inside ? "middle" : x2 + text.length * 7.8 + 8 > W ? "end" : "start"}" dominant-baseline="central" font-family="var(--mono)" font-size="13" font-weight="600" fill="${inside ? txt : "var(--ink)"}">${text}</text>`;
+    });
+    if (opts.cursor !== undefined) {
+      s += `<line x1="${X(opts.cursor)}" y1="0" x2="${X(opts.cursor)}" y2="${axisY}" stroke="var(--bad)" stroke-width="2"/>`;
+    }
+    return `<div class="tl"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Intervals on a number line">${s}</svg></div>`;
+  }
+
+  // "1-3, 2-6" or "[1,3],[2,6]" or "1 3, 2 6" → [[1,3],[2,6]]
+  function parseIntervals(text, { min = 1, max = 8 } = {}) {
+    const nums = (text.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+    const cleaned = text.replace(/(\d)\s*-\s*(\d)/g, "$1 $2");
+    const vals = (cleaned.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+    if (vals.length % 2) return { error: "Each interval needs a start and an end, for example 1-3, 2-6, 8-10." };
+    const out = [];
+    for (let i = 0; i < vals.length; i += 2) out.push([vals[i], vals[i + 1]]);
+    if (out.length < min) return { error: `Enter at least ${min} interval${min > 1 ? "s" : ""}, like 1-3, 2-6.` };
+    if (out.length > max) return { error: `Use at most ${max} intervals so every step fits on screen.` };
+    if (out.some(([a, b]) => !Number.isInteger(a) || !Number.isInteger(b))) return { error: "Use whole numbers only." };
+    if (out.some(([a, b]) => a < 0 || b > 99)) return { error: "Keep values between 0 and 99." };
+    if (out.some(([a, b]) => a > b)) return { error: "Each interval must start at or before its end." };
+    return { ivs: out };
+  }
+  const bounds = list => ({ lo: Math.min(...list.map(x => x[0])), hi: Math.max(...list.map(x => x[1])) });
+
+  // ---------- intro pictures ----------
+  document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${label("Sorted by start")}${drawIntervals([{ s: 1, e: 3 }, { s: 2, e: 6, mark: "active" }, { s: 8, e: 10 }, { s: 15, e: 18 }], { lo: 0, hi: 18 })}<p style="font-size:14px;color:var(--muted)">[2, 6] starts at 2, before the block [1, 3] ends at 3, so they join. [8, 10] starts after 6, so a gap opens and no later interval can close it.</p></div>`;
+  const caseBox = (title, a, b, txt) => `<div class="st-stage">${label(title)}${drawIntervals([{ s: a[0], e: a[1] }, { s: b[0], e: b[1], mark: "active" }], { lo: 0, hi: 10 })}<p style="font-size:13px;color:var(--muted)">${txt}</p></div>`;
+  document.getElementById("case1").innerHTML = caseBox("Gap", [1, 4], [6, 9], "Next starts after last ends: new block.");
+  document.getElementById("case2").innerHTML = caseBox("Partial overlap", [1, 5], [3, 9], "Starts inside, ends outside: extend the end to 9.");
+  document.getElementById("case3").innerHTML = caseBox("Contained", [1, 9], [3, 6], "Fully inside: the end stays 9. This is why max() matters.");
+
+  // ---------- P1 merge ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def merge(iv):",
+      "  iv.sort(key=lambda x: x[0])",
+      "  out = [iv[0]]",
+      "  for s, e in iv[1:]:",
+      "    if s <= out[-1][1]:",
+      "      out[-1][1] = max(out[-1][1], e)",
+      "    else:",
+      "      out.append([s, e])",
+      "  return out"
+    ],
+    inputs: [{ key: "iv", label: "Intervals (start-end, any order)", value: "8-10, 1-3, 2-6, 15-18" }],
+    presets: [
+      { label: "Example", values: { iv: "8-10, 1-3, 2-6, 15-18" } },
+      { label: "One inside another", values: { iv: "1-10, 2-3, 4-5, 11-12" } },
+      { label: "Touching ends", values: { iv: "1-4, 4-5, 6-7, 7-9" } },
+      { label: "All separate", values: { iv: "5-6, 1-2, 9-10, 3-4" } }
+    ],
+    build({ iv }) {
+      const p = parseIntervals(iv, { min: 1, max: 8 }); if (p.error) return p;
+      const orig = p.ivs, sorted = orig.map(x => x.slice()).sort((a, b) => a[0] - b[0]), { lo, hi } = bounds(orig);
+      const frames = [], out = [];
+      const snap = (line, msg, cur = -1, how = null) => frames.push({ line, msg, lo, hi, sorted: frames.length ? sorted : null, orig, cur, how, out: out.map(x => x.slice()), done: line === 8,
+        vars: { "current": cur >= 0 ? fmtI(sorted[cur]) : "–", "last block": out.length ? fmtI(out[out.length - 1]) : "–", "blocks": out.length } });
+      frames.push({ line: 0, msg: `${orig.length} intervals in the order given. Overlaps could be anywhere.`, lo, hi, sorted: null, orig, cur: -1, out: [], vars: { n: orig.length } });
+      snap(1, `Sort by start: ${fmtL(sorted)}. Now an interval can only overlap the block just before it.`);
+      out.push(sorted[0].slice());
+      snap(2, `The first interval ${fmtI(sorted[0])} starts the first block.`, 0, "new");
+      for (let k = 1; k < sorted.length; k++) {
+        const [s, e] = sorted[k], last = out[out.length - 1];
+        if (s <= last[1]) {
+          const old = last[1]; last[1] = Math.max(last[1], e);
+          snap(5, `${s} ≤ ${old}: ${fmtI(sorted[k])} overlaps the last block. ${e > old ? `Extend its end from ${old} to ${e}.` : `It ends at ${e}, inside the block, so the end stays ${old}.`}`, k, "merge");
+        } else {
+          out.push([s, e]);
+          snap(7, `${s} > ${last[1]}: there's a gap after the last block, so ${fmtI(sorted[k])} starts a new one.`, k, "new");
+        }
+      }
+      snap(8, `<b class="ok">Done:</b> ${orig.length} interval${orig.length > 1 ? "s" : ""} became ${out.length} block${out.length > 1 ? "s" : ""}: ${fmtL(out)}.`);
+      return { frames };
+    },
+    draw(f) {
+      if (!f.sorted) return `<div class="stage-row">${label("Input, unsorted")}${drawIntervals(f.orig.map(x => ({ s: x[0], e: x[1] })), { lo: f.lo, hi: f.hi })}</div>`;
+      const items = f.sorted.map((x, k) => ({ s: x[0], e: x[1], mark: k === f.cur ? (f.how === "merge" ? "hit" : "active") : k < f.cur ? "done" : undefined }));
+      const outItems = f.out.map((x, k) => ({ s: x[0], e: x[1], mark: f.done ? "hit" : k === f.out.length - 1 && f.cur >= 0 ? "new" : undefined }));
+      return `<div class="stage-row">${label("Sorted by start")}${drawIntervals(items, { lo: f.lo, hi: f.hi })}${label("Merged blocks")}${f.out.length ? drawIntervals(outItems, { lo: f.lo, hi: f.hi, oneRow: true }) : `<span class="empty">empty</span>`}</div>`;
+    }
+  });
+
+  // ---------- P2 insert ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def insert(busy, new):",
+      "  out, i, n = [], 0, len(busy)",
+      "  while i < n and busy[i][1] < new[0]:",
+      "    out.append(busy[i]); i += 1",
+      "  while i < n and busy[i][0] <= new[1]:",
+      "    new = [min(new[0], busy[i][0]), max(new[1], busy[i][1])]; i += 1",
+      "  out.append(new)",
+      "  out += busy[i:]",
+      "  return out"
+    ],
+    inputs: [{ key: "busy", label: "Busy (sorted, no overlaps)", value: "1-2, 3-5, 6-7, 8-10, 12-16" }, { key: "nw", label: "New interval", value: "4-8" }],
+    presets: [
+      { label: "Spans three", values: { busy: "1-2, 3-5, 6-7, 8-10, 12-16", nw: "4-8" } },
+      { label: "Fits in a gap", values: { busy: "1-3, 8-10", nw: "4-6" } },
+      { label: "Before everything", values: { busy: "5-7, 9-12", nw: "1-2" } },
+      { label: "Covers everything", values: { busy: "2-3, 5-6, 8-9", nw: "1-12" } }
+    ],
+    build({ busy, nw }) {
+      const p = parseIntervals(busy, { min: 1, max: 7 }); if (p.error) return p;
+      const q = parseIntervals(nw, { min: 1, max: 1 }); if (q.error) return { error: "New interval: " + q.error };
+      const B = p.ivs;
+      for (let k = 1; k < B.length; k++) if (B[k][0] <= B[k - 1][1]) return { error: "Busy intervals must be sorted and must not overlap or touch, for example 1-2, 3-5, 6-7." };
+      let cur = q.ivs[0].slice(); const NEW0 = cur.slice();
+      const { lo, hi } = bounds([...B, cur]), frames = [], out = [], fate = {}; let i = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, lo, hi, B, fate: { ...fate }, i, cur: cur.slice(), NEW0, out: out.map(x => x.slice()), ...extra,
+        vars: { i, new: fmtI(cur), "out size": out.length } });
+      snap(1, `Three runs: busy blocks entirely before ${fmtI(cur)}, ones that overlap it, and ones entirely after.`);
+      while (i < B.length && B[i][1] < cur[0]) {
+        snap(2, `${fmtI(B[i])} ends at ${B[i][1]}, before the new one starts at ${cur[0]}. It can't overlap.`, { look: i });
+        out.push(B[i].slice()); fate[i] = "done"; snap(3, `Copy ${fmtI(B[i])} to the output unchanged.`); i++;
+      }
+      while (i < B.length && B[i][0] <= cur[1]) {
+        snap(4, `${fmtI(B[i])} starts at ${B[i][0]}, not after ${cur[1]} where the new one ends. They overlap.`, { look: i });
+        const before = fmtI(cur); cur = [Math.min(cur[0], B[i][0]), Math.max(cur[1], B[i][1])]; fate[i] = "hit";
+        snap(5, `Absorb it: ${before} widens to ${fmtI(cur)}.`); i++;
+      }
+      out.push(cur.slice());
+      snap(6, `Nothing else overlaps, so place the widened interval ${fmtI(cur)}.`, { placed: true });
+      const rest = B.slice(i); rest.forEach((x, k) => { out.push(x.slice()); fate[i + k] = "done"; });
+      snap(7, rest.length ? `Everything left starts after ${cur[1]}. Copy ${fmtL(rest)} as is.` : "No busy intervals are left.");
+      snap(8, `<b class="ok">Result:</b> ${fmtL(out)}, in one pass with no re-sorting.`, { finished: true });
+      return { frames };
+    },
+    draw(f) {
+      const items = f.B.map((x, k) => ({ s: x[0], e: x[1], mark: k === f.look ? "active" : f.fate[k] }));
+      items.push({ s: f.cur[0], e: f.cur[1], tag: "new", mark: "new" });
+      const outItems = f.out.map(x => ({ s: x[0], e: x[1], mark: f.finished ? "hit" : undefined }));
+      return `<div class="stage-row">${label("Busy, plus the new interval (amber)")}${drawIntervals(items, { lo: f.lo, hi: f.hi })}${label("Output")}${f.out.length ? drawIntervals(outItems, { lo: f.lo, hi: f.hi, oneRow: true }) : `<span class="empty">empty</span>`}</div>`;
+    }
+  });
+
+  // ---------- P3 meeting rooms (sweep line) ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def min_rooms(meetings):",
+      "  events = []",
+      "  for s, e in meetings:",
+      "    events += [(s, +1), (e, -1)]",
+      "  events.sort()   # at a tie, -1 comes first",
+      "  rooms = best = 0",
+      "  for t, d in events:",
+      "    rooms += d",
+      "    best = max(best, rooms)",
+      "  return best"
+    ],
+    inputs: [{ key: "iv", label: "Meetings [start, end)", value: "0-30, 5-10, 15-20, 10-15" }],
+    presets: [
+      { label: "Example", values: { iv: "0-30, 5-10, 15-20, 10-15" } },
+      { label: "Back to back", values: { iv: "1-4, 4-6, 6-9" } },
+      { label: "Busy morning", values: { iv: "9-12, 9-10, 10-11, 11-13, 9-11, 12-14" } },
+      { label: "Nested", values: { iv: "1-20, 2-15, 3-10, 4-6" } }
+    ],
+    build({ iv }) {
+      const p = parseIntervals(iv, { min: 1, max: 7 }); if (p.error) return p;
+      const M = p.ivs;
+      if (M.some(([a, b]) => a === b)) return { error: "A meeting must end after it starts." };
+      const { lo, hi } = bounds(M), frames = [];
+      const events = [];
+      M.forEach(([s, e], k) => { events.push({ t: s, d: 1, k }); events.push({ t: e, d: -1, k }); });
+      events.sort((a, b) => a.t - b.t || a.d - b.d);
+      let rooms = 0, best = 0; const open = new Set(), ended = new Set();
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, lo, hi, M, open: new Set(open), ended: new Set(ended), rooms, best, ...extra,
+        vars: { t: extra.t ?? "–", rooms, best } });
+      snap(3, `Turn ${M.length} meetings into ${events.length} events: +1 at each start, −1 at each end.`, { evs: events.map(e => `${e.t}${e.d > 0 ? "+" : "−"}`) });
+      snap(4, `Sorted: ${events.map(e => `(${e.t}, ${e.d > 0 ? "+1" : "−1"})`).join(" ")}. Ends come before starts at the same time.`, { evs: events.map(e => `${e.t}${e.d > 0 ? "+" : "−"}`) });
+      events.forEach((ev, idx) => {
+        rooms += ev.d;
+        if (ev.d > 0) open.add(ev.k); else { open.delete(ev.k); ended.add(ev.k); }
+        const newBest = rooms > best; best = Math.max(best, rooms);
+        snap(newBest ? 8 : 7, ev.d > 0 ? `t = ${ev.t}: ${fmtI(M[ev.k])} starts. ${rooms} room${rooms !== 1 ? "s" : ""} in use${newBest ? `, a new maximum` : ""}.` : `t = ${ev.t}: ${fmtI(M[ev.k])} ends and frees its room. ${rooms} in use.`, { t: ev.t, cursor: ev.t, idx });
+      });
+      snap(9, `<b class="ok">Answer: ${best} room${best !== 1 ? "s" : ""}</b>, the most meetings running at any one moment.`);
+      return { frames };
+    },
+    draw(f) {
+      const items = f.M.map((x, k) => ({ s: x[0], e: x[1], mark: f.open.has(k) ? "active" : f.ended.has(k) ? "done" : undefined }));
+      const meter = `<div class="st-vars"><span><b>in use</b> ${f.rooms}</span><span><b>max so far</b> ${f.best}</span>${f.cursor !== undefined ? `<span><b>sweep at</b> ${f.cursor}</span>` : ""}</div>`;
+      return `<div class="stage-row">${label("Meetings (blue = running at the sweep line)")}${drawIntervals(items, { lo: f.lo, hi: f.hi, cursor: f.cursor })}${meter}</div>`;
+    }
+  });
+
+  // ---------- P4 fewest removals (greedy by end) ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def min_removals(iv):",
+      "  iv.sort(key=lambda x: x[1])   # by end",
+      "  removed, end = 0, float('-inf')",
+      "  for s, e in iv:",
+      "    if s >= end:",
+      "      end = e          # keep it",
+      "    else:",
+      "      removed += 1     # clashes with the last kept",
+      "  return removed"
+    ],
+    inputs: [{ key: "iv", label: "Intervals (start-end)", value: "1-2, 2-3, 3-4, 1-3" }],
+    presets: [
+      { label: "Example", values: { iv: "1-2, 2-3, 3-4, 1-3" } },
+      { label: "One long one", values: { iv: "1-10, 2-3, 4-5, 6-7, 8-9" } },
+      { label: "Identical", values: { iv: "1-2, 1-2, 1-2" } },
+      { label: "Chain of overlaps", values: { iv: "1-4, 3-6, 5-8, 7-10, 9-12" } }
+    ],
+    build({ iv }) {
+      const p = parseIntervals(iv, { min: 1, max: 8 }); if (p.error) return p;
+      const sorted = p.ivs.map(x => x.slice()).sort((a, b) => a[1] - b[1]), { lo, hi } = bounds(sorted), frames = [], fate = {};
+      let removed = 0, end = -Infinity, lastKept = -1;
+      const snap = (line, msg, cur = -1) => frames.push({ line, msg, lo, hi, sorted, fate: { ...fate }, cur, end, vars: { end: end === -Infinity ? "-inf" : end, removed, kept: Object.values(fate).filter(x => x === "hit").length } });
+      snap(1, `Sort by end: ${fmtL(sorted)}. The interval that finishes first leaves the most room for the rest.`);
+      snap(2, "Nothing kept yet, so the last kept end is −∞.");
+      sorted.forEach(([s, e], k) => {
+        if (s >= end) { fate[k] = "hit"; const was = end; end = e; lastKept = k; snap(5, `${fmtI(sorted[k])} starts at ${s}, not before ${was === -Infinity ? "−∞" : was}. Keep it. The last kept end is now ${e}.`, k); }
+        else { fate[k] = "miss"; removed++; snap(7, `${fmtI(sorted[k])} starts at ${s}, before ${end} where the last kept one ends. Remove it (${removed} so far).`, k); }
+      });
+      snap(8, `<b class="ok">Remove ${removed}.</b> The ${sorted.length - removed} green interval${sorted.length - removed === 1 ? "" : "s"} never overlap${sorted.length - removed === 1 ? "s" : ""}.`);
+      return { frames };
+    },
+    draw(f) {
+      const items = f.sorted.map((x, k) => ({ s: x[0], e: x[1], mark: f.fate[k] === "miss" ? "done" : f.fate[k] === "hit" ? "hit" : undefined }));
+      if (f.cur >= 0 && f.fate[f.cur] === "miss") items[f.cur].mark = "miss";
+      return `<div class="stage-row">${label("Sorted by end (green kept, dashed removed)")}${drawIntervals(items, { lo: f.lo, hi: f.hi, cursor: f.end === -Infinity ? undefined : f.end })}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

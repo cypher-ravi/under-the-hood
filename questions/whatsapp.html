@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design WhatsApp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .chatlog { display: grid; gap: 6px; margin-top: 10px; }
+  .bubble { justify-self: start; max-width: 100%; font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); display: flex; gap: 10px; align-items: baseline; }
+  .bubble .tick { font: 600 12px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+  .bubble .tick.d { color: var(--accent); }
+  .bubble .tick.lost { color: var(--bad); }
+  .bubble .tick.wait { color: var(--amber); }
+  .race { display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 10px; align-items: start; }
+  .race .col { display: grid; gap: 6px; }
+  .race h4 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; }
+  .race .ev { font: 500 12px/1.4 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); overflow-wrap: anywhere; }
+  .race .ev.now { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .race .ev.ok { border-color: var(--ok); color: var(--ok); }
+  .race .ev.bad { border-color: var(--bad); color: var(--bad); }
+  .race .ev.warn { border-color: var(--amber); color: var(--amber); }
+  .race .state { font: 500 11px/1.5 var(--mono); color: var(--muted); border-top: 1px dashed var(--line); padding-top: 6px; }
+  .verdict { font: 600 14px/1.4 var(--body); padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); }
+  .verdict.bad { color: var(--bad); border-color: var(--bad); }
+  .verdict.ok { color: var(--ok); border-color: var(--ok); }
+  @media (max-width: 560px) { .race { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="whatsapp" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design WhatsApp</h1>
+    <p class="lede">Build a chat service where a message reaches the other person's phone in well under a second if they're online, waits safely if they're not, and shows one tick when the server has it and two when the recipient does. The hard parts are holding hundreds of millions of open connections, finding which server a user is connected to, and never losing or doubling a message when networks drop packets.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope it to messaging. Calls, stories and payments are separate systems; say so and move on.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Send a text message to one person or a group of up to about 100 people.</li>
+          <li>Receive messages in real time while the app is open.</li>
+          <li>Receive messages sent while they were offline, as soon as they reconnect.</li>
+          <li>See whether a message was sent (✓), delivered (✓✓) and read.</li>
+          <li>Send photos and videos.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Deliver to an online recipient in under about 500 ms.</li>
+          <li>Never lose a message once the sender sees ✓, and never show it twice.</li>
+          <li>Keep messages in order within a conversation.</li>
+          <li>Handle billions of users and hundreds of millions connected at once.</li>
+          <li>Store messages only until they're delivered, not forever.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> chat is a mailbox problem with a twist. The server must push to the recipient the instant a message arrives, which means it needs a live connection to every online phone and must know which machine holds each one.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>User and device</h3><code>user_id, phone
+device_id, push_token
+(one user, several devices)</code></div>
+      <div class="entity"><h3>Chat</h3><code>chat_id
+members: [user_id]
+(1:1 is a chat of two)</code></div>
+      <div class="entity"><h3>Message</h3><code>message_id (from client)
+chat_id, sender_id
+body or media_url
+sent_at</code></div>
+      <div class="entity"><h3>Inbox entry</h3><code>recipient device_id
+message_id
+(deleted once delivered)</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Messages travel over one long-lived WebSocket per device, in both directions. Plain HTTP is only for things that aren't real time, like uploading media.</p>
+<pre class="api"><span class="c">// client → server, over the socket</span>
+<span class="verb">send</span>     { message_id: "c7f3…", chat_id, body }      → ack { message_id }
+<span class="verb">delivered</span> { message_ids: [...] }                       <span class="c">// recipient's phone has them</span>
+<span class="verb">read</span>      { chat_id, up_to: message_id }
+
+<span class="c">// server → client, over the socket</span>
+<span class="verb">message</span>   { message_id, chat_id, sender_id, body, sent_at }
+<span class="verb">receipt</span>   { message_id, status: "delivered" | "read" }
+
+<span class="c">// HTTP, for media</span>
+<span class="verb">POST</span> /media/upload-url → { upload_url, media_url }    <span class="c">// presigned, straight to blob storage</span></pre>
+    <div class="aside"><p><b>Why does the client pick the message ID?</b> If the ack is lost, the phone resends the same message with the same ID. The server sees an ID it already has and just acks again, so the recipient never gets a duplicate. See deep dive 5a.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">Alice sends messages to Bob through each stage. Turn Bob's phone off and on to see what happens to messages sent while he's away. The ticks under the diagram are Alice's view.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="sendText">Alice sends a text</button>
+          <button id="sendPhoto">Alice sends a photo</button>
+          <button id="bobToggle" aria-pressed="true">Bob: online</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 380" role="img" aria-label="Architecture diagram with animated messages"></svg></div>
+        <div class="chatlog" id="chatlog" aria-live="polite"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="delivery" data-nav="Deep dive: delivery" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: exactly one copy, even when packets drop</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Networks can lose any message, including the server's ack. The fix has two halves: the sender retries until it hears an ack (at least once), and the server and recipient ignore IDs they've already seen (so retries don't become duplicates). Step through four scenarios.</p>
+    <div id="deliveryViz"></div>
+    <div class="aside"><p><b>The rule:</b> "exactly once" over an unreliable network is really "at least once delivery, plus deduplication by a stable ID". The ID must be chosen by the sender, before the first attempt, so every retry carries the same one.</p></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: connections" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: connections, routing and scale</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Each online phone holds one open connection to one chat server. Move the sliders to size the fleet.</p>
+    <div class="calc">
+      <label class="field" for="dau"><span class="row"><span>Daily active users</span><b class="mono num" id="dauOut"></b></span><input type="range" id="dau" min="6" max="9.4" step="0.1" value="9"></label>
+      <label class="field" for="mpd"><span class="row"><span>Messages sent per user per day</span><b class="mono num" id="mpdOut"></b></span><input type="range" id="mpd" min="5" max="100" step="5" value="40"></label>
+      <label class="field" for="online"><span class="row"><span>Share online at peak</span><b class="mono num" id="onlineOut"></b></span><input type="range" id="online" min="5" max="60" step="5" value="30"></label>
+      <label class="field" for="conn"><span class="row"><span>Connections per chat server</span><b class="mono num" id="connOut"></b></span><input type="range" id="conn" min="5" max="6.4" step="0.1" value="6"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+    <h3 style="margin-top:6px">How does server 1 find Bob?</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Approach</th><th>How it works</th><th>Trade-off</th></tr></thead>
+      <tbody>
+        <tr><td><b>Registry lookup</b></td><td>On connect, write <span class="mono">bob → server 2</span> to a key-value store. Senders look it up, then call server 2 directly.</td><td>Simple. The entry goes stale if a server dies, so give it a short expiry and refresh it.</td></tr>
+        <tr><td><b>Pub/sub per user</b></td><td>Server 2 subscribes to Bob's channel when he connects. Senders publish to it without knowing where he is.</td><td>No lookup, but the pub/sub tier must handle one channel per online user.</td></tr>
+        <tr><td><b>Consistent hashing</b></td><td>Route each user to a fixed server by hashing their ID, so anyone can compute where Bob lives.</td><td>No lookup at all, but adding a server moves some users, and their connections must reconnect.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>"Running late" to Bob, who is in a tunnel</h2>
+    <p class="kicker">Using the final design: Alice is connected to chat server 1, and Bob's phone has no signal.</p>
+    <ol class="steps">
+      <li><div><h3>Alice taps send</h3><p>Her phone creates <span class="mono">message_id = c7f3</span>, saves the message in a local outbox, shows it with a clock icon, and sends it over her open socket to server 1.</p></div></li>
+      <li><div><h3>Server 1 makes it durable, then acks</h3><p>It checks that <span class="mono">c7f3</span> is new for this chat, writes the message and an inbox entry for Bob's phone to the replicated message store, and only then sends <span class="mono">ack c7f3</span>. Alice now sees ✓. From this point the message can't be lost, even if server 1 crashes.</p></div></li>
+      <li><div><h3>Find Bob</h3><p>Server 1 looks up Bob in the connection registry. No entry: he isn't connected anywhere. Server 1 asks the push service (APNs or FCM) to send a notification to his phone. The message stays in the inbox.</p></div></li>
+      <li><div><h3>Bob leaves the tunnel</h3><p>His phone reconnects, lands on chat server 2, and registers <span class="mono">bob → server 2</span>. Server 2 reads Bob's inbox and pushes <span class="mono">c7f3</span> down the new socket.</p></div></li>
+      <li><div><h3>Two ticks</h3><p>Bob's phone shows the message and replies <span class="mono">delivered [c7f3]</span>. Server 2 deletes the inbox entry and sends a receipt toward Alice through the same lookup. Alice sees ✓✓. When Bob opens the chat, a <span class="mono">read</span> receipt turns them blue.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A store-and-forward mailbox per device, plus a live connection that lets the server push the moment mail arrives.</p></div>
+      <div><span class="q">Why it's hard</span><p>Phones disconnect constantly, every hop can drop packets, and the recipient's connection lives on one of thousands of servers.</p></div>
+      <div><span class="q">Key insight</span><p>Ack only after the message is durable, and make every step idempotent by message ID. Then retrying is always safe.</p></div>
+      <div><span class="q">Where it bends</span><p>Big groups multiply every message by the member count. Past a few hundred members, fan out on read, like a channel, instead of copying into every inbox.</p></div>
+      <div><span class="q">Ordering</span><p>Order per chat, not globally. A sequence number per chat from the server that owns it is enough.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>Two million sockets per box</h2>
+    <p>WhatsApp was started in 2009 by Jan Koum and Brian Acton, two former Yahoo engineers. Its server began as ejabberd, an open-source chat server written in Erlang, a language built at Ericsson for telephone switches that must handle huge numbers of lightweight concurrent tasks and keep running when parts fail. The team ran it on FreeBSD and rewrote much of it over time.</p>
+    <p>On 6 January 2012 the company blogged that it had passed 2 million TCP connections on a single server, after tuning both FreeBSD and the Erlang runtime. That density is why the company stayed famously small. When Facebook agreed to buy WhatsApp for $19 billion in 2014, it had about 450 million monthly users and only around 32 engineers, and was handling tens of billions of messages a day.</p>
+    <p>Messages were kept on the server only until delivered. In April 2016 WhatsApp finished rolling out end-to-end encryption using the Signal Protocol for over a billion users, so the servers relay messages they can't read. The design on this page works the same way: the server stores and forwards ciphertext.</p>
+    <ol class="timeline">
+      <li><span class="year">2009</span><p>Jan Koum and Brian Acton found WhatsApp.</p></li>
+      <li><span class="year">2012</span><p>"1 million is so 2011": over 2 million TCP connections on one server.</p></li>
+      <li><span class="year">2014</span><p>Facebook buys WhatsApp for $19 billion: about 450 million monthly users and roughly 32 engineers.</p></li>
+      <li><span class="year">2016</span><p>End-to-end encryption with the Signal Protocol is complete for every message and call.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Several devices per user:</b> keep one inbox per device, not per user, and fan each message out to all of a user's devices.</li>
+        <li><b>Large groups:</b> fan out on write for small groups. For very large ones, store the message once and have members pull it.</li>
+        <li><b>Online and last-seen:</b> heartbeat on the socket, and send presence only to people who currently have the chat open, or it becomes most of your traffic.</li>
+        <li><b>A chat server dies:</b> its phones reconnect to another server and re-register. Nothing is lost, because nothing was acked before it was stored.</li>
+        <li><b>Spam:</b> rate limit messages per account and per new contact.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/quorum.html">Quorum Replication and CAP</a>
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : Math.round(n).toString();
+  const bytes = b => b >= 1e15 ? (b / 1e15).toFixed(1) + " PB" : b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(0) + " MB";
+
+  // ================= Live design simulation =================
+  const N = {
+    alice: { x: 70, y: 190, label: "Alice", sub: "phone" },
+    bob: { x: 730, y: 190, label: "Bob", sub: "phone" },
+    srv: { x: 400, y: 190, label: "Chat server", sub: "holds sockets" },
+    cs1: { x: 255, y: 190, label: "Chat server 1", sub: "Alice's socket" },
+    cs2: { x: 545, y: 190, label: "Chat server 2", sub: "Bob's socket" },
+    store: { x: 400, y: 318, label: "Message store", sub: "inbox per device" },
+    reg: { x: 400, y: 62, label: "Registry", sub: "bob → server 2" },
+    push: { x: 730, y: 62, label: "Push service", sub: "APNs / FCM" },
+    blob: { x: 70, y: 318, label: "Blob storage", sub: "photos, video" }
+  };
+  const STAGES = [
+    {
+      name: "1 · One server", nodes: ["alice", "srv", "bob"], edges: [["alice", "srv"], ["srv", "bob"]],
+      adds: "Both phones keep a WebSocket open to one chat server. It forwards each message straight down Bob's socket and acks Alice.",
+      why: "A persistent connection lets the server push instantly, with no polling. It's the smallest thing that works when both people are online.",
+      breaks: "Turn Bob offline and send: the server has nowhere to put the message, so it's dropped even though Alice saw ✓. And one server can't hold a billion sockets."
+    },
+    {
+      name: "2 · Durable inbox", nodes: ["alice", "srv", "bob", "store"], edges: [["alice", "srv"], ["srv", "bob"], ["srv", "store"]],
+      adds: "Before acking, the server writes the message and an inbox entry for Bob's device to a replicated store. Bob's delivered receipt deletes the entry.",
+      why: "✓ now means \"stored\", not \"seen by a server that might crash\". Offline messages wait in the inbox and drain when Bob reconnects.",
+      breaks: "Still one chat server. Hundreds of millions of sockets need thousands of servers, and then Alice and Bob are usually on different ones."
+    },
+    {
+      name: "3 · Many servers", nodes: ["alice", "cs1", "cs2", "bob", "store", "reg"], edges: [["alice", "cs1"], ["cs1", "store"], ["cs2", "store"], ["cs1", "reg"], ["reg", "cs2"], ["cs2", "bob"]],
+      adds: "Phones connect to any chat server. Each server records who it holds in a registry, and routes a message to the server holding the recipient.",
+      why: "Connections are spread across a fleet, and the registry (or pub/sub) answers \"where is Bob right now?\" in one hop.",
+      breaks: "Offline users only see messages when they happen to open the app. Photos sent through the chat servers would choke them."
+    },
+    {
+      name: "4 · Push and media", nodes: ["alice", "cs1", "cs2", "bob", "store", "reg", "push", "blob"], edges: [["alice", "cs1"], ["cs1", "store"], ["cs2", "store"], ["cs1", "reg"], ["reg", "cs2"], ["cs2", "bob"], ["cs1", "push"], ["push", "bob"], ["alice", "blob"], ["blob", "bob"]],
+      adds: "If Bob isn't connected, a push notification wakes his phone so it reconnects and drains the inbox. Photos go straight to blob storage with a presigned URL, and only the link travels as a message.",
+      why: "Chat servers stay small and fast: they move short messages. Heavy bytes take a separate path built for them.",
+      breaks: "Nothing major at this scale. Groups, multiple devices and presence are the usual follow-ups."
+    }
+  ];
+  let stage = 0, bobOnline = true, dots = [], msgs = [], nextId = 1, inbox = [];
+
+  function resetSim() { dots = []; msgs = []; inbox = []; nextId = 1; }
+  // send a dot along a path of nodes, then call done()
+  function travel(path, kind, done) { dots.push({ path, seg: 0, f: 0, x: N[path[0]].x, y: N[path[0]].y, kind, done }); }
+  const chatSrvA = () => stage < 2 ? "srv" : "cs1", chatSrvB = () => stage < 2 ? "srv" : "cs2";
+
+  function sendMsg(photo) {
+    const m = { id: nextId++, text: photo ? "📷 photo" : ["On my way", "Running late", "Lunch?", "Call me", "Got it", "See you at 7"][(nextId - 2) % 6], status: "sending" };
+    msgs.push(m); if (msgs.length > 5) msgs.shift();
+    const go = () => {
+      const A = chatSrvA();
+      if (stage === 0) {
+        travel(["alice", "srv"], "msg", () => { m.status = "sent"; renderLog(); travel(["srv", "alice"], "ack"); deliverOrDrop(m); });
+      } else {
+        travel(["alice", A, "store"], "msg", () => { m.status = "sent"; inbox.push(m); renderLog(); travel(["store", A, "alice"], "ack"); route(m); });
+      }
+    };
+    if (photo) { m.status = "uploading"; travel(["alice", "blob"], "media", () => travel(["blob", "alice"], "ack", go)); }
+    else go();
+    renderLog();
+  }
+  function deliverOrDrop(m) {
+    if (!bobOnline) { m.status = "lost"; renderLog(); return; }
+    travel(["srv", "bob"], "msg", () => { m.status = "delivered"; travel(["bob", "srv", "alice"], "receipt"); renderLog(); });
+  }
+  function route(m) {
+    if (stage === 1) { if (bobOnline) deliverFromStore(m); else { m.status = "waiting"; renderLog(); } return; }
+    // stages 3 and 4: ask the registry where Bob is
+    travel(["store", "cs1", "reg"], "lookup", () => {
+      if (bobOnline) deliverFromStore(m);
+      else {
+        m.status = "waiting"; renderLog();
+        if (stage === 3 && !m.pushed) { m.pushed = true; travel(["reg", "cs1", "push", "bob"], "push"); }
+      }
+    });
+  }
+  function deliverFromStore(m) {
+    const B = chatSrvB(), path = stage === 1 ? ["store", "srv", "bob"] : ["store", "cs2", "bob"];
+    travel(path, "msg", () => {
+      const fetchMedia = m.text.startsWith("📷") && stage === 3;
+      const finish = () => {
+        m.status = "delivered"; inbox = inbox.filter(x => x !== m);
+        travel(stage === 1 ? ["bob", "srv", "alice"] : ["bob", "cs2", "reg", "cs1", "alice"], "receipt");
+        renderLog();
+      };
+      if (fetchMedia) travel(["bob", "blob"], "media", () => travel(["blob", "bob"], "media", finish)); else finish();
+    });
+  }
+  function bobReconnect() {
+    if (stage === 0) return;
+    // the inbox drains in order, oldest first
+    inbox.filter(m => m.status === "waiting").forEach((m, k) => { m.status = "draining"; setTimeout(() => deliverFromStore(m), k * 250); });
+  }
+
+  function step(dt) {
+    const SPEED = 330;
+    dots.forEach(d => {
+      let move = (d.kind === "media" ? 2 : 1) * SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = N[d.path[d.seg]], b = N[d.path[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = N[d.path[d.seg]], b2 = N[d.path[Math.min(d.seg + 1, d.path.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.path.length - 1 && !d.finished) { d.finished = true; if (d.done) d.done(); }
+    });
+    dots = dots.filter(d => !d.finished);
+  }
+  function draw() {
+    const st = STAGES[stage];
+    let s = "";
+    st.edges.forEach(([a, b]) => { const p = N[a], q = N[b], dashed = a === "push" || b === "push" || a === "blob" || b === "blob"; s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2" ${dashed ? 'stroke-dasharray="4 5"' : ""}/>`; });
+    if (!bobOnline) { const b = N.bob, a = N[chatSrvB()]; const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; s += `<path d="M${mx - 8} ${my - 8} l16 16 m0 -16 l-16 16" stroke="var(--bad)" stroke-width="3"/>`; }
+    const colors = { msg: "var(--accent)", ack: "var(--ok)", receipt: "var(--ok)", lookup: "var(--muted)", push: "var(--amber)", media: "var(--amber)" };
+    dots.forEach(d => { s += `<circle cx="${d.x}" cy="${d.y}" r="${d.kind === "msg" || d.kind === "media" ? 7 : 5}" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    st.nodes.forEach(k => {
+      const n = N[k], w = 124, h = 46, isStore = ["store", "reg", "blob"].includes(k);
+      let sub = n.sub;
+      if (k === "store") sub = `inbox: ${inbox.filter(m => m.status !== "delivered").length} waiting`;
+      if (k === "bob") sub = bobOnline ? "online" : "offline";
+      if (k === "reg") sub = bobOnline ? "bob → server 2" : "bob: not connected";
+      const off = k === "bob" && !bobOnline;
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${isStore ? 14 : 6}" fill="var(--panel)" stroke="${off ? "var(--bad)" : isStore ? "var(--accent)" : "var(--ink)"}" stroke-width="1.6" ${off ? 'stroke-dasharray="5 4"' : ""}/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="13.5" font-weight="700" fill="var(--ink)">${n.label}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${off ? "var(--bad)" : "var(--muted)"}">${sub}</text>`;
+    });
+    s += `<text x="12" y="372" font-family="var(--mono)" font-size="11" fill="var(--muted)">blue message · green ack/receipt · grey lookup · amber push or media</text>`;
+    $("arch").innerHTML = s;
+  }
+  function renderLog() {
+    const tick = m => ({ sending: ["🕓 sending", ""], uploading: ["🕓 uploading", ""], sent: ["✓ sent", ""], waiting: ["✓ stored, Bob offline", "wait"], draining: ["✓ delivering", "wait"], delivered: ["✓✓ delivered", "d"], lost: ["✓ but lost", "lost"] })[m.status];
+    $("chatlog").innerHTML = msgs.length ? msgs.map(m => { const [t, c] = tick(m); return `<div class="bubble"><span>${m.text}</span><span class="tick ${c}">${t}</span></div>`; }).join("") : `<p style="font-size:13px;color:var(--muted)">Alice's chat with Bob is empty. Send something.</p>`;
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+    $("sendPhoto").disabled = stage !== 3;
+    $("sendPhoto").title = stage !== 3 ? "Available in stage 4" : "";
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); renderLog(); };
+  $("sendText").onclick = () => sendMsg(false);
+  $("sendPhoto").onclick = () => sendMsg(true);
+  $("bobToggle").onclick = e => {
+    bobOnline = !bobOnline; e.target.setAttribute("aria-pressed", bobOnline); e.target.textContent = `Bob: ${bobOnline ? "online" : "offline"}`;
+    if (bobOnline) bobReconnect();
+  };
+
+  // ================= Delivery stepper =================
+  Stepper($("deliveryViz"), {
+    code: [
+      "# Alice's phone",
+      "id = new_uuid(); outbox.save(id, text)",
+      "send(id, text); retry until ack(id)",
+      "# server",
+      "if id in seen[chat]: return ack(id)",
+      "store(msg); inbox[bob].add(id); ack(id)",
+      "if bob.online: push(msg) to bob",
+      "# Bob's phone",
+      "if id not shown: show(msg); delivered(id)",
+      "# server: inbox[bob].remove(id); receipt → Alice"
+    ],
+    inputs: [{ key: "sc", label: "Scenario: happy, lost-ack, no-dedupe or offline", value: "lost-ack" }],
+    presets: [
+      { label: "Everything works", values: { sc: "happy" } },
+      { label: "The ack is lost", values: { sc: "lost-ack" } },
+      { label: "Lost ack, no dedupe", values: { sc: "no-dedupe" } },
+      { label: "Bob is offline", values: { sc: "offline" } }
+    ],
+    build({ sc }) {
+      sc = sc.trim().toLowerCase();
+      if (!["happy", "lost-ack", "no-dedupe", "offline"].includes(sc)) return { error: 'Scenario must be "happy", "lost-ack", "no-dedupe" or "offline".' };
+      const frames = [], A = [], S = [], B = [];
+      let seen = [], inboxS = [], shown = [], tick = "none", stored = 0;
+      const ID = "c7f3";
+      const snap = (line, msg, now, extra = {}) => frames.push({ line, msg, now, A: A.map(x => ({ ...x })), S: S.map(x => ({ ...x })), B: B.map(x => ({ ...x })), seen: seen.slice(), inbox: inboxS.slice(), shown: shown.slice(), tick, ...extra,
+        vars: { "Alice sees": tick === "none" ? "🕓" : tick, "stored copies": stored, "Bob shows": shown.length } });
+      const dedupe = sc !== "no-dedupe";
+      A.push({ t: `id = ${ID}, saved to outbox` }); snap(1, `Alice's phone picks the ID <span class="mono">${ID}</span> before sending anything, and keeps the message in a local outbox until it's acked.`, "A");
+      A.push({ t: `send ${ID} →` }); snap(2, "First attempt goes out over the socket.", "A");
+      const serverReceive = (attempt) => {
+        if (dedupe && seen.includes(ID)) { S.push({ t: `${ID} already seen: ack again`, c: "ok" }); snap(4, `The server has seen <span class="mono">${ID}</span> in this chat, so it doesn't store it again. It just repeats the ack.`, "S"); return false; }
+        if (dedupe) { S.push({ t: `${ID} is new` }); snap(4, `<span class="mono">${ID}</span> is new for this chat.`, "S"); }
+        seen.push(ID); stored++; inboxS.push(stored > 1 ? `${ID} (copy ${stored})` : ID);
+        S.push({ t: stored > 1 ? `store again: copy ${stored}` : "store + inbox[bob]", c: stored > 1 ? "bad" : "" });
+        snap(5, stored > 1 ? `<b class="bad">No dedupe check</b>, so the retry is stored as a second message.` : "Write the message and Bob's inbox entry to the replicated store. Only now is it safe to ack.", "S");
+        return true;
+      };
+      const ackTo = (lost) => {
+        S.push({ t: `ack ${ID} →${lost ? " ✗ dropped" : ""}`, c: lost ? "bad" : "" });
+        if (lost) { snap(5, "The server sends the ack, but the network drops it. Alice can't tell this apart from her message being lost.", "S"); return; }
+        tick = "✓"; A.push({ t: "ack received: ✓", c: "ok" }); snap(2, "Alice gets the ack, shows ✓ and clears the outbox. The message is durable.", "A");
+      };
+      const pushToBob = () => {
+        const copies = inboxS.slice();
+        copies.forEach(c => {
+          S.push({ t: `push ${c} → Bob` }); snap(6, `Bob is online, so the server pushes ${c === ID ? "the message" : "the second copy"} down his socket.`, "S");
+          if (dedupe && shown.includes(ID)) { B.push({ t: `${ID} already shown: ignore` }); snap(8, "Bob's phone has already shown this ID, so it ignores the copy.", "B"); return; }
+          shown.push(c); B.push({ t: `show "running late"${shown.length > 1 ? " (again!)" : ""}`, c: shown.length > 1 ? "bad" : "ok" });
+          snap(8, shown.length > 1 ? `<b class="bad">Bob sees the same message twice.</b>` : "Bob's phone shows the message and replies delivered.", "B");
+        });
+        inboxS = []; tick = "✓✓"; A.push({ t: "receipt: ✓✓", c: "ok" }); S.push({ t: "inbox cleared, receipt → Alice" });
+        snap(9, "The server deletes the inbox entries and tells Alice. Two ticks.", "S");
+      };
+
+      if (sc === "happy") { serverReceive(1); ackTo(false); pushToBob(); }
+      else if (sc === "offline") {
+        serverReceive(1); ackTo(false);
+        S.push({ t: "Bob offline: keep in inbox, send push", c: "warn" }); snap(6, "Bob isn't connected. The message waits in his inbox, and a push notification asks his phone to reconnect. Alice still sees one tick.", "S");
+        B.push({ t: "reconnects (left the tunnel)" }); snap(6, "Bob's phone reconnects and the server drains his inbox.", "B");
+        pushToBob();
+      } else {
+        serverReceive(1); ackTo(true);
+        A.push({ t: "no ack after 5 s: retry", c: "warn" }); snap(2, "Alice's phone times out waiting for the ack and resends, with the same ID.", "A");
+        A.push({ t: `send ${ID} → (attempt 2)` }); snap(2, "Second attempt.", "A");
+        serverReceive(2); ackTo(false); pushToBob();
+      }
+      const dup = shown.length > 1;
+      snap(9, dup ? `<b class="bad">Duplicate.</b> Retrying is only safe when every step ignores IDs it has already seen.` : `<b class="ok">Exactly one copy shown, exactly one stored.</b>`, null, { verdict: dup ? "bad" : "ok" });
+      return { frames };
+    },
+    draw(f) {
+      const col = (name, evs, key) => `<div class="col"><h4>${name}</h4>${evs.map((e, k) => `<div class="ev ${e.c || ""} ${f.now === key && k === evs.length - 1 ? "now" : ""}">${e.t}</div>`).join("") || `<div class="ev" style="color:var(--muted)">idle</div>`}</div>`;
+      const server = `<div class="col"><h4>Server</h4>${f.S.map((e, k) => `<div class="ev ${e.c || ""} ${f.now === "S" && k === f.S.length - 1 ? "now" : ""}">${e.t}</div>`).join("") || `<div class="ev" style="color:var(--muted)">idle</div>`}<div class="state">seen: ${f.seen.length ? [...new Set(f.seen)].join(", ") : "–"}<br>inbox[bob]: ${f.inbox.length ? f.inbox.join(", ") : "empty"}</div></div>`;
+      return `<div class="race">${col("Alice's phone", f.A, "A")}${server}${col("Bob's phone", f.B, "B")}</div>
+        ${f.verdict ? `<div class="verdict ${f.verdict}">${f.verdict === "bad" ? "The retry became a duplicate." : "At least once, plus dedupe, gives exactly one."}</div>` : ""}`;
+    }
+  });
+
+  // ================= Scale estimates =================
+  function renderScale() {
+    const dau = Math.pow(10, +$("dau").value), mpd = +$("mpd").value, online = +$("online").value / 100, conn = Math.pow(10, +$("conn").value);
+    const perDay = dau * mpd, avg = perDay / 86400, peak = avg * 3;
+    const sockets = dau * online, servers = Math.max(1, Math.ceil(sockets / conn * 1.5));
+    const waiting = peak * 0.1 * 3600 * 1000;   // 10% of messages wait an hour, ~1 KB each with metadata
+    const forever = perDay * 365 * 1000;
+    $("dauOut").textContent = fmt(dau); $("mpdOut").textContent = mpd; $("onlineOut").textContent = Math.round(online * 100) + "%"; $("connOut").textContent = fmt(conn);
+    $("scaleResults").innerHTML = `
+      <div><span>Messages per second (average)</span><b>${fmt(avg)}</b></div>
+      <div><span>Peak (about 3× average)</span><b>${fmt(peak)}</b></div>
+      <div><span>Open sockets at peak</span><b>${fmt(sockets)}</b></div>
+      <div><span>Chat servers (50% headroom)</span><b>${fmt(servers)}</b></div>
+      <div><span>Inbox size if 10% wait an hour</span><b>${bytes(waiting)}</b></div>
+      <div><span>Storage per year if kept forever</span><b style="color:var(--bad)">${bytes(forever)}</b></div>`;
+    $("scaleNotes").innerHTML = [
+      `${fmt(sockets)} open sockets at ${fmt(conn)} per server means about <b>${fmt(servers)} chat servers</b>. Connection count, not message rate, decides the fleet size.`,
+      `Each message is a few hundred bytes, so ${fmt(peak)} messages a second is modest bandwidth. The registry lookup per message is the hotter path: cache it in each chat server.`,
+      `Deleting after delivery keeps the inbox around ${bytes(waiting)}, instead of ${bytes(forever)} a year. That's a privacy choice and a cost choice at the same time.`,
+      `When a chat server dies, its ${fmt(conn)} phones reconnect at once. Add jitter to reconnect timers so they don't stampede the rest of the fleet.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["dau", "mpd", "online", "conn"].forEach(id => $(id).oninput = renderScale);
+
+  // ================= boot =================
+  renderExplain(); renderLog(); renderScale();
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  setTimeout(() => sendMsg(false), 400);
+</script>
+</body>
+</html>

@@ -161,6 +161,14 @@
       s += `<circle cx="200" cy="100" r="36" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="200" cy="100" r="6" fill="var(--accent)"/>`;
       return s;
     },
+    quorum() {
+      let s = `<line x1="200" y1="22" x2="200" y2="178" stroke="var(--bad)" stroke-width="2" stroke-dasharray="6 5"/>`;
+      const reps = [[150, 50], [150, 100], [150, 150], [250, 75], [250, 125]];
+      reps.forEach(([x, y], i) => { if (i < 3) s += `<line x1="60" y1="100" x2="${x}" y2="${y}" stroke="${i < 2 ? "var(--accent)" : "var(--line)"}" stroke-width="2"/>`; else s += `<line x1="340" y1="100" x2="${x}" y2="${y}" stroke="var(--line)" stroke-width="2"/>`; });
+      s += `<rect x="38" y="86" width="44" height="28" rx="6" fill="var(--panel)" stroke="var(--ink)" stroke-width="2"/><rect x="318" y="86" width="44" height="28" rx="6" fill="var(--panel)" stroke="var(--ink)" stroke-width="2"/>`;
+      reps.forEach(([x, y], i) => { s += `<rect x="${x - 22}" y="${y - 14}" width="44" height="28" rx="10" fill="${i < 2 ? "var(--accent)" : "var(--panel)"}" stroke="${i < 2 ? "var(--accent)" : i > 2 ? "var(--amber)" : "var(--muted)"}" stroke-width="2"/>`; });
+      return s;
+    },
     cluster() {
       const cx = 200, cy = 100, r = 62; let pts = [];
       for (let i = 0; i < 5; i++) {
