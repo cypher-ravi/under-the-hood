@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fast and Slow Pointers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 12px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { font: 600 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="fast-slow" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Linked List</span>
+  </div>
+
+  <header class="intro">
+    <h1>Fast and Slow Pointers</h1>
+    <p class="lede">Send two pointers down the same linked list, one moving one node per step and the other moving two. When the fast one reaches the end, the slow one is halfway. If there is no end because the list loops, the fast one laps the slow one and they land on the same node. Both facts come with O(1) extra memory.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Two speeds turn distance into information</h2>
+    <p>A singly linked list only lets you walk forward, one <span class="mono">next</span> at a time. You don't know its length, and you can't jump to the middle. The obvious fixes cost memory: copy the nodes into an array to find the middle, or keep a set of visited nodes to spot a loop. Both are O(n) extra space.</p>
+    <p>Run two walkers instead. After k steps the slow one has moved k nodes and the fast one 2k. That fixed ratio is the whole trick. If the list ends, the fast pointer gets there when the slow one is at the halfway mark. If the list loops, both end up circling, and the fast one gains exactly one node per step, so the gap between them shrinks by one each step until it hits zero. They must meet; the fast one can't jump over the slow one.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Find a position</h3><p>When fast reaches the end, slow marks a fraction of the length: the middle for speeds 1 and 2.</p><a href="#p1">Problem 1: Middle of the list</a></div>
+      <div><h3>Detect a loop</h3><p>If fast ever lands on slow, there's a cycle. If fast falls off the end, there isn't.</p><a href="#p2">Problem 2: Does the list loop?</a><a href="#p3">Problem 3: Where does the loop start?</a></div>
+      <div><h3>Implicit lists</h3><p>Any rule "x → next(x)" is a linked list in disguise. Run the same two pointers over the values it produces.</p><a href="#p4">Problem 4: Happy numbers</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is a <b>linked list</b> (or something you can only step through with a "next" function) and you don't know its length.</li>
+      <li>The question asks about the <b>middle</b>, or a point a fixed fraction of the way along, in one pass.</li>
+      <li>It asks whether a sequence <b>loops</b>, repeats or "eventually reaches" something, or where a loop begins.</li>
+      <li>It demands <b>O(1) extra memory</b>, which rules out a visited set or copying into an array.</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signal:</b> "the k-th node from the end" also uses two pointers, but they move at the <i>same</i> speed with a head start of k. That's a fixed gap, not two speeds. And if you can afford O(n) memory and want the simplest code, a hash set of visited nodes detects a cycle too.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">slow = fast = head
+while fast and fast.next:        <span class="c"># fast needs two more nodes to move</span>
+    slow = slow.next             <span class="c"># 1 step</span>
+    fast = fast.next.next        <span class="c"># 2 steps</span>
+    if slow is fast:             <span class="c"># only possible inside a cycle</span>
+        return "cycle"
+return slow                      <span class="c"># fast hit the end: slow is the middle</span></pre>
+    <p>Two details decide most bugs. The loop condition must check <span class="mono">fast</span> <i>and</i> <span class="mono">fast.next</span>, or the double step crashes on the last node. And compare nodes by identity (<span class="mono">is</span>), not by value: two different nodes can hold the same number.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Middle of the list" data-num="P1">
+    <span class="eyebrow">Problem 1 · Find a position</span>
+    <h2>Middle of a linked list</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a singly linked list, return its middle node. If the list has an even number of nodes there are two middles; return the second one. Walk the list only once.</p>
+      <div class="io"><div><span>Input</span>3 → 8 → 1 → 6 → 4</div><div><span>Output</span>the node holding 1 (index 2)</div><div><span>Even length</span>3 → 8 → 1 → 6 gives 1 (index 2)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: where is slow when fast runs out?</summary><p>After k steps slow is at index k and fast at index 2k. The loop stops when fast can't take two more steps, which happens when 2k is the last index (odd length) or one past it (even length). Either way k is n ÷ 2 rounded down, the second middle.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Count first, then walk again: two passes</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Does the list loop?" data-num="P2">
+    <span class="eyebrow">Problem 2 · Detect a loop</span>
+    <h2>Does the list have a cycle?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a linked list, return <span class="mono">true</span> if following <span class="mono">next</span> pointers ever brings you back to a node you've already visited, and <span class="mono">false</span> if you reach the end. Use constant extra memory.</p>
+      <div class="io"><div><span>Input</span>2 → 7 → 4 → 9 → 5 → 1, last node links back to index 2</div><div><span>Output</span>true</div></div>
+      <p style="font-size:14px;color:var(--muted)">In the visualizer, "tail links to" is the index the last node points back to, or −1 for no loop.</p>
+    </div>
+    <details class="hint"><summary>Think first: why can't fast skip over slow?</summary><p>Once both are in the loop, measure how far fast is behind slow along the loop. Each step slow adds 1 and fast adds 2, so that gap drops by exactly 1. A gap that drops by 1 each step reaches 0; it can't go from 1 to −1.</p></details>
+    <div id="viz2"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Visited set: O(n) space</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Where does the loop start?" data-num="P3">
+    <span class="eyebrow">Problem 3 · Detect a loop, then locate it</span>
+    <h2>Where does the cycle begin?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a linked list, return the first node of its cycle (the node the tail points back to), or <span class="mono">null</span> if there is no cycle. Don't modify the list, and use constant extra memory.</p>
+      <div class="io"><div><span>Input</span>2 → 7 → 4 → 9 → 5 → 1, tail links to index 2</div><div><span>Output</span>the node holding 4 (index 2)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do you know at the meeting point?</summary><p>Let a be the distance from the head to the loop start and b from the loop start to the meeting point. Fast walked twice as far as slow, and the extra distance is a whole number of laps. That forces a to equal "some laps minus b". So a pointer from the head and a pointer from the meeting point, both moving one step at a time, arrive at the loop start together.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Visited set: O(n) space</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Happy numbers" data-num="P4">
+    <span class="eyebrow">Problem 4 · Implicit list</span>
+    <h2>Is it a happy number?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Start from a positive whole number. Replace it with the sum of the squares of its digits, and keep going. If you eventually reach 1, the number is <i>happy</i>. Otherwise the values repeat forever without reaching 1. Decide which, without storing the values you've seen.</p>
+      <div class="io"><div><span>Input</span>19</div><div><span>Output</span>true: 19 → 82 → 68 → 100 → 1</div><div><span>Input</span>2</div><div><span>Output</span>false: it falls into 4 → 16 → 37 → 58 → 89 → 145 → 42 → 20 → 4</div></div>
+    </div>
+    <details class="hint"><summary>Think first: where is the linked list?</summary><p>Each number has exactly one "next" number, so the values form a linked list that must eventually repeat (the values quickly drop below a few hundred). 1 maps to itself, a cycle of length one. Run slow and fast on the values; when they meet, check whether the meeting value is 1.</p></details>
+    <div id="viz4"></div>
+    <div class="aside"><p><b>Read the picture:</b> each box is a distinct value in the order it's produced, and the curved arrow shows where the sequence starts repeating. The pointers walk this "list" without ever building it in the real algorithm; it's drawn only so you can see the shape.</p></div>
+    <div class="cx"><span class="good">Time O(log n) per step, few steps</span><span class="good">Space O(1)</span><span class="meh">Set of seen values: extra memory</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why they meet, and why the second walk finds the start</h2>
+    <div class="qa">
+      <div><span class="q">No cycle</span><p>Fast moves two nodes per step, so it reaches the end after about n/2 steps, and the loop stops. Slow has moved half as far: the middle.</p></div>
+      <div><span class="q">Meeting</span><p>Once slow enters the loop, fast is somewhere in it, d nodes behind (d less than the loop length c). Each step closes the gap by exactly 1, so they meet within c steps. Total time is O(n).</p></div>
+      <div><span class="q">Loop start</span><p>Let a = head to loop start, b = loop start to meeting point. Slow walked a + b; fast walked 2(a + b), which is a + b plus k full laps. So a + b = kc, which means a = kc − b. Walking a steps from the meeting point is k laps minus b: you land exactly on the loop start, at the same moment as a pointer that walked a steps from the head.</p></div>
+      <div><span class="q">In an interview</span><p>State the gap argument for meeting ("closes by one per step, can't skip") and write out a = kc − b for the start. Then mention that the same code works on any function x → f(x), not just node pointers.</p></div>
+    </div>
+    <p class="formula">2(a + b) = a + b + k·c  ⇒  a = k·c − b</p>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // ---------- linked list drawing ----------
+  // vals: node values. opts.ptr {label: index}, opts.mark {index: kind}, opts.cycleTo: index the tail points to (-1 = null)
+  function drawList(vals, opts = {}) {
+    const n = vals.length, cw = 40, gap = 24, top = 34, W = 20 + n * (cw + gap) + (opts.cycleTo >= 0 ? 0 : 30);
+    const cyc = opts.cycleTo >= 0, H = top + cw + (cyc ? 40 : 14);
+    const xOf = k => 10 + k * (cw + gap);
+    const col = l => l === "S" ? "var(--accent)" : l === "F" ? "var(--amber)" : "var(--ok)";
+    let s = "";
+    for (let k = 0; k < n - 1; k++) {
+      const x1 = xOf(k) + cw + 2, x2 = xOf(k + 1) - 3, y = top + cw / 2;
+      s += `<line x1="${x1}" y1="${y}" x2="${x2 - 5}" y2="${y}" stroke="var(--muted)" stroke-width="1.6"/><path d="M${x2} ${y} l-7 -4 v8 z" fill="var(--muted)"/>`;
+    }
+    if (cyc) {
+      const xa = xOf(n - 1) + cw / 2, xb = xOf(opts.cycleTo) + cw / 2, yb = top + cw, yl = yb + 26;
+      if (opts.cycleTo === n - 1) s += `<path d="M${xa + 8} ${yb + 2} C ${xa + 30} ${yl + 6}, ${xa - 30} ${yl + 6}, ${xa - 8} ${yb + 6}" fill="none" stroke="var(--bad)" stroke-width="1.6"/><path d="M${xa - 8} ${yb + 2} l-3 8 l8 -2 z" fill="var(--bad)"/>`;
+      else s += `<path d="M${xa} ${yb + 2} V${yl} H${xb} V${yb + 9}" fill="none" stroke="var(--bad)" stroke-width="1.6"/><path d="M${xb} ${yb + 2} l-4 7 h8 z" fill="var(--bad)"/>`;
+    } else {
+      const x = xOf(n - 1) + cw + 4, y = top + cw / 2;
+      s += `<line x1="${x}" y1="${y}" x2="${x + 12}" y2="${y}" stroke="var(--muted)" stroke-width="1.6"/><text x="${x + 15}" y="${y + 4}" font-family="var(--mono)" font-size="11" fill="var(--muted)">∅</text>`;
+    }
+    vals.forEach((v, k) => {
+      const x = xOf(k), m = (opts.mark || {})[k];
+      const fill = m === "hit" ? "var(--ok)" : m === "active" ? "var(--accent)" : m === "done" ? "var(--paper)" : m === "miss" ? "var(--bad)" : "var(--panel)";
+      const text = m === "hit" || m === "active" || m === "miss" ? "var(--panel)" : m === "done" ? "var(--muted)" : "var(--ink)";
+      const stroke = m === "skip" ? "var(--amber)" : m ? fill : "var(--ink)";
+      s += `<rect x="${x}" y="${top}" width="${cw}" height="${cw}" rx="20" fill="${fill}" stroke="${m === "done" ? "var(--line)" : stroke}" stroke-width="${m === "skip" ? 2.5 : 1.5}"/>`;
+      s += `<text x="${x + cw / 2}" y="${top + cw / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${String(v).length > 2 ? 12 : 15}" font-weight="600" fill="${text}">${esc(v)}</text>`;
+      s += `<text x="${x + cw / 2}" y="${top + cw + 12}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">${k}</text>`;
+    });
+    const at = {};
+    Object.entries(opts.ptr || {}).forEach(([l, v]) => { if (v !== null && v !== undefined && v >= 0 && v < n) (at[v] = at[v] || []).push(l); });
+    Object.entries(at).forEach(([v, ls]) => {
+      const x = xOf(+v) + cw / 2, c = ls.length > 1 ? "var(--ink)" : col(ls[0]);
+      s += `<path d="M${x} ${top - 3} l-5 -7 h10 z" fill="${c}"/>`;
+      s += `<text x="${x}" y="${top - 14}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${ls.join(" ")}</text>`;
+    });
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Linked list">${s}</svg></div>`;
+  }
+  // the node after i, given a tail link (pos = -1 means the list ends)
+  const nextOf = (i, n, pos) => i < n - 1 ? i + 1 : pos >= 0 ? pos : -1;
+  const show = i => i < 0 ? "null" : `node ${i}`;
+  function parseList(a, p) {
+    const r = parseNums(a, { min: 1, max: 12 }); if (r.error) return r;
+    const pos = Number(p);
+    if (!Number.isInteger(pos) || pos < -1 || pos >= r.nums.length) return { error: `"Tail links to" must be −1 (no loop) or an index from 0 to ${r.nums.length - 1}.` };
+    return { nums: r.nums, pos };
+  }
+
+  // ---------- The idea: a static picture ----------
+  document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawList([5, 3, 8, 2, 9, 4, 7], { ptr: { S: 3, F: 6 }, cycleTo: 2, mark: { 3: "active" } })}<p style="font-size:14px;color:var(--muted)">After 3 steps: slow (S) at node 3, fast (F) at node 6. Inside the loop, fast is now 2 nodes behind slow (6 → 2 → 3), so they meet after 2 more steps.</p></div>`;
+
+  // ---------- Problem 1: middle ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def middle(head):",
+      "  slow = fast = head",
+      "  while fast and fast.next:",
+      "    slow = slow.next",
+      "    fast = fast.next.next",
+      "  return slow"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "3, 8, 1, 6, 4" }],
+    presets: [
+      { label: "Odd length", values: { a: "3, 8, 1, 6, 4" } },
+      { label: "Even length", values: { a: "3, 8, 1, 6" } },
+      { label: "Longer", values: { a: "10, 20, 30, 40, 50, 60, 70, 80, 90" } },
+      { label: "One node", values: { a: "42" } }
+    ],
+    build({ a }) {
+      const r = parseNums(a, { min: 1, max: 12 }); if (r.error) return r;
+      const v = r.nums, n = v.length, frames = [];
+      let S = 0, F = 0, steps = 0;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, v, S, F, mark, vars: { slow: show(S), fast: show(F), steps } });
+      snap(1, "Both pointers start at the head.");
+      while (true) {
+        const ok = F >= 0 && F + 1 < n;
+        if (!ok) { snap(2, F < 0 ? "fast is null: it ran past the end." : `fast is on the last node (${F}); it can't take two more steps. Stop.`); break; }
+        snap(2, `fast is at node ${F} and node ${F + 1} exists, so keep going.`);
+        S++; steps++; snap(3, `slow moves one node to ${S}.`, { [S]: "active" });
+        F = F + 2 < n ? F + 2 : -1; snap(4, F < 0 ? "fast moves two nodes and falls off the end (null)." : `fast moves two nodes to ${F}.`, { [S]: "active" });
+      }
+      snap(5, `<b class="ok">Return node ${S}</b> (value ${v[S]}). ${n} node${n > 1 ? "s" : ""}, ${steps} step${steps === 1 ? "" : "s"}: slow is at index ⌊${n}/2⌋ = ${Math.floor(n / 2)}.`, { [S]: "hit" });
+      return { frames };
+    },
+    draw(f) { return drawList(f.v, { ptr: { S: f.S, F: f.F }, mark: f.mark, cycleTo: -1 }); }
+  });
+
+  // ---------- Problem 2: has cycle ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def has_cycle(head):",
+      "  slow = fast = head",
+      "  while fast and fast.next:",
+      "    slow = slow.next",
+      "    fast = fast.next.next",
+      "    if slow is fast: return True",
+      "  return False"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "2, 7, 4, 9, 5, 1" }, { key: "p", label: "Tail links to (−1 = none)", value: "2" }],
+    presets: [
+      { label: "Loop back to index 2", values: { a: "2, 7, 4, 9, 5, 1", p: "2" } },
+      { label: "No loop", values: { a: "2, 7, 4, 9, 5, 1", p: "-1" } },
+      { label: "Whole list is a loop", values: { a: "6, 3, 8, 1", p: "0" } },
+      { label: "Tail points to itself", values: { a: "1, 2, 3, 4, 5", p: "4" } }
+    ],
+    build({ a, p }) {
+      const r = parseList(a, p); if (r.error) return r;
+      const v = r.nums, n = v.length, pos = r.pos, frames = [];
+      let S = 0, F = 0, steps = 0;
+      const gap = () => { // how far fast is behind slow along the loop, once both are in it
+        if (pos < 0 || S < pos || F < pos) return "–";
+        const c = n - pos; return (S - F + c) % c;
+      };
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, v, pos, S, F, mark, vars: { slow: show(S), fast: show(F), steps, "gap in loop": gap() } });
+      snap(1, "Both pointers start at the head.");
+      while (true) {
+        if (F < 0 || nextOf(F, n, pos) < 0) { snap(2, F < 0 ? "fast is null." : `fast is on the last node and its next is null.`); break; }
+        snap(2, "fast and fast.next both exist, so take a step.");
+        S = nextOf(S, n, pos); steps++; snap(3, `slow → node ${S}.`);
+        const f1 = nextOf(F, n, pos); F = f1 < 0 ? -1 : nextOf(f1, n, pos);
+        snap(4, F < 0 ? "fast → null: it ran off the end." : `fast → node ${F}.${gap() !== "–" ? ` Both are in the loop; fast is ${gap()} node${gap() === 1 ? "" : "s"} behind slow.` : ""}`);
+        if (S === F) { snap(5, `slow and fast are both on node ${S}. <b class="ok">Return true</b>: there is a cycle (${steps} steps).`, { [S]: "hit" }); return { frames }; }
+        snap(5, "Not the same node yet.");
+      }
+      snap(6, `fast reached the end, so there is no loop. <b class="bad">Return false</b>.`);
+      return { frames };
+    },
+    draw(f) { return drawList(f.v, { ptr: { S: f.S, F: f.F }, mark: f.mark, cycleTo: f.pos }); }
+  });
+
+  // ---------- Problem 3: cycle start ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def cycle_start(head):",
+      "  slow = fast = head",
+      "  while fast and fast.next:",
+      "    slow, fast = slow.next, fast.next.next",
+      "    if slow is fast: break",
+      "  else: return None",
+      "  p = head",
+      "  while p is not slow:",
+      "    p, slow = p.next, slow.next",
+      "  return p"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "2, 7, 4, 9, 5, 1" }, { key: "p", label: "Tail links to (−1 = none)", value: "2" }],
+    presets: [
+      { label: "Loop starts at 2", values: { a: "2, 7, 4, 9, 5, 1", p: "2" } },
+      { label: "Long tail, short loop", values: { a: "1, 2, 3, 4, 5, 6, 7, 8, 9", p: "6" } },
+      { label: "Short tail, long loop", values: { a: "1, 2, 3, 4, 5, 6, 7, 8, 9", p: "1" } },
+      { label: "No loop", values: { a: "4, 8, 15, 16", p: "-1" } }
+    ],
+    build({ a, p }) {
+      const r = parseList(a, p); if (r.error) return r;
+      const v = r.nums, n = v.length, pos = r.pos, frames = [];
+      let S = 0, F = 0, P = null, phase = 1, steps = 0;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, v, pos, S, F: phase === 1 ? F : null, P, mark,
+        vars: phase === 1 ? { phase: "1: find a meeting", slow: show(S), fast: show(F), steps } : { phase: "2: walk to the start", p: show(P), slow: show(S), steps } });
+      snap(1, "Phase 1 is Problem 2: run slow and fast until they meet.");
+      while (true) {
+        if (F < 0 || nextOf(F, n, pos) < 0) { snap(5, `fast ran off the end. <b class="bad">No cycle: return None</b>.`); return { frames }; }
+        S = nextOf(S, n, pos); const f1 = nextOf(F, n, pos); F = f1 < 0 ? -1 : nextOf(f1, n, pos); steps++;
+        snap(3, `slow → ${show(S)}, fast → ${show(F)}.`);
+        if (S === F) break;
+      }
+      const a0 = pos, c = n - pos, b = (S - pos + c) % c;
+      snap(4, `They meet at node ${S}. Here a = ${a0} (head to loop start), b = ${b} (loop start to meeting point), loop length c = ${c}.`, { [S]: "skip" });
+      phase = 2; P = 0; steps = 0;
+      snap(6, `Phase 2: put p at the head, leave slow at the meeting point. Both now move one step at a time; after a = ${a0} step${a0 === 1 ? "" : "s"} both should be at the loop start.`, { [S]: "skip" });
+      while (P !== S) {
+        snap(7, `p is at node ${P}, slow at node ${S}: not the same node.`);
+        P = nextOf(P, n, pos); S = nextOf(S, n, pos); steps++;
+        snap(8, `Both move one step: p → ${P}, slow → ${S}.`);
+      }
+      snap(9, `p and slow meet at node ${P} after ${steps} step${steps === 1 ? "" : "s"}, equal to a. <b class="ok">Return node ${P}</b> (value ${v[P]}), the start of the loop.`, { [P]: "hit" });
+      return { frames };
+    },
+    draw(f) { return drawList(f.v, { ptr: { S: f.S, F: f.F, H: f.P }, mark: f.mark, cycleTo: f.pos }) + (f.P !== null ? `<p style="font-size:13px;color:var(--muted)">H is p, walking from the head. S is slow, walking on from the meeting point.</p>` : ""); }
+  });
+
+  // ---------- Problem 4: happy number ----------
+  const sq = x => String(x).split("").reduce((s, d) => s + d * d, 0);
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def step(x): return sum(int(d)**2 for d in str(x))",
+      "def is_happy(n):",
+      "  slow, fast = n, step(n)",
+      "  while fast != 1 and slow != fast:",
+      "    slow = step(slow)",
+      "    fast = step(step(fast))",
+      "  return fast == 1"
+    ],
+    inputs: [{ key: "n", label: "Start number (1–999)", value: "19" }],
+    presets: [
+      { label: "19 (happy)", values: { n: "19" } },
+      { label: "2 (not happy)", values: { n: "2" } },
+      { label: "7 (happy)", values: { n: "7" } },
+      { label: "116 (not happy)", values: { n: "116" } }
+    ],
+    build({ n }) {
+      const x = Number(n);
+      if (!Number.isInteger(x) || x < 1 || x > 999) return { error: "Enter a whole number from 1 to 999." };
+      // the implicit list: distinct values in order, and where the last one points back to
+      const vals = [x], idx = new Map([[x, 0]]);
+      while (!idx.has(sq(vals[vals.length - 1]))) { const y = sq(vals[vals.length - 1]); idx.set(y, vals.length); vals.push(y); }
+      const back = idx.get(sq(vals[vals.length - 1])), nx = i => i < vals.length - 1 ? i + 1 : back;
+      const frames = [];
+      let S = 0, F = nx(0), steps = 0;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, vals, back, S, F, mark, vars: { slow: vals[S], fast: vals[F], steps } });
+      snap(2, `slow = ${x}. fast starts one step ahead: step(${x}) = ${String(x).split("").map(d => d + "²").join(" + ")} = ${vals[F]}.`);
+      while (vals[F] !== 1 && S !== F) {
+        snap(3, `fast = ${vals[F]} isn't 1 and doesn't equal slow = ${vals[S]}. Keep going.`);
+        const s0 = vals[S]; S = nx(S); steps++;
+        snap(4, `slow: step(${s0}) = ${vals[S]}.`);
+        const f0 = vals[F], f1 = nx(F); F = nx(f1);
+        snap(5, `fast: step(${f0}) = ${vals[f1]}, then step(${vals[f1]}) = ${vals[F]}.`);
+      }
+      const happy = vals[F] === 1;
+      snap(6, happy ? `fast reached 1, which maps to itself forever. <b class="ok">${x} is happy</b>.` : `slow and fast both hold ${vals[S]}: the values are looping without 1. <b class="bad">${x} is not happy</b>.`, { [F]: happy ? "hit" : "miss" });
+      return { frames };
+    },
+    draw(f) { return `<div class="stage-row"><span class="stage-label">Values in the order step() produces them</span>${drawList(f.vals, { ptr: { S: f.S, F: f.F }, mark: f.mark, cycleTo: f.back })}</div>`; }
+  });
+</script>
+</body>
+</html>

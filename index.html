@@ -169,6 +169,15 @@
       reps.forEach(([x, y], i) => { s += `<rect x="${x - 22}" y="${y - 14}" width="44" height="28" rx="10" fill="${i < 2 ? "var(--accent)" : "var(--panel)"}" stroke="${i < 2 ? "var(--accent)" : i > 2 ? "var(--amber)" : "var(--muted)"}" stroke-width="2"/>`; });
       return s;
     },
+    lsm() {
+      let s = `<rect x="70" y="24" width="150" height="34" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>`;
+      for (let i = 0; i < 4; i++) s += `<rect x="${80 + i * 34}" y="32" width="28" height="18" rx="3" fill="${i < 3 ? "var(--accent)" : "none"}" stroke="var(--accent)" stroke-width="1.5"/>`;
+      s += `<line x1="40" y1="76" x2="360" y2="76" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 5"/>`;
+      for (let i = 0; i < 3; i++) s += `<rect x="${70 + i * 58}" y="92" width="48" height="34" rx="5" fill="var(--panel)" stroke="${i === 0 ? "var(--accent)" : "var(--ink)"}" stroke-width="2"/>`;
+      s += `<path d="M250 110 h40" stroke="var(--amber)" stroke-width="2.5"/><path d="M296 110 l-9 -5 v10 z" fill="var(--amber)"/>`;
+      for (let i = 0; i < 5; i++) s += `<rect x="${70 + i * 56}" y="146" width="50" height="30" rx="5" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/>`;
+      return s;
+    },
     cluster() {
       const cx = 200, cy = 100, r = 62; let pts = [];
       for (let i = 0; i < 5; i++) {

@@ -24,6 +24,6 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 
 ## Roadmap (next up first)
 - AI lessons: 01 shipped. Next: 02 Data (examples, features, labels, datasets; already written as the artifact https://claude.ai/artifact/JznHqUCzQgrxcFYxBvEQU6 while the repo could not be pushed, so port it rather than rewriting), then 03 A model is a function, and on through the 60-lesson curriculum in `LESSONS`, then deep dives.
-- DSA: Linked List (Fast and Slow Pointers, In-place Reversal), then Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
-- Design questions: News Feed, Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
-- Concepts: LSM Tree, B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.
+- DSA: Linked List (In-place Reversal), then Stack, Binary Search, Tree, Heap, Graph, Backtracking, DP.
+- Design questions: Uber, YouTube Top K, Web Crawler, Distributed Cache, Google Docs, Dropbox.
+- Concepts: B-Tree, Kafka partitions, Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.

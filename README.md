@@ -11,6 +11,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Geohash and Quadtrees](topics/geohash-quadtree.html) | Proximity search | Move a rider on a map of drivers, compare a geohash grid with a quadtree, see what each search checks or misses |
 | [LRU Cache](topics/lru-cache.html) | Data structures | Step through the hash map and linked list, replay access patterns, compare with the optimal policy |
 | [Quorum Replication and CAP](topics/quorum.html) | Databases | Tune N, R and W, split the network into two sides, choose CP or AP, and measure stale reads against the formula |
+| [LSM Tree](topics/lsm-tree.html) | Scaling writes | Put, get and delete keys through a memtable, flush and compact sorted files, toggle Bloom filters, and track write and space amplification |
 
 ## Design questions
 
@@ -20,6 +21,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Design Ticketmaster](questions/ticketmaster.html) | Rate limiting, caching, consistent hashing |
 | [Design a Rate Limiter](questions/rate-limiter-design.html) | Rate limiting algorithms, consistent hashing |
 | [Design WhatsApp](questions/whatsapp.html) | Consistent hashing, quorum replication, rate limiting |
+| [Design a News Feed](questions/news-feed.html) | LRU cache, consistent hashing, LSM tree |
 
 Each question page follows the same interview steps: requirements, core entities, API, high-level design (drawn live and evolved one component at a time), then deep dives with interactive estimates. The step order follows Hello Interview's delivery framework; the breakdowns are original.
 
@@ -31,6 +33,7 @@ Each question page follows the same interview steps: requirements, core entities
 | [Sliding Window](dsa/sliding-window.html) | Best sum of k in a row, every anagram, longest run without repeats, shortest subarray reaching a target |
 | [Simultaneous Traversal](dsa/simultaneous-traversal.html) | Merge two sorted arrays, subsequence check, common elements, merge in place |
 | [Interval Merging and Overlap](dsa/intervals.html) | Merge overlapping intervals, insert an interval, meeting rooms (sweep line), fewest removals |
+| [Fast and Slow Pointers](dsa/fast-slow.html) | Middle of a linked list, cycle detection, cycle start, happy numbers |
 
 Pattern pages teach the idea from first principles, how to spot it, and a template, then step through each problem's solution line by line with editable inputs. Patterns are grouped by data structure; the pattern-first structure is inspired by Codeintuition. `shared/stepper.js` is the reusable step-through engine.
 

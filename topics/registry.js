@@ -64,8 +64,15 @@ window.TOPICS = [
     usedIn: "DynamoDB, Cassandra, Riak, ScyllaDB",
     glyph: "quorum"
   },
-  { slug: "lsm-tree", title: "LSM Tree", area: "Scaling writes", status: "planned",
-    blurb: "Writes land in memory, flush to sorted files and get compacted, as in Cassandra and RocksDB." },
+  {
+    slug: "lsm-tree",
+    title: "LSM Tree",
+    area: "Scaling writes",
+    status: "ready",
+    blurb: "Write keys into a memtable, flush sorted files, compact them, and watch write amplification, tombstones and Bloom-filter skips add up.",
+    usedIn: "Cassandra, RocksDB, LevelDB, HBase, Bigtable",
+    glyph: "lsm"
+  },
   { slug: "b-tree", title: "B-Tree Index", area: "Database indexing", status: "planned",
     blurb: "Nodes fill, split and push keys up. See why a lookup touches only three or four pages." },
   { slug: "kafka", title: "Kafka Partitions", area: "Key technologies", status: "planned",
@@ -111,7 +118,13 @@ window.QUESTIONS = [
     blurb: "Send messages to an offline phone across four design stages, step a lost ack through retry and dedupe, and size a fleet of socket servers.",
     concepts: ["consistent-hashing", "quorum", "rate-limiter"]
   },
-  { slug: "news-feed", title: "Design a News Feed", status: "planned", blurb: "Fan-out on write versus on read, and the celebrity problem." },
+  {
+    slug: "news-feed",
+    title: "Design a News Feed",
+    status: "ready",
+    blurb: "Post as a normal user and a celebrity across four design stages, step a k-way merge that builds one feed page, and size fan-out on write.",
+    concepts: ["lru-cache", "consistent-hashing", "lsm-tree"]
+  },
   { slug: "uber", title: "Design Uber", status: "planned", blurb: "Matching riders to nearby drivers with geospatial indexes and location updates." },
   { slug: "top-k", title: "Design YouTube Top K", status: "planned", blurb: "Most-viewed videos over sliding windows using stream processing and sketches." },
   { slug: "web-crawler", title: "Design a Web Crawler", status: "planned", blurb: "Frontier queues, politeness, deduplication and failure recovery." },
@@ -138,7 +151,9 @@ window.DSA = [
       problems: ["Merge overlapping intervals", "Insert an interval", "How many meeting rooms?", "Fewest intervals to remove"] }
   ] },
   { area: "Linked List", patterns: [
-    { slug: "fast-slow", title: "Fast and Slow Pointers", status: "planned", blurb: "Find cycles and middles with pointers moving at different speeds." },
+    { slug: "fast-slow", title: "Fast and Slow Pointers", status: "ready",
+      blurb: "One pointer walks, one runs: find the middle, detect a loop, locate where it starts, and spot happy numbers, stepped node by node.",
+      problems: ["Middle of the list", "Does the list loop?", "Where does the loop start?", "Happy numbers"] },
     { slug: "reversal", title: "In-place Reversal", status: "planned", blurb: "Rewire next pointers to reverse a list or a segment of it." }
   ] },
   { area: "Stack", patterns: [

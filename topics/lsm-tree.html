@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LSM Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  #lsm { width: 100%; height: auto; display: block; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .keyrow { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+  .keyrow label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); flex: 0 0 90px; }
+  .keyrow input { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Scaling writes</span>
+  </div>
+
+  <header class="intro">
+    <h1>LSM Tree</h1>
+    <p class="lede">A log-structured merge tree never updates data in place. Writes go to a sorted table in memory (and a log, so a crash loses nothing). When that table fills, it is written to disk in one go as an immutable sorted file. Reads check the newest data first and work back. In the background, files are merged so reads don't have to look through too many of them. Writes become fast, sequential appends; reads and background merging pay for it.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="cfgLabel"></span><span class="eyebrow" id="sizeLabel"></span></div>
+      <svg id="lsm" viewBox="0 0 480 420" role="img" aria-label="Memtable in memory, then level 0 and level 1 sorted files on disk"></svg>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <div class="keyrow">
+        <label for="key">Key (1–99)<input id="key" type="number" min="1" max="99" value="7"></label>
+        <button class="primary" id="put">Put</button>
+        <button id="get">Get</button>
+        <button id="del">Delete</button>
+      </div>
+      <div class="controls">
+        <button id="burst">Write 10 random keys</button>
+        <button id="flush">Flush memtable</button>
+        <button id="compact">Compact now</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="mem"><span class="row"><span>Memtable holds (entries) · changing resets</span><b class="mono num" id="memOut"></b></span><input type="range" id="mem" min="3" max="8" value="4"></label>
+      <label class="field" for="trig"><span class="row"><span>Compact when level 0 has (files)</span><b class="mono num" id="trigOut"></b></span><input type="range" id="trig" min="2" max="6" value="3"></label>
+      <label class="check"><input type="checkbox" id="bloom" checked> A Bloom filter per file</label>
+      <label class="check"><input type="checkbox" id="auto" checked> Compact automatically</label>
+      <div class="stat-row"><span>Writes you made</span><b id="sUser"></b></div>
+      <div class="stat-row"><span>Entries written to disk files</span><b id="sDisk"></b></div>
+      <div class="stat-row"><span>Files on disk (L0 · L1)</span><b id="sFiles"></b></div>
+      <div class="stat-row"><span>Compactions run</span><b id="sComp"></b></div>
+      <div class="stat-row"><span>Last read: files opened · skipped by Bloom</span><b id="sRead"></b></div>
+      <div class="stat-row"><span>Bloom false positives so far</span><b id="sFp"></b></div>
+      <div class="compare">
+        <div><span>Write amplification</span><b id="wa"></b><span>disk entries ÷ your writes (log not counted)</span></div>
+        <div><span>Space amplification</span><b id="sa"></b><span>entries on disk ÷ live keys on disk</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Seven writes, traced by hand</h2>
+    <p class="kicker">Memtable holds 3 entries, level 0 is compacted when it reaches 2 files, and every entry carries a sequence number so newer beats older. To follow along, set the sliders to 3 and 2, untick <b>Compact automatically</b>, press Reset, and press <b>Compact now</b> at step 5.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Three writes fill the memtable</h3>
+        <p><span class="mono">put 20</span>, <span class="mono">put 05</span>, <span class="mono">put 12</span>. Each is appended to the log on disk (a sequential write) and inserted into the memtable, which keeps keys sorted: <span class="mono">05:v2, 12:v3, 20:v1</span>. Nothing else on disk changes.</p>
+      </div></li>
+      <li><div>
+        <h3>Flush: file A in level 0</h3>
+        <p>The memtable is full, so it is written out as one sorted, immutable file, <b>A = [05, 12, 20]</b>, with a key range (05–20) and a small Bloom filter. The log can now be thrown away. 3 entries written to disk for 3 writes: write amplification 1.0 so far.</p>
+      </div></li>
+      <li><div>
+        <h3>An update and a delete</h3>
+        <p><span class="mono">put 12</span> again (v4), <span class="mono">delete 05</span>, <span class="mono">put 30</span>. A delete can't erase 05 from file A, because files never change. It writes a <b>tombstone</b>, a marker that says "05 is gone as of v5". Flush gives <b>B = [05:×, 12:v4, 30:v6]</b>. Disk now holds 6 entries for only 3 live keys (12, 20 and 30): space amplification 2.0.</p>
+      </div></li>
+      <li><div>
+        <h3>Read 12 before compaction</h3>
+        <p>Not in the memtable. Check level 0 newest first: B covers 05–30 and its Bloom filter says "maybe", so open it, binary search, find <span class="mono">12:v4</span>. Stop. The older v3 in A is never looked at. One file opened.</p>
+      </div></li>
+      <li><div>
+        <h3>Compaction</h3>
+        <p>Level 0 has 2 files, so merge A and B like the merge step of merge sort. Where both have a key, the higher sequence number wins: 12 keeps v4. 05's newest entry is a tombstone, and there is no older level below, so 05 is dropped entirely. Output, level 1: <b>[12:v4, 20:v1, 30:v6]</b>.</p>
+        <p class="formula">entries written to disk = 3 + 3 (flushes) + 3 (compaction) = 9 for 6 writes → write amplification 1.5</p>
+        <p>Space amplification falls back to 1.0: every entry on disk is now a live key. Real systems with several levels rewrite each entry once per level, which is why write amplification of 10 or more is normal.</p>
+      </div></li>
+      <li><div>
+        <h3>Read a key that was never written</h3>
+        <p><span class="mono">get 15</span>: the level 1 file covers 12–30, so the key range can't rule it out. The Bloom filter checks a few bits; if any is 0, the file is skipped without a disk read. Turn the filters off in the simulation and every lookup like this costs a file read.</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>The rule that keeps reads correct:</b> always search from newest to oldest (memtable, then level 0 newest first, then level 1) and stop at the first entry for the key, whether it's a value or a tombstone.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>From bank history tables to every phone</h2>
+    <p>In 1996 Patrick O'Neil, Edward Cheng, Dieter Gawlick and Elizabeth O'Neil published "The Log-Structured Merge-Tree (LSM-Tree)" in <i>Acta Informatica</i>. Their motivating problem was a history table that gets a new row for every transaction. A B-tree index on it does a random disk read and write for each insert, and disks of the day could only do so many of those a second. Their answer was to batch inserts in a small tree in memory and merge them into a larger tree on disk in long sequential passes, which disks did far faster.</p>
+    <p>A decade later Google's Bigtable paper (OSDI 2006) brought the design to the mainstream. Writes went to a commit log and an in-memory memtable; full memtables became immutable SSTable files; "minor" and "major" compactions merged them. Facebook's Cassandra, built for inbox search and open-sourced in July 2008, adopted the same write path, and HBase did the same as an open-source Bigtable.</p>
+    <p>In 2011 Jeff Dean and Sanjay Ghemawat open-sourced LevelDB, a small library modeled on Bigtable's tablet storage, with the "leveled" compaction scheme that this page simulates. Facebook forked it into RocksDB, tuned for flash storage, and open-sourced that in 2013. RocksDB now sits under many databases, and LevelDB stored data in Chrome's IndexedDB.</p>
+    <blockquote class="pull">Turn many small random writes into a few large sequential ones, and pay the bill later, in the background.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">1996</span><p>O'Neil, Cheng, Gawlick and O'Neil publish the LSM-tree in Acta Informatica.</p></li>
+      <li><span class="year">2006</span><p>Google's Bigtable paper: commit log, memtable, SSTables and compactions.</p></li>
+      <li><span class="year">2008</span><p>Facebook open-sources Cassandra, built by Avinash Lakshman and Prashant Malik.</p></li>
+      <li><span class="year">2011</span><p>Jeff Dean and Sanjay Ghemawat release LevelDB with leveled compaction.</p></li>
+      <li><span class="year">2013</span><p>Facebook open-sources RocksDB, its LevelDB fork for flash.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A sorted table in memory plus a stack of immutable sorted files on disk. Writes go to memory; reads search newest to oldest; background merges keep the stack short.</p></div>
+      <div><span class="q">Why</span><p>Updating a B-tree in place means a random read and write per insert. Batching writes in memory and writing whole sorted files turns them into sequential I/O, which is much faster on disks and gentler on flash.</p></div>
+      <div><span class="q">When</span><p>Write-heavy workloads: logs, metrics, messages, event streams, time series, anything where inserts outnumber reads or arrive in bursts.</p></div>
+      <div><span class="q">Where</span><p>Bigtable, HBase, Cassandra, ScyllaDB, LevelDB, RocksDB and the many databases built on RocksDB.</p></div>
+      <div><span class="q">How</span><p>Sequence numbers decide which version is newest. Tombstones mark deletes. Bloom filters and key ranges let reads skip files. Compaction merges files, drops old versions and tombstones, and keeps the number of files a read must check small.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> never modify a file; write new ones and merge them later.</p>
+      <p><b>The trade-off:</b> three amplifications pull against each other. Compact eagerly and reads are cheap but each entry is rewritten many times (write amplification). Compact lazily and writes are cheap but reads open more files (read amplification) and dead versions pile up (space amplification).</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Press <b>Write 10 random keys</b> a few times. Each compaction rewrites everything in level 1, so "entries written to disk" grows faster than your writes. Raise the level 0 trigger and write amplification drops.</li>
+        <li>Turn off <b>Compact automatically</b>, flush several times, then <b>Get</b> a key that sits in the oldest file. The read opens one file per overlapping level 0 file on the way.</li>
+        <li>Turn off Bloom filters and <b>Get</b> a key you never wrote. Every file whose range covers it gets opened. With filters on, most are skipped; now and then a false positive slips through and is counted.</li>
+        <li><b>Delete</b> a key and look for the tombstone (×). Space amplification rises until a compaction into level 1 drops both the tombstone and the old value.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>"Why does Cassandra write so fast?"</b> A write is an append to the commit log plus an insert into memory. No disk seek, no read-before-write. The cost moves to compaction, which runs in the background.</p>
+        <p><b>LSM tree or B-tree?</b> LSM for write-heavy, append-like data, and when space efficiency matters (compressed immutable files). B-tree for read-heavy workloads that need predictable point reads and range scans, like most OLTP databases.</p>
+        <p><b>Leveled vs size-tiered compaction:</b> leveled keeps one sorted run per level, so reads are cheap but writes are amplified. Size-tiered merges similar-sized files, cutting write cost but leaving more files for reads and needing spare disk during merges.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const FILE = 6;                 // max entries per level 1 file
+  const pad = k => String(k).padStart(2, "0");
+  let M, T, mem, wal, l0, l1, seq, nextId, userWrites, diskWrites, comps, fps, lastOp, lastRead, fresh;
+
+  // ---------- Bloom filter: real bits, two hashes ----------
+  function h(str, seed) { let x = 2166136261 ^ seed; for (const c of str) { x ^= c.charCodeAt(0); x = Math.imul(x, 16777619); } return (x >>> 0); }
+  function makeBloom(keys) {
+    const m = Math.max(16, keys.length * 5), bits = new Uint8Array(m);
+    keys.forEach(k => { bits[h("k" + k, 1) % m] = 1; bits[h("k" + k, 7) % m] = 1; });
+    return { m, bits };
+  }
+  const bloomHas = (b, k) => b.bits[h("k" + k, 1) % b.m] && b.bits[h("k" + k, 7) % b.m];
+  function makeFile(entries, level) {
+    return { id: nextId++, level, entries, min: entries[0].k, max: entries[entries.length - 1].k, bloom: makeBloom(entries.map(e => e.k)) };
+  }
+
+  function reset() {
+    M = +$("mem").value;
+    mem = new Map(); wal = 0; l0 = []; l1 = []; seq = 0; nextId = 1;
+    userWrites = 0; diskWrites = 0; comps = 0; fps = 0; lastOp = null; lastRead = null; fresh = new Set();
+    render();
+  }
+
+  function write(k, del) {
+    seq++; userWrites++; wal++;
+    mem.set(k, { k, v: "v" + seq, seq, del });
+    fresh = new Set(); lastRead = null;
+    let msg = del ? `<b>Tombstone for ${pad(k)} (seq ${seq}).</b>` : `<b>put ${pad(k)} = v${seq}.</b>`;
+    let note = `Appended to the log and inserted into the sorted memtable (${mem.size}/${M}). No disk file was touched.`;
+    let warn = false;
+    if (mem.size >= M) { const r = flush(true); msg += ` Memtable full → flushed.`; note = r.note; warn = r.warn; }
+    lastOp = { msg, note, warn };
+  }
+
+  function flush(fromWrite) {
+    if (!mem.size) { lastOp = { msg: "<b>Memtable is empty.</b>", note: "Nothing to flush." }; return {}; }
+    const entries = [...mem.values()].sort((a, b) => a.k - b.k);
+    const f = makeFile(entries, 0);
+    l0.unshift(f); diskWrites += entries.length; mem = new Map(); wal = 0;
+    fresh = new Set([f.id]);
+    let note = `Wrote file ${f.id} (${entries.length} entries, keys ${pad(f.min)}–${pad(f.max)}) to level 0 in one sequential write. The log was cleared.`, warn = false;
+    if ($("auto").checked && l0.length >= T) { const r = compact(); note += " " + r; warn = true; }
+    if (!fromWrite) lastOp = { msg: `<b>Flushed the memtable to level 0.</b>`, note, warn };
+    return { note, warn };
+  }
+
+  function compact() {
+    if (!l0.length) { lastOp = { msg: "<b>Level 0 is empty.</b>", note: "Nothing to compact." }; return ""; }
+    // merge every level 0 file with every level 1 file; newest sequence number wins
+    const best = new Map(), inputs = [...l0, ...l1];
+    let inCount = 0;
+    inputs.forEach(f => f.entries.forEach(e => { inCount++; const cur = best.get(e.k); if (!cur || e.seq > cur.seq) best.set(e.k, e); }));
+    const all = [...best.values()].sort((a, b) => a.k - b.k);
+    const dropped = inCount - all.length, tombs = all.filter(e => e.del).length;
+    const live = all.filter(e => !e.del);     // level 1 is the last level, so tombstones can go
+    const out = [];
+    for (let i = 0; i < live.length; i += FILE) out.push(makeFile(live.slice(i, i + FILE), 1));
+    const was0 = l0.length, was1 = l1.length;
+    l0 = []; l1 = out; diskWrites += live.length; comps++;
+    fresh = new Set(out.map(f => f.id)); lastRead = null;
+    const note = `Compaction merged ${was0} level 0 file${was0 > 1 ? "s" : ""} and ${was1} level 1 file${was1 === 1 ? "" : "s"}: read ${inCount} entries, dropped ${dropped} old version${dropped === 1 ? "" : "s"}${tombs ? ` and ${tombs} deleted key${tombs > 1 ? "s" : ""}` : ""}, and rewrote ${live.length} into ${out.length} level 1 file${out.length === 1 ? "" : "s"}.`;
+    return note;
+  }
+
+  function get(k) {
+    const path = []; let found = null, opened = 0, skippedBloom = 0, fpHere = 0;
+    const m = mem.get(k);
+    if (m) found = { e: m, where: "the memtable" };
+    else {
+      const useBloom = $("bloom").checked;
+      const probe = (f, label) => {
+        if (k < f.min || k > f.max) { path.push({ id: f.id, r: "range" }); return null; }
+        if (useBloom && !bloomHas(f.bloom, k)) { path.push({ id: f.id, r: "bloom" }); skippedBloom++; return null; }
+        opened++;
+        const e = f.entries.find(x => x.k === k);   // binary search in a real file
+        if (e) { path.push({ id: f.id, r: "hit" }); return { e, where: `${label} file ${f.id}` }; }
+        path.push({ id: f.id, r: "fp" }); if (useBloom) { fpHere++; fps++; }
+        return null;
+      };
+      for (const f of l0) { found = probe(f, "level 0"); if (found) break; }
+      if (!found) {
+        // level 1 files don't overlap: the fence pointers (min keys) pick at most one file
+        const f = l1.find(x => k >= x.min && k <= x.max);
+        l1.forEach(x => { if (x !== f) path.push({ id: x.id, r: "range" }); });
+        if (f) found = probe(f, "level 1");
+      }
+    }
+    lastRead = { k, path, opened, skippedBloom }; fresh = new Set();
+    const pathTxt = `Opened ${opened} file${opened === 1 ? "" : "s"}${$("bloom").checked ? `, Bloom filters skipped ${skippedBloom}` : ", Bloom filters are off"}${fpHere ? `, and ${fpHere} false positive${fpHere > 1 ? "s" : ""} cost a wasted read` : ""}.`;
+    if (!found) lastOp = { msg: `<b>get ${pad(k)} → not found.</b>`, note: pathTxt, warn: false };
+    else if (found.e.del) lastOp = { msg: `<b>get ${pad(k)} → deleted</b> (tombstone in ${found.where}).`, note: `The search stopped at the tombstone, so older values below it stay hidden. ${pathTxt}` };
+    else lastOp = { msg: `<b>get ${pad(k)} → ${found.e.v}</b>, from ${found.where}.`, note: (found.where === "the memtable" ? "Found in memory: no disk read at all. " : "") + pathTxt };
+  }
+
+  // ---------- drawing ----------
+  function fileBox(f, x, y, w, rowsMax, st) {
+    const hgt = 22 + rowsMax * 13;
+    const stroke = st === "hit" ? "var(--ok)" : st === "fp" ? "var(--bad)" : st === "bloom" ? "var(--amber)" : fresh.has(f.id) ? "var(--accent)" : "var(--muted)";
+    const sw = st && st !== "range" ? 2.6 : fresh.has(f.id) ? 2.4 : 1.2;
+    let s = `<rect x="${x}" y="${y}" width="${w}" height="${hgt}" rx="5" fill="${st === "range" ? "var(--paper)" : "var(--panel)"}" stroke="${stroke}" stroke-width="${sw}" ${st === "bloom" ? 'stroke-dasharray="5 3"' : ""}/>`;
+    s += `<text x="${x + 6}" y="${y + 13}" font-family="var(--mono)" font-size="9.5" font-weight="600" fill="var(--accent)">#${f.id}</text>`;
+    s += `<text x="${x + w - 5}" y="${y + 13}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--muted)">${pad(f.min)}–${pad(f.max)}</text>`;
+    f.entries.forEach((e, i) => {
+      const hl = lastRead && lastRead.k === e.k && (st === "hit");
+      s += `<text x="${x + 6}" y="${y + 29 + i * 13}" font-family="var(--mono)" font-size="10" font-weight="${hl ? 700 : 500}" fill="${e.del ? "var(--bad)" : hl ? "var(--ok)" : "var(--ink)"}">${pad(e.k)} ${e.del ? "×" : e.v}</text>`;
+    });
+    return { s, hgt };
+  }
+  function render() {
+    T = +$("trig").value;
+    $("memOut").textContent = M; $("trigOut").textContent = T;
+    $("cfgLabel").textContent = `memtable ${M} · L0 trigger ${T}`;
+    const onDisk = [...l0, ...l1].reduce((n, f) => n + f.entries.length, 0);
+    $("sizeLabel").textContent = `${onDisk} entries on disk`;
+    const st = {}; if (lastRead) lastRead.path.forEach(p => st[p.id] = p.r);
+    const W = 480; let s = "", y = 8;
+
+    // memory row
+    s += `<text x="10" y="${y + 10}" font-family="var(--mono)" font-size="10" font-weight="600" letter-spacing="1" fill="var(--muted)">MEMORY</text>`;
+    y += 18;
+    const memEntries = [...mem.values()].sort((a, b) => a.k - b.k);
+    const memHit = lastRead && mem.has(lastRead.k);
+    s += `<rect x="10" y="${y}" width="${W - 130}" height="54" rx="8" fill="var(--accent-soft)" stroke="${memHit ? "var(--ok)" : "var(--accent)"}" stroke-width="${memHit ? 2.6 : 1.5}"/>`;
+    s += `<text x="20" y="${y + 16}" font-family="var(--display)" font-size="12.5" font-weight="700" fill="var(--ink)">Memtable (sorted) ${mem.size}/${M}</text>`;
+    const cw = Math.min(44, (W - 160) / M);
+    for (let i = 0; i < M; i++) {
+      const e = memEntries[i], x = 20 + i * cw;
+      s += `<rect x="${x}" y="${y + 24}" width="${cw - 4}" height="22" rx="4" fill="${e ? "var(--panel)" : "none"}" stroke="var(--line)" stroke-dasharray="${e ? "" : "3 3"}"/>`;
+      if (e) s += `<text x="${x + (cw - 4) / 2}" y="${y + 39}" text-anchor="middle" font-family="var(--mono)" font-size="9.5" font-weight="600" fill="${e.del ? "var(--bad)" : "var(--ink)"}">${pad(e.k)}${e.del ? "×" : ""}</text>`;
+    }
+    s += `<rect x="${W - 110}" y="${y}" width="100" height="54" rx="8" fill="var(--panel)" stroke="var(--line)"/>`;
+    s += `<text x="${W - 60}" y="${y + 20}" text-anchor="middle" font-family="var(--display)" font-size="12.5" font-weight="700" fill="var(--ink)">Log (WAL)</text>`;
+    s += `<text x="${W - 60}" y="${y + 39}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">${wal} record${wal === 1 ? "" : "s"}</text>`;
+    y += 66;
+    s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 4"/>`;
+    s += `<text x="${W - 10}" y="${y - 4}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--muted)">disk below</text>`;
+    y += 10;
+
+    // level 0
+    s += `<text x="10" y="${y + 10}" font-family="var(--mono)" font-size="10" font-weight="600" letter-spacing="1" fill="var(--muted)">LEVEL 0 · NEWEST LEFT · RANGES MAY OVERLAP</text>`;
+    y += 16;
+    const cols = 6, gap = 6, fw = (W - 20 - gap * (cols - 1)) / cols;
+    if (!l0.length) { s += `<text x="10" y="${y + 16}" font-family="var(--body)" font-size="12" fill="var(--muted)">empty</text>`; y += 28; }
+    else {
+      const rows0 = Math.max(...l0.map(f => f.entries.length));
+      let rowH = 0;
+      l0.forEach((f, i) => {
+        const col = i % cols; if (col === 0 && i) { y += rowH + 8; }
+        const b = fileBox(f, 10 + col * (fw + gap), y, fw, rows0, st[f.id]); s += b.s; rowH = b.hgt;
+      });
+      y += rowH + 12;
+    }
+    // level 1
+    s += `<text x="10" y="${y + 10}" font-family="var(--mono)" font-size="10" font-weight="600" letter-spacing="1" fill="var(--muted)">LEVEL 1 · ONE SORTED RUN · NO OVERLAP</text>`;
+    y += 16;
+    if (!l1.length) { s += `<text x="10" y="${y + 16}" font-family="var(--body)" font-size="12" fill="var(--muted)">empty</text>`; y += 28; }
+    else {
+      let rowH = 0;
+      l1.forEach((f, i) => {
+        const col = i % cols; if (col === 0 && i) { y += rowH + 8; }
+        const b = fileBox(f, 10 + col * (fw + gap), y, fw, FILE, st[f.id]); s += b.s; rowH = b.hgt;
+      });
+      y += rowH + 10;
+    }
+    s += `<text x="10" y="${y + 8}" font-family="var(--mono)" font-size="9.5" fill="var(--muted)">blue: just written · green: found · amber dashed: Bloom skip · red: wasted read</text>`;
+    y += 16;
+    $("lsm").setAttribute("viewBox", `0 0 ${W} ${y}`);
+    $("lsm").innerHTML = s;
+
+    // verdict
+    const v = $("verdict");
+    if (!lastOp) { v.className = "verdict-box"; v.innerHTML = `<b>Put a few keys, then read one back.</b><p>Writes land in memory. Watch what happens when the memtable fills.</p>`; }
+    else { v.className = "verdict-box " + (lastOp.warn ? "warn" : "ok"); v.innerHTML = `<b>${lastOp.msg}</b><p>${lastOp.note}</p>`; }
+
+    // numbers, all from the model
+    const liveKeys = new Map();
+    [...l1, ...[...l0].reverse()].forEach(f => f.entries.forEach(e => { const c = liveKeys.get(e.k); if (!c || e.seq > c.seq) liveKeys.set(e.k, e); }));
+    const live = [...liveKeys.values()].filter(e => !e.del).length;
+    $("sUser").textContent = userWrites;
+    $("sDisk").textContent = diskWrites;
+    $("sFiles").textContent = `${l0.length} · ${l1.length}`;
+    $("sComp").textContent = comps;
+    $("sRead").textContent = lastRead ? `${lastRead.opened} · ${lastRead.skippedBloom}` : "–";
+    $("sFp").textContent = fps;
+    $("wa").textContent = userWrites ? (diskWrites / userWrites).toFixed(2) : "–";
+    $("sa").textContent = live ? (onDisk / live).toFixed(2) : "–";
+  }
+
+  const keyVal = () => { const k = Math.round(+$("key").value); if (!(k >= 1 && k <= 99)) { lastOp = { msg: "<b>Use a key from 1 to 99.</b>", note: "Keys are small numbers so every file fits on screen.", warn: true }; render(); return null; } return k; };
+  $("put").onclick = () => { const k = keyVal(); if (k) { write(k, false); render(); } };
+  $("del").onclick = () => { const k = keyVal(); if (k) { write(k, true); render(); } };
+  $("get").onclick = () => { const k = keyVal(); if (k) { get(k); render(); } };
+  $("burst").onclick = () => {
+    const before = comps, flushedBefore = diskWrites;
+    for (let i = 0; i < 10; i++) write(1 + Math.floor(Math.random() * 40), false);
+    lastOp = { msg: `<b>Wrote 10 random keys (1–40).</b>`, note: `That caused ${comps - before} compaction${comps - before === 1 ? "" : "s"} and ${diskWrites - flushedBefore} entries written to disk files.`, warn: comps > before };
+    render();
+  };
+  $("flush").onclick = () => { flush(false); render(); };
+  $("compact").onclick = () => { if (l0.length) { const n = compact(); lastOp = { msg: "<b>Compacted level 0 into level 1.</b>", note: n, warn: true }; } else compact(); render(); };
+  $("reset").onclick = reset;
+  $("mem").oninput = reset;
+  $("trig").oninput = () => { T = +$("trig").value; if ($("auto").checked && l0.length >= T) { const n = compact(); lastOp = { msg: "<b>Level 0 reached the new trigger.</b>", note: n, warn: true }; } render(); };
+  $("bloom").onchange = () => { lastRead = null; render(); };
+  $("auto").onchange = render;
+
+  // open in a working state: a few writes, a flush, and a read
+  reset();
+  [20, 5, 12, 33, 12, 8, 27, 5].forEach(k => write(k, false));
+  get(12);
+  render();
+</script>
+</body>
+</html>

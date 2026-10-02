@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a News Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .feedlist { display: grid; gap: 6px; margin-top: 10px; }
+  .post { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; justify-content: space-between; gap: 10px; }
+  .post .t { font: 500 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap; }
+  .post.star { border-color: var(--amber); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .stage-row { display: grid; gap: 8px; }
+  .pagechips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pagechips span { font: 600 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; background: var(--ok); color: var(--panel); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="news-feed" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a News Feed</h1>
+    <p class="lede">Build the home feed of a social app: you follow people, they post, and opening the app shows their newest posts first, quickly, page after page. The core decision is when to do the work of assembling a feed: when someone posts (copy the post into every follower's feed) or when someone reads (gather posts from everyone they follow). Accounts with millions of followers break the first; people who follow thousands break the second.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Keep the feed chronological to start. Ranking with machine learning is a follow-up, and it reuses the same pipeline: it reorders candidates that this design already gathers.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Create a post (text, with optional media).</li>
+          <li>Follow and unfollow other users. Following is one-way and needs no approval.</li>
+          <li>See a feed of posts from everyone they follow, newest first.</li>
+          <li>Scroll back through the feed page by page.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Load a feed page in under about 500 ms.</li>
+          <li>Show a new post to followers within about a minute. Eventual consistency is fine.</li>
+          <li>Favor availability: a slightly stale feed beats an error.</li>
+          <li>Handle billions of users, accounts followed by tens of millions, and users who follow thousands.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> a feed is a merge of many sorted lists (each author's posts, newest first), cut to one page. Every design either does that merge ahead of time and stores the result, or does it on demand. Reads outnumber posts by roughly 100 to 1, which pushes toward doing it ahead of time.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>User</h3><code>user_id, name
+follower_count
+(drives the celebrity rule)</code></div>
+      <div class="entity"><h3>Follow</h3><code>follower_id
+followee_id
+created_at</code></div>
+      <div class="entity"><h3>Post</h3><code>post_id (time-sortable)
+author_id, body
+media_url, created_at</code></div>
+      <div class="entity"><h3>Feed</h3><code>user_id
+[post_id, ...] newest first
+(a cache, rebuildable)</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+<pre class="api"><span class="verb">POST</span> /posts                     { body, media_url? }   → { post_id }
+<span class="verb">PUT</span>  /users/{id}/followers        <span class="c">// follow; DELETE to unfollow</span>
+<span class="verb">GET</span>  /feed?cursor=&amp;limit=20       → { posts: [...], next_cursor }
+
+<span class="c">// the user comes from the auth token, never from the request body</span></pre>
+    <div class="aside"><p><b>Why a cursor and not a page number?</b> New posts arrive at the top while you scroll. With <span class="mono">?page=2</span>, everything shifts down and you see repeats. A cursor says "older than this post", which stays correct no matter what arrives. Time-sortable post IDs (a timestamp in the high bits) make the cursor just the last ID you saw.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">Ana has 3 followers. Star has 2 million. Ben follows 300 accounts, including Ana and 4 celebrities like Star. Post as each of them, load Ben's feed, and compare the work each stage does.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="anaPost">Ana posts</button>
+          <button id="starPost">Star posts</button>
+          <button id="benLoad">Ben loads his feed</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 400" role="img" aria-label="Architecture diagram with animated requests"></svg></div>
+        <div class="cost" id="cost"></div>
+        <div class="feedlist" id="feedlist" aria-live="polite"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="merge" data-nav="Deep dive: building a page" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: merging the hybrid feed, one page at a time</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">In the hybrid design, Ben's page comes from two kinds of source: his precomputed feed (already merged by fan-out) and the recent posts of the few celebrities he follows. Each list is sorted newest first, so the page is a k-way merge with a max-heap that stops after k posts. Numbers are post times; bigger is newer.</p>
+    <div id="mergeViz"></div>
+    <div class="aside"><p><b>The cursor falls out for free:</b> the time of the last post on the page is the next request's "older than" bound. Each source just skips posts at or above it, so page 2 never repeats page 1, even if new posts landed in between.</p></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: fan-out and scale" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: how much fan-out, and where to draw the celebrity line</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">If everyone posts at a similar rate, the copies made by fan-out on write equal posts × the average number of follows. Celebrities hold a big share of all follow edges, so leaving them out removes that share of the writes, at the price of a few extra reads per feed load.</p>
+    <div class="calc">
+      <label class="field" for="dau"><span class="row"><span>Daily active users</span><b class="mono num" id="dauOut"></b></span><input type="range" id="dau" min="6" max="9.3" step="0.1" value="8.7"></label>
+      <label class="field" for="ppd"><span class="row"><span>Posts per user per day</span><b class="mono num" id="ppdOut"></b></span><input type="range" id="ppd" min="0.1" max="5" step="0.1" value="0.5"></label>
+      <label class="field" for="fol"><span class="row"><span>Accounts followed (average)</span><b class="mono num" id="folOut"></b></span><input type="range" id="fol" min="20" max="1000" step="10" value="200"></label>
+      <label class="field" for="loads"><span class="row"><span>Feed loads per user per day</span><b class="mono num" id="loadsOut"></b></span><input type="range" id="loads" min="1" max="50" step="1" value="10"></label>
+      <label class="field" for="celeb"><span class="row"><span>Share of follows pointing at celebrities</span><b class="mono num" id="celebOut"></b></span><input type="range" id="celeb" min="0" max="80" step="5" value="20"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+    <h3 style="margin-top:6px">The three options side by side</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Approach</th><th>Post costs</th><th>Feed load costs</th><th>Breaks on</th></tr></thead>
+      <tbody>
+        <tr><td><b>Fan-out on read</b></td><td>1 write</td><td>one query per followed account, then a merge</td><td>users who follow thousands</td></tr>
+        <tr><td><b>Fan-out on write</b></td><td>1 write per follower</td><td>1 cache read</td><td>accounts with millions of followers</td></tr>
+        <tr><td><b>Hybrid</b></td><td>1 write per follower, unless the author is a celebrity</td><td>1 cache read + one query per celebrity followed</td><td>little; tune the threshold</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Ana posts a photo; Ben opens the app</h2>
+    <p class="kicker">Using the final hybrid design. Ana has 3 followers (Ben, Cy and Dee); Ben also follows Star, who has 2 million.</p>
+    <ol class="steps">
+      <li><div><h3>Ana posts</h3><p>The post service uploads the photo to blob storage, writes <span class="mono">post 9041</span> to the posts database, and returns. Ana is done in tens of milliseconds; nothing else is in her request path.</p></div></li>
+      <li><div><h3>Fan-out runs in the background</h3><p>A "post created" event goes on a queue. A fan-out worker reads it, checks Ana's follower count (3, well under the celebrity threshold), pages through her followers in the follow graph and prepends <span class="mono">9041</span> to Ben's, Cy's and Dee's feed lists in the cache. Each list is trimmed to its newest 500 IDs.</p></div></li>
+      <li><div><h3>Star posts</h3><p>Star's follower count is over the threshold, so the worker skips fan-out. The post just sits in the posts database and in a "recent posts by celebrities" cache. Two million writes avoided.</p></div></li>
+      <li><div><h3>Ben loads his feed</h3><p>The feed service reads Ben's cached list (one key), asks the celebrity cache for the recent posts of the 4 celebrities he follows, and merges the five sorted lists into the newest 20 (deep dive 5a). Then it fetches the 20 posts' contents from the post cache in one batch.</p></div></li>
+      <li><div><h3>Ben scrolls</h3><p>The response carries <span class="mono">next_cursor</span> = the time of the 20th post. The next request repeats the merge with "older than cursor". If Ben's cached list runs out (he scrolled past 500), the service falls back to fan-out on read for the older range.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A per-user merge of many authors' sorted post lists, cut to one page, served fast.</p></div>
+      <div><span class="q">Why it's hard</span><p>Follow counts are wildly skewed. The same rule that is cheap for a normal account costs millions of writes for a celebrity, and the rule that is cheap for celebrities costs hundreds of reads per feed load.</p></div>
+      <div><span class="q">Key insight</span><p>Reads vastly outnumber posts, so precompute, but only where it's cheap. Push for the many small accounts, pull for the few huge ones.</p></div>
+      <div><span class="q">Where it bends</span><p>Inactive users. Fanning out to someone who hasn't opened the app in months wastes writes; skip them and rebuild their feed on read when they return.</p></div>
+      <div><span class="q">What's a cache</span><p>The feed lists are derived data. Losing them costs latency, not correctness, because they can be rebuilt from the follow graph and the posts table.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>The feature everyone hated, then everyone copied</h2>
+    <p>Facebook launched News Feed on 6 September 2006. Until then you saw a friend's updates only by visiting their profile; now every change was collected on your home page. Many users called it intrusive, and some called for a boycott. Mark Zuckerberg wrote an open letter that began admitting "We really messed this one up", and Facebook added privacy controls. Usage of the feed kept climbing anyway, and it became the template for nearly every social app.</p>
+    <p>Twitter faced the same problem in its purest form: a one-way follow graph and a home timeline that is just "tweets from people I follow". In a 2012 QCon San Francisco talk, "Timelines at Scale", Raffi Krikorian described the answer. Each active user's home timeline lived in a Redis cluster, capped at 800 entries. When a tweet arrived, a fan-out service looked up the author's followers and inserted the tweet ID into each of their timelines. Reads were about 300,000 queries a second, against roughly 5,000 new tweets a second on average. For accounts with tens of millions of followers, such as Lady Gaga at the time, fan-out took seconds and could delay delivery, so Twitter worked on merging those tweets in at read time: the hybrid on this page.</p>
+    <ol class="timeline">
+      <li><span class="year">2006</span><p>Facebook launches News Feed on 6 September, followed by user protests and an apology.</p></li>
+      <li><span class="year">2012</span><p>Raffi Krikorian presents "Timelines at Scale" at QCon San Francisco: Redis timelines and fan-out on write.</p></li>
+      <li><span class="year">2013</span><p>Write-ups of the talk cite 300K timeline reads per second and the celebrity read-time merge.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Ranking:</b> gather a few hundred candidates with this pipeline, score them with a model, then cut to a page. Cursors become opaque tokens because scores aren't times.</li>
+        <li><b>Unfollow:</b> remove the followee's posts from the feed lazily, by filtering at read time against the current follow set.</li>
+        <li><b>Deleted or edited posts:</b> feeds store IDs only, and contents are fetched at read time, so an edit shows up everywhere at once. A delete filters out at hydration.</li>
+        <li><b>A celebrity crosses the threshold:</b> new posts stop fanning out; existing feed entries simply age out.</li>
+        <li><b>Hot posts:</b> a celebrity's new post is read millions of times in minutes. Replicate it across cache nodes, or serve it from a small local cache in each feed server.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/lsm-tree.html">LSM Tree</a>
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-news-feed">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+  const bytes = b => b >= 1e15 ? (b / 1e15).toFixed(1) + " PB" : b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(0) + " MB";
+
+  // ================= Live design simulation =================
+  const N = {
+    ana: { x: 70, y: 90, label: "Ana", sub: "3 followers" },
+    star: { x: 70, y: 200, label: "Star", sub: "2M followers" },
+    ben: { x: 70, y: 320, label: "Ben", sub: "follows 300" },
+    post: { x: 250, y: 90, label: "Post service", sub: "writes posts" },
+    feed: { x: 250, y: 320, label: "Feed service", sub: "builds pages" },
+    pcache: { x: 250, y: 205, label: "Post cache", sub: "post_id → content" },
+    db: { x: 445, y: 90, label: "Posts DB", sub: "by author, time" },
+    graph: { x: 445, y: 205, label: "Follow graph", sub: "who follows whom" },
+    queue: { x: 650, y: 90, label: "Fan-out queue", sub: "post events" },
+    workers: { x: 650, y: 205, label: "Fan-out workers", sub: "copy IDs" },
+    fcache: { x: 650, y: 320, label: "Feed cache", sub: "500 IDs per user" }
+  };
+  const ROUND = { db: 1, graph: 1, pcache: 1, fcache: 1, queue: 1 };
+  const STAGES = [
+    {
+      name: "1 · Query on read", nodes: ["ana", "star", "ben", "post", "feed", "db", "graph"],
+      edges: [["ana", "post"], ["star", "post"], ["post", "db"], ["ben", "feed"], ["feed", "graph"], ["feed", "db"]],
+      adds: "Posts are written once. To build Ben's feed, the feed service asks the follow graph who he follows, queries recent posts from each of those 300 accounts, and merges them by time.",
+      why: "It's the simplest correct design and posting is as cheap as it gets. New posts show up instantly because nothing is precomputed.",
+      breaks: "Every feed load fans out to 300 queries across many database shards, then merges them. Reads are ~100× more common than posts, so this is the expensive path, done over and over."
+    },
+    {
+      name: "2 · Fan-out on write", nodes: ["ana", "star", "ben", "post", "feed", "db", "graph", "queue", "workers", "fcache"],
+      edges: [["ana", "post"], ["star", "post"], ["post", "db"], ["db", "queue"], ["queue", "workers"], ["workers", "graph"], ["workers", "fcache"], ["ben", "feed"], ["feed", "fcache"], ["feed", "db"]],
+      adds: "A new post goes on a queue. Workers look up the author's followers and prepend the post ID to each follower's feed list in a cache. A feed load is one cache read plus fetching 20 posts by ID.",
+      why: "Do the merge once per post instead of once per feed load. The writes happen off the request path, so posting still feels instant.",
+      breaks: "Press Star posts: 2 million feed writes for one post. The queue backs up for many seconds and every other author's posts wait behind it."
+    },
+    {
+      name: "3 · Hybrid for celebrities", nodes: ["ana", "star", "ben", "post", "feed", "db", "graph", "queue", "workers", "fcache"],
+      edges: [["ana", "post"], ["star", "post"], ["post", "db"], ["db", "queue"], ["queue", "workers"], ["workers", "graph"], ["workers", "fcache"], ["ben", "feed"], ["feed", "fcache"], ["feed", "db"]],
+      adds: "Authors above a follower threshold (say 100,000) skip fan-out. When Ben loads his feed, the service reads his cached list and the recent posts of the 4 celebrities he follows, then merges them.",
+      why: "Push where it's cheap (most authors have few followers) and pull where pushing is ruinous. Each reader follows only a handful of celebrities, so the extra reads stay small.",
+      breaks: "Every page still fetches 20 post bodies from the posts database, and a celebrity's new post is fetched by millions of readers at once."
+    },
+    {
+      name: "4 · Post cache", nodes: ["ana", "star", "ben", "post", "feed", "db", "graph", "queue", "workers", "fcache", "pcache"],
+      edges: [["ana", "post"], ["star", "post"], ["post", "db"], ["db", "queue"], ["queue", "workers"], ["workers", "graph"], ["workers", "fcache"], ["ben", "feed"], ["feed", "fcache"], ["feed", "pcache"], ["pcache", "db"]],
+      adds: "Post contents and the celebrities' recent posts live in a cache in front of the posts database. Feed pages are assembled from two caches and rarely touch the database.",
+      why: "Feeds store only IDs, so contents are fetched at read time. Popular posts are read by many feeds, which makes them ideal cache entries.",
+      breaks: "Nothing major. Ranking, hot keys for viral posts and inactive users are the usual follow-ups."
+    }
+  ];
+  let stage = 0, dots = [], clock = 100, posts = [], benFeed = [], backlog = 0, cost = null, shown = null;
+
+  function resetSim() { dots = []; posts = []; backlog = 0; cost = null; shown = null; benFeed = []; }
+  function travel(path, kind, done, delay = 0) {
+    const d = { path, seg: 0, f: 0, x: N[path[0]].x, y: N[path[0]].y, kind, done, wait: delay };
+    dots.push(d);
+  }
+  const fanOut = () => stage >= 1;
+  const isCeleb = a => a === "Star";
+
+  function makePost(author) {
+    clock += 1 + Math.floor(Math.random() * 3);
+    const p = { author, t: clock, text: author === "Ana" ? ["Trail run at dawn", "New sourdough loaf", "Finished the book!"][posts.filter(x => x.author === "Ana").length % 3] : ["World tour dates!", "Studio day", "Thank you all"][posts.filter(x => x.author === "Star").length % 3] };
+    posts.push(p);
+    const ent = author === "Ana" ? "ana" : "star", followers = author === "Ana" ? 3 : 2e6;
+    if (!fanOut()) {
+      cost = { action: `${author} posts`, writes: 1, reads: 0, note: "One row in the posts database. No feed is touched." };
+      travel([ent, "post", "db"], "post", () => travel(["db", "post", ent], "ack"));
+    } else if (stage >= 2 && isCeleb(author)) {
+      p.ready = true;
+      cost = { action: `${author} posts`, writes: 1, reads: 0, note: "Over the celebrity threshold: stored once, no fan-out. Readers pull it at load time." };
+      travel([ent, "post", "db"], "post", () => travel(["db", "post", ent], "ack"));
+    } else {
+      cost = { action: `${author} posts`, writes: 1 + followers, reads: 1, note: `1 post write, 1 follower lookup, then ${fmt(followers)} feed-list inserts by the workers.` };
+      travel([ent, "post", "db"], "post", () => {
+        travel(["db", "post", ent], "ack");
+        travel(["db", "queue", "workers"], "post", () => {
+          travel(["workers", "graph", "workers"], "lookup", () => {
+            const n = author === "Ana" ? 3 : 14;
+            backlog += followers;
+            for (let i = 0; i < n; i++) travel(["workers", "fcache"], "fan", () => {
+              backlog = Math.max(0, backlog - followers / n);
+              if (i === n - 1) { p.ready = true; benFeed.unshift(p); }
+            }, i * (author === "Ana" ? 0.15 : 0.35));
+          });
+        });
+      });
+    }
+    render();
+  }
+
+  function loadFeed() {
+    const visible = stage === 0 ? posts.slice() : stage === 1 ? benFeed.slice() : [...benFeed, ...posts.filter(p => isCeleb(p.author) && p.ready && !benFeed.includes(p))];
+    const page = visible.sort((a, b) => b.t - a.t).slice(0, 6);
+    const done = () => { shown = page; render(); };
+    if (stage === 0) {
+      cost = { action: "Ben loads his feed", writes: 0, reads: 301, note: "1 follow-list read + 300 per-author queries, merged by time on every load." };
+      travel(["ben", "feed", "graph", "feed"], "lookup", () => {
+        for (let i = 0; i < 6; i++) travel(["feed", "db", "feed"], "read", i === 5 ? () => travel(["feed", "ben"], "resp", done) : null, i * 0.12);
+      });
+    } else if (stage === 1) {
+      cost = { action: "Ben loads his feed", writes: 0, reads: 2, note: "1 read of Ben's feed list + 1 batched fetch of the posts on the page." };
+      travel(["ben", "feed", "fcache", "feed", "db", "feed", "ben"], "read", done);
+    } else {
+      const hydrate = stage === 3 ? "pcache" : "db";
+      cost = { action: "Ben loads his feed", writes: 0, reads: 6, note: `1 feed-list read + 4 celebrity recent-post reads + 1 batched fetch${stage === 3 ? " from the post cache" : ""}, then a 5-way merge.` };
+      travel(["ben", "feed", "fcache", "feed"], "read", () => {
+        for (let i = 0; i < 4; i++) travel(["feed", hydrate, "feed"], "lookup", i === 3 ? () => travel(["feed", hydrate, "feed", "ben"], "read", done) : null, i * 0.12);
+      });
+    }
+    render();
+  }
+
+  function step(dt) {
+    const SPEED = 560;
+    dots.forEach(d => {
+      if (d.wait > 0) { d.wait -= dt; return; }
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = N[d.path[d.seg]], b = N[d.path[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = N[d.path[d.seg]], b2 = N[d.path[Math.min(d.seg + 1, d.path.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.path.length - 1 && !d.finished) { d.finished = true; if (d.done) d.done(); }
+    });
+    dots = dots.filter(d => !d.finished);
+  }
+  function draw() {
+    const st = STAGES[stage];
+    let s = "";
+    st.edges.forEach(([a, b]) => { const p = N[a], q = N[b]; s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"/>`; });
+    const colors = { post: "var(--accent)", ack: "var(--ok)", resp: "var(--ok)", lookup: "var(--muted)", fan: "var(--amber)", read: "var(--ok)" };
+    dots.forEach(d => { if (d.wait > 0) return; s += `<circle cx="${d.x}" cy="${d.y}" r="${d.kind === "post" || d.kind === "fan" ? 7 : 5}" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    st.nodes.forEach(k => {
+      const n = N[k], w = 128, h = 46, round = ROUND[k];
+      let sub = n.sub, hot = false;
+      if (k === "queue" && backlog > 0) { sub = `backlog ${fmt(backlog)} writes`; hot = backlog > 1000; }
+      if (k === "fcache") sub = `Ben's list: ${benFeed.length} IDs`;
+      if (k === "workers" && backlog > 1000) { sub = "busy with Star"; hot = true; }
+      if (k === "star" && stage >= 2) sub = "2M · no fan-out";
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${round ? 14 : 6}" fill="var(--panel)" stroke="${hot ? "var(--bad)" : round ? "var(--accent)" : "var(--ink)"}" stroke-width="${hot ? 2.4 : 1.6}"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="13.5" font-weight="700" fill="var(--ink)">${n.label}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${hot ? "var(--bad)" : "var(--muted)"}">${sub}</text>`;
+    });
+    s += `<text x="12" y="392" font-family="var(--mono)" font-size="11" fill="var(--muted)">blue post · amber feed insert · grey lookup · green read or response</text>`;
+    $("arch").innerHTML = s;
+  }
+  function render() {
+    const st = STAGES[stage];
+    $("cost").innerHTML = cost ? `
+      <div><span>Last action</span><b style="font-size:.9rem">${cost.action}</b></div>
+      <div><span>Writes</span><b>${fmt(cost.writes)}</b></div>
+      <div><span>Reads / queries</span><b>${fmt(cost.reads)}</b></div>
+      <div style="grid-column:1/-1"><span>${cost.note}</span></div>` : `<div style="grid-column:1/-1"><span>Press a button to see what one post or one feed load costs in this stage.</span></div>`;
+    $("feedlist").innerHTML = `<span class="stage-label">Ben's feed, as last loaded</span>` + (shown === null ? `<p style="font-size:13px;color:var(--muted)">Not loaded yet.</p>` : shown.length ? shown.map(p => `<div class="post ${p.author === "Star" ? "star" : ""}"><span><b>${p.author}</b> · ${p.text}</span><span class="t">t=${p.t}</span></div>`).join("") : `<p style="font-size:13px;color:var(--muted)">Empty: ${stage === 0 ? "nobody has posted yet" : "no post has reached Ben's feed list yet"}.</p>`);
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); render(); };
+  $("anaPost").onclick = () => makePost("Ana");
+  $("starPost").onclick = () => makePost("Star");
+  $("benLoad").onclick = loadFeed;
+
+  // ================= Merge stepper =================
+  function parseDesc(text, label) {
+    if (!text.trim()) return { nums: [] };
+    const r = parseNums(text, { min: 1, max: 8 }); if (r.error) return { error: `${label}: ${r.error}` };
+    if (r.nums.some((x, i) => i && x >= r.nums[i - 1])) return { error: `${label} must be newest first: strictly decreasing times.` };
+    return r;
+  }
+  Stepper($("mergeViz"), {
+    code: [
+      "def load_page(sources, k, cursor=inf):",
+      "  heap = []   # max-heap on time",
+      "  for i, src in enumerate(sources):",
+      "    j = first index with src[j] < cursor",
+      "    if j < len(src): heap.push((src[j], i, j))",
+      "  page = []",
+      "  while heap and len(page) < k:",
+      "    t, i, j = heap.pop_max()",
+      "    page.append(t)",
+      "    if j + 1 < len(sources[i]):",
+      "      heap.push((sources[i][j + 1], i, j + 1))",
+      "  return page, page[-1]   # next cursor"
+    ],
+    inputs: [
+      { key: "a", label: "Ben's cached feed", value: "58, 51, 44, 30, 22, 9" },
+      { key: "b", label: "Celebrity 1 recent", value: "55, 41, 12" },
+      { key: "c", label: "Celebrity 2 recent", value: "49, 47, 20" },
+      { key: "k", label: "Page size", value: "5" },
+      { key: "cur", label: "Cursor (blank = first page)", value: "" }
+    ],
+    presets: [
+      { label: "First page", values: { a: "58, 51, 44, 30, 22, 9", b: "55, 41, 12", c: "49, 47, 20", k: "5", cur: "" } },
+      { label: "Page 2 (cursor 47)", values: { a: "58, 51, 44, 30, 22, 9", b: "55, 41, 12", c: "49, 47, 20", k: "5", cur: "47" } },
+      { label: "Quiet celebrities", values: { a: "90, 80, 70, 60, 50", b: "15", c: "", k: "4", cur: "" } }
+    ],
+    build({ a, b, c, k, cur }) {
+      const names = ["Ben's feed", "Celebrity 1", "Celebrity 2"];
+      const srcs = [];
+      for (const [t, nm] of [[a, names[0]], [b, names[1]], [c, names[2]]]) { const r = parseDesc(t, nm); if (r.error) return r; srcs.push(r.nums); }
+      const K = Number(k); if (!Number.isInteger(K) || K < 1 || K > 12) return { error: "Page size must be a whole number from 1 to 12." };
+      const C = cur.trim() === "" ? Infinity : Number(cur); if (!Number.isFinite(C) && cur.trim() !== "") return { error: "The cursor must be a number, or blank." };
+      const frames = [], ptr = [-1, -1, -1], heap = [], page = [], used = srcs.map(() => new Set());
+      const hs = () => heap.slice().sort((x, y) => y[0] - x[0]).map(h => `${h[0]} (${["feed", "c1", "c2"][h[1]]})`).join(", ") || "empty";
+      const snap = (line, msg, hl = null) => frames.push({ line, msg, srcs, ptr: ptr.slice(), used: used.map(s => new Set(s)), page: page.slice(), hl, vars: { heap: hs(), page: page.length + "/" + K, cursor: C === Infinity ? "none" : C } });
+      snap(0, C === Infinity ? "First page: no cursor, so every post is eligible." : `Next page: only posts older than the cursor (${C}) are eligible.`);
+      srcs.forEach((s, i) => {
+        let j = 0; while (j < s.length && s[j] >= C) { used[i].add(j); j++; }
+        if (j < s.length) { ptr[i] = j; heap.push([s[j], i, j]); snap(4, `${names[i]}: newest eligible post is ${s[j]}${j ? ` (skipped ${j} at or above the cursor)` : ""}. Push it on the heap.`); }
+        else snap(3, `${names[i]}: nothing older than the cursor. It adds nothing.`);
+      });
+      while (heap.length && page.length < K) {
+        snap(6, `Page has ${page.length} of ${K}. The heap holds the newest unused post from each source.`);
+        heap.sort((x, y) => y[0] - x[0]); const [t, i, j] = heap.shift();
+        snap(7, `Pop the newest: ${t} from ${names[i]}.`, [i, j]);
+        page.push(t); used[i].add(j); ptr[i] = -1;
+        snap(8, `Add ${t} to the page.`);
+        if (j + 1 < srcs[i].length) { heap.push([srcs[i][j + 1], i, j + 1]); ptr[i] = j + 1; snap(10, `${names[i]} has more: push its next post, ${srcs[i][j + 1]}.`); }
+        else snap(9, `${names[i]} is used up.`);
+      }
+      const read = srcs.reduce((n, s) => n + s.length, 0);
+      snap(11, page.length ? `<b class="ok">Page: [${page.join(", ")}]</b>, next cursor ${page[page.length - 1]}. Only ${page.length + heap.length} of ${read} posts were ever on the heap or the page.` : `<b class="bad">Nothing older than the cursor.</b> Ben has reached the end of his feed.`);
+      return { frames };
+    },
+    draw(f) {
+      const names = ["Ben's feed (cache)", "Celebrity 1", "Celebrity 2"];
+      const rows = f.srcs.map((s, i) => {
+        if (!s.length) return `<span class="stage-label">${names[i]}</span><p style="font-size:13px;color:var(--muted)">no recent posts</p>`;
+        const mark = {}; f.used[i].forEach(j => mark[j] = "done");
+        if (f.hl && f.hl[0] === i) mark[f.hl[1]] = "hit";
+        return `<span class="stage-label">${names[i]}</span>${drawArray(s, { ptr: { next: f.ptr[i] }, mark })}`;
+      }).join("");
+      return `<div class="stage-row">${rows}<span class="stage-label">Page so far</span><div class="pagechips">${f.page.length ? f.page.map(t => `<span>${t}</span>`).join("") : `<em style="color:var(--muted);font-size:13px">empty</em>`}</div></div>`;
+    }
+  });
+
+  // ================= Scale estimates =================
+  function renderScale() {
+    const dau = Math.pow(10, +$("dau").value), ppd = +$("ppd").value, fol = +$("fol").value, loads = +$("loads").value, celeb = +$("celeb").value / 100;
+    const postsS = dau * ppd / 86400, readsS = dau * loads / 86400;
+    const pushW = postsS * fol, hybW = pushW * (1 - celeb);
+    const pullQ = fol, hybQ = 1 + Math.max(1, Math.round(fol * celeb));
+    const cacheB = dau * 500 * 8;
+    $("dauOut").textContent = fmt(dau); $("ppdOut").textContent = ppd.toFixed(1); $("folOut").textContent = fol; $("loadsOut").textContent = loads; $("celebOut").textContent = Math.round(celeb * 100) + "%";
+    $("scaleResults").innerHTML = `
+      <div><span>New posts per second</span><b>${fmt(postsS)}</b></div>
+      <div><span>Feed loads per second</span><b>${fmt(readsS)}</b></div>
+      <div><span>Feed inserts/s, push for all</span><b style="color:var(--bad)">${fmt(pushW)}</b></div>
+      <div><span>Feed inserts/s, hybrid</span><b style="color:var(--ok)">${fmt(hybW)}</b></div>
+      <div><span>Queries per feed load, pull</span><b>${fmt(pullQ)}</b></div>
+      <div><span>Reads per feed load, hybrid</span><b>${fmt(hybQ)}</b></div>
+      <div><span>Feed cache (500 IDs × 8 B each)</span><b>${bytes(cacheB)}</b></div>`;
+    $("scaleNotes").innerHTML = [
+      `Reads outnumber posts ${fmt(readsS / postsS)} to 1, so precomputing feeds pays off: one feed load becomes a single cache read instead of ${fol} queries.`,
+      `Pushing every post costs ${fmt(pushW)} cache inserts a second. Leaving celebrities out (they hold ${Math.round(celeb * 100)}% of follow edges) saves ${fmt(pushW - hybW)} of them, for about ${hybQ - 1} extra read${hybQ - 1 === 1 ? "" : "s"} per feed load.`,
+      `Feed lists for ${fmt(dau)} active users fit in about ${bytes(cacheB)} of memory. Skip inactive users and rebuild their feed on read when they come back.`,
+      `Shard the feed cache by user ID (consistent hashing), so one feed is one key on one node, and the fan-out workers batch inserts per node.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["dau", "ppd", "fol", "loads", "celeb"].forEach(id => $(id).oninput = renderScale);
+
+  // ================= boot =================
+  renderExplain(); render(); renderScale();
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  setTimeout(() => makePost("Ana"), 400);
+</script>
+</body>
+</html>
