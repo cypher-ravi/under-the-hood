@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 04 · Vectors and matrices, intuitively</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.best { background: var(--accent-soft); font-weight: 600; }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab .controls { align-items: center; gap: .8rem 1.2rem; margin-top: .6rem; }
+  .lab .controls label { font: 500 .85rem/1.4 var(--mono); }
+  input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); min-width: 0; }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* added for lessons 02–04 */
+  figure svg { min-width: 520px; }
+  figure svg.sq { min-width: 0; max-width: 380px; margin: 0 auto; }
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  td.lbl, th.lbl { border-left: 2px solid var(--accent); }
+  .lab select, .lab textarea { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; max-width: 100%; }
+  .lab textarea { width: 100%; min-height: 7.5rem; resize: vertical; line-height: 1.5; display: block; }
+  .lab input[type=checkbox] { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  .lab button:disabled { opacity: .45; cursor: not-allowed; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 1rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-x: auto; white-space: nowrap; }
+  .fn b { color: var(--accent); }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  .lab .tbl table { font-family: var(--mono); font-size: .82rem; }
+
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; }
+  .lab .controls label span { display: flex; justify-content: space-between; gap: .5rem; }
+  .lab .controls label b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .lab .controls select { width: 100%; }
+  .lab input[type=range] { width: 100%; }
+
+  .lab svg#arrows { max-width: 360px; margin: .6rem auto 0; }
+  .lab .controls label.v b { color: var(--amber); }
+  .lab .controls label.v input { accent-color: var(--amber); }
+  .lab tr.hl td { background: var(--accent-soft); }
+  .lab tbody tr { cursor: pointer; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 04 of 60</span><span>~18 min read</span></div>
+  <h1><span class="num">04</span> · Vectors and matrices, intuitively</h1>
+  <p class="lede">A vector is a list of numbers. A matrix is a grid of them. That is almost the whole definition, and with one operation on top, the dot product, you can write any model's prediction for a thousand examples in a single line of code.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>From one knob per feature to one line for all of them</h2>
+<p>Lesson 03 ended with <code>ŷ = w₁·x₁ + w₂·x₂ + b</code>: one weight per feature, plus a bias. Today we give that pattern a name (the dot product), learn the two containers that hold the numbers (vectors and matrices), and see how they turn a loop over every example into one multiplication.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>The language every model is written in</h2>
+<p>Open any ML paper or library and you will see <code>X @ W</code>, "a 768-dimensional embedding", "a weight matrix of shape 4096 × 4096". GPUs became the workhorse of AI largely because they are very good at one job: multiplying big matrices. If you can read shapes and know what a dot product means, most of the code and notation in this course becomes readable.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A shopping bill</h2>
+<p>You buy 3 kg of rice, 1 litre of oil and 2 packets of tea. The shop's prices are ₹60, ₹150 and ₹40. Your bill is</p>
+<div class="eq">3×60 + 1×150 + 2×40 = 180 + 150 + 80 = ₹410</div>
+<ul>
+  <li>Your basket <code>[3, 1, 2]</code> is a <mark>vector</mark>: a list of numbers in an agreed order (rice, oil, tea).</li>
+  <li>The price list <code>[60, 150, 40]</code> is another vector, in the same order.</li>
+  <li>"Multiply matching entries, then add" is the <mark>dot product</mark>. It squeezes two lists into one number.</li>
+  <li>Now imagine the shopkeeper with a notebook of 100 customers, one basket per row. That notebook is a <mark>matrix</mark>. Running the price list down every row gives 100 bills at once: that is a <mark>matrix times a vector</mark>.</li>
+</ul>
+<p>A model's prediction is exactly this bill. The features are the basket, the weights are the price list, and the bias is a fixed delivery charge.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Four ideas, in order</h2>
+
+<h3>1. Vectors: one example as a list</h3>
+<p>In Lesson 02 each row of the table was a feature vector. Take a flat with 800 sq ft (written 8, in hundreds) and 2 bedrooms:</p>
+<div class="eq">x = [8, 2]</div>
+<dl class="defn">
+  <dt>Entry (or component)</dt>
+  <dd>One number in the list. Maths writes <code>x₁ = 8</code>, <code>x₂ = 2</code> (counting from 1). Python writes <code>x[0]</code> and <code>x[1]</code> (counting from 0). Same thing.</dd>
+  <dt>Dimension</dt>
+  <dd>How many entries the vector has. <code>[8, 2]</code> is 2-dimensional. A word embedding in a language model might have 768 or more. The rules below never change with the size.</dd>
+  <dt>Bold letters</dt>
+  <dd>Books often write vectors in bold (<b>x</b>, <b>w</b>) and plain numbers, called <strong>scalars</strong>, in normal type (<code>b</code>). Here we use plain code font for both and say which is which.</dd>
+</dl>
+<p>A 2-dimensional vector can be drawn as an arrow from the origin to the point (8, 2). With 768 entries you can't draw it, but the arrow picture still guides intuition: length, direction and angle all keep their meaning.</p>
+
+<h3>2. Two things you can do to vectors</h3>
+<p><strong>Add them</strong> entry by entry: <code>[3, 1] + [1, 2] = [4, 3]</code>. As arrows, put the second one's tail on the first one's tip. <strong>Scale them</strong> by multiplying every entry by one number: <code>2 × [3, 1] = [6, 2]</code>, the same direction, twice as long. Both need vectors of the same dimension; adding <code>[3, 1]</code> to <code>[1, 2, 5]</code> has no meaning.</p>
+
+<h3>3. The dot product: two lists in, one number out</h3>
+<div class="eq">w · x = w₁x₁ + w₂x₂ + … + wₙxₙ</div>
+<p>Multiply matching entries and add them up. Small version: <code>[3, 1] · [1, 2] = 3×1 + 1×2 = 5</code>. With it, Lesson 03's model becomes</p>
+<div class="eq">ŷ = w · x + b</div>
+<p>which looks like the one-feature line from last time but now works for any number of features. With <code>w = [2, 1.5]</code> (₹2,000 per 100 sq ft, ₹1,500 per bedroom) and <code>b = 4</code>, our flat gets <code>2×8 + 1.5×2 + 4 = 23</code>, so ₹23,000 a month.</p>
+<p>The dot product also has a geometric meaning, which matters a lot from Lesson 30 onward:</p>
+<div class="eq">w · x = |w| × |x| × cos(angle between them)</div>
+<p><code>|x|</code> is the vector's <strong>length</strong>, <code>√(x₁² + x₂² + …)</code>, Pythagoras extended to more entries. The cosine is 1 when the arrows point the same way, 0 when they are at right angles, and −1 when they point opposite ways. So a large positive dot product means "these two point in a similar direction". That is how a search engine can measure whether two pieces of text mean similar things, once each is turned into a vector.</p>
+
+<h3>4. Matrices: many examples at once</h3>
+<p>Stack the feature vectors of four flats as rows and you get a <strong>matrix</strong>, a grid of numbers:</p>
+<div class="tbl"><table style="max-width:22rem">
+<thead><tr><th></th><th>area x₁</th><th>bedrooms x₂</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>4</td><td>1</td></tr>
+<tr><td>B</td><td>6</td><td>2</td></tr>
+<tr><td>C</td><td>8</td><td>2</td></tr>
+<tr><td>D</td><td>10</td><td>3</td></tr>
+</tbody></table></div>
+<dl class="defn">
+  <dt>Shape</dt>
+  <dd>Rows × columns, always in that order. This matrix, called <code>X</code>, is 4 × 2: 4 examples, 2 features. In ML, the convention is one row per example and one column per feature.</dd>
+  <dt>Matrix × vector</dt>
+  <dd><code>X w</code> means: take the dot product of each row of <code>X</code> with <code>w</code>. Four rows in, four numbers out. Add <code>b</code> to each and you have every prediction: <code>ŷ = X w + b</code>.</dd>
+  <dt>The shape rule</dt>
+  <dd>A dot product needs equal lengths, so the number of <em>columns</em> of <code>X</code> must equal the length of <code>w</code>. (4 × 2) times (2) gives (4). In general (m × n) times (n × p) gives (m × p): the inner numbers must match and disappear, the outer ones survive. Most shape errors in ML code are this rule being broken.</dd>
+  <dt>Transpose</dt>
+  <dd><code>Xᵀ</code> (numpy: <code>X.T</code>) flips rows and columns, turning 4 × 2 into 2 × 4. You will see it constantly when lining up shapes.</dd>
+</dl>
+<p>Multiplying a matrix by a matrix is the same idea repeated: each column of the second matrix is its own weight vector. If a model predicted both rent and maintenance, <code>W</code> would be 2 × 2 (one column per output), and <code>X W</code> would be 4 × 2: two predictions per flat, still one line.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Arrows, then a pricing machine</h2>
+
+<figure>
+<svg class="sq" viewBox="0 0 300 260" role="img" aria-label="Grid with vector u from the origin to (3,1), vector v to (1,2), and their sum u plus v to (4,3), drawn tip to tail. The angle between u and v is 45 degrees.">
+  <defs>
+    <marker id="aU" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+    <marker id="aV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"/></marker>
+    <marker id="aS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ok)"/></marker>
+  </defs>
+  <g stroke="var(--line)">
+    <line x1="40" y1="20" x2="40" y2="220"/><line x1="80" y1="20" x2="80" y2="220"/><line x1="120" y1="20" x2="120" y2="220"/><line x1="160" y1="20" x2="160" y2="220"/><line x1="200" y1="20" x2="200" y2="220"/><line x1="240" y1="20" x2="240" y2="220"/>
+    <line x1="40" y1="220" x2="260" y2="220"/><line x1="40" y1="180" x2="260" y2="180"/><line x1="40" y1="140" x2="260" y2="140"/><line x1="40" y1="100" x2="260" y2="100"/><line x1="40" y1="60" x2="260" y2="60"/><line x1="40" y1="20" x2="260" y2="20"/>
+  </g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle">
+    <text x="40" y="238">0</text><text x="80" y="238">1</text><text x="120" y="238">2</text><text x="160" y="238">3</text><text x="200" y="238">4</text><text x="240" y="238">5</text>
+    <text x="28" y="184">1</text><text x="28" y="144">2</text><text x="28" y="104">3</text><text x="28" y="64">4</text>
+  </g>
+  <path d="M90,203 A52,52 0 0 0 63,174" fill="none" stroke="currentColor" stroke-width="1"/>
+  <text x="96" y="192" font-size="11" fill="currentColor">45°</text>
+  <line x1="40" y1="220" x2="157" y2="181" stroke="var(--accent)" stroke-width="2.5" marker-end="url(#aU)"/>
+  <line x1="40" y1="220" x2="79" y2="143" stroke="var(--amber)" stroke-width="2.5" marker-end="url(#aV)"/>
+  <line x1="160" y1="180" x2="199" y2="103" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#aV)"/>
+  <line x1="40" y1="220" x2="197" y2="102" stroke="var(--ok)" stroke-width="2.5" marker-end="url(#aS)"/>
+  <text x="166" y="198" font-size="12" fill="var(--accent)" font-weight="600">u = [3, 1]</text>
+  <text x="50" y="132" font-size="12" fill="var(--amber)" font-weight="600">v = [1, 2]</text>
+  <text x="205" y="88" font-size="12" fill="var(--ok)" font-weight="600" text-anchor="end">u + v = [4, 3]</text>
+</svg>
+<figcaption>Adding is walking one arrow, then the other (dashed copy of v). The sum <code>[4, 3]</code> has length exactly 5. The angle between u and v is 45°, and their dot product, 5, equals <code>√10 × √5 × cos 45°</code>.</figcaption>
+</figure>
+
+<div class="lab" id="lab1">
+  <h3>Dot product lab</h3>
+  <p style="margin-top:0">Move the two arrows. Watch the dot product go positive, hit zero at a right angle, and turn negative when the arrows point away from each other.</p>
+  <svg id="arrows" viewBox="0 0 320 320" role="img" aria-label="Plot of two arrows u and v from the origin on a grid from minus 5 to 5."></svg>
+  <div class="controls">
+    <label for="u1"><span>u₁ <b id="u1v">3</b></span><input type="range" id="u1" min="-4" max="4" step="1" value="3"></label>
+    <label for="u2"><span>u₂ <b id="u2v">1</b></span><input type="range" id="u2" min="-4" max="4" step="1" value="1"></label>
+    <label for="v1" class="v"><span>v₁ <b id="v1v">1</b></span><input type="range" id="v1" min="-4" max="4" step="1" value="1"></label>
+    <label for="v2" class="v"><span>v₂ <b id="v2v">2</b></span><input type="range" id="v2" min="-4" max="4" step="1" value="2"></label>
+  </div>
+  <div class="fn" id="dotfn"></div>
+  <div class="readout">
+    <span>u · v <span class="big" id="dot">5</span></span>
+    <span>|u| <span class="big" id="lu">3.162</span></span>
+    <span>|v| <span class="big" id="lv">2.236</span></span>
+    <span>cos <span class="big" id="cs">0.707</span></span>
+    <span>angle <span class="big" id="ang">45.0°</span></span>
+    <span class="msg" id="dmsg"></span>
+  </div>
+  <div class="btns">
+    <button id="perp" class="ghost">Try v = [−1, 3] (right angle)</button>
+    <button id="reset1" class="ghost">Reset</button>
+  </div>
+</div>
+
+<figure>
+<svg viewBox="0 0 640 230" role="img" aria-label="Matrix X with four rows times weight vector w, plus b, equals prediction vector y-hat with four entries. Row C, 8 and 2, is highlighted: 8 times 2 plus 2 times 1.5 plus 4 equals 23.">
+  <text x="70" y="20" font-size="11" fill="var(--muted)" text-anchor="middle" letter-spacing="1">X (4 × 2)</text>
+  <path d="M30,30 l-6,0 l0,170 l6,0 M110,30 l6,0 l0,170 l-6,0" fill="none" stroke="currentColor"/>
+  <rect x="28" y="116" width="84" height="34" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  <g font-size="15" text-anchor="middle" fill="currentColor">
+    <text x="50" y="58">4</text><text x="90" y="58">1</text>
+    <text x="50" y="98">6</text><text x="90" y="98">2</text>
+    <text x="50" y="139" font-weight="600">8</text><text x="90" y="139" font-weight="600">2</text>
+    <text x="50" y="180">10</text><text x="90" y="180">3</text>
+  </g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end"><text x="16" y="58">A</text><text x="16" y="98">B</text><text x="16" y="139">C</text><text x="16" y="180">D</text></g>
+  <text x="140" y="120" font-size="18" text-anchor="middle" fill="currentColor">×</text>
+  <text x="195" y="20" font-size="11" fill="var(--muted)" text-anchor="middle" letter-spacing="1">w (2)</text>
+  <path d="M175,85 l-6,0 l0,70 l6,0 M215,85 l6,0 l0,70 l-6,0" fill="none" stroke="currentColor"/>
+  <g font-size="15" text-anchor="middle" fill="var(--accent)" font-weight="600"><text x="195" y="111">2</text><text x="195" y="141">1.5</text></g>
+  <text x="245" y="120" font-size="18" text-anchor="middle" fill="currentColor">+</text>
+  <text x="270" y="20" font-size="11" fill="var(--muted)" text-anchor="middle" letter-spacing="1">b</text>
+  <text x="270" y="126" font-size="15" text-anchor="middle" fill="currentColor" font-weight="600">4</text>
+  <text x="300" y="120" font-size="18" text-anchor="middle" fill="currentColor">=</text>
+  <text x="345" y="20" font-size="11" fill="var(--muted)" text-anchor="middle" letter-spacing="1">ŷ (4)</text>
+  <path d="M325,30 l-6,0 l0,170 l6,0 M365,30 l6,0 l0,170 l-6,0" fill="none" stroke="currentColor"/>
+  <rect x="323" y="116" width="44" height="34" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  <g font-size="15" text-anchor="middle" fill="currentColor">
+    <text x="345" y="58">13.5</text><text x="345" y="98">19</text><text x="345" y="139" font-weight="600">23</text><text x="345" y="180">28.5</text>
+  </g>
+  <line x1="372" y1="133" x2="400" y2="133" stroke="var(--accent)" stroke-dasharray="4 3"/>
+  <g font-size="12" fill="currentColor">
+    <text x="408" y="112" fill="var(--muted)" font-size="11" letter-spacing="1">ROW C, ONE DOT PRODUCT</text>
+    <text x="408" y="137">8×2 + 2×1.5 + 4</text>
+    <text x="408" y="159">= 16 + 3 + 4 = 23</text>
+  </g>
+  <text x="320" y="222" font-size="11" text-anchor="middle" fill="var(--muted)">inner sizes match (2 = 2) and vanish · outer size (4) survives</text>
+</svg>
+<figcaption>Every entry of ŷ is one row of <code>X</code> dotted with <code>w</code>, plus the bias. The matrix form just does all the rows at once.</figcaption>
+</figure>
+
+<div class="lab" id="lab2">
+  <h3>Pricing machine: ŷ = X w + b</h3>
+  <p style="margin-top:0">Change the weights and every flat is re-priced at once. Tap a row to see its dot product written out.</p>
+  <div class="controls">
+    <label for="w1"><span>w₁ (₹k per 100 sq ft) <b id="w1v">2.0</b></span><input type="range" id="w1" min="0" max="40" step="1" value="20"></label>
+    <label for="w2"><span>w₂ (₹k per bedroom) <b id="w2v">1.5</b></span><input type="range" id="w2" min="0" max="10" step="1" value="3"></label>
+    <label for="bb"><span>b (base rent, ₹k) <b id="bbv">4.0</b></span><input type="range" id="bb" min="0" max="20" step="1" value="8"></label>
+  </div>
+  <div class="tbl"><table id="ptab"></table></div>
+  <div class="fn" id="pfn"></div>
+  <div class="readout"><span class="msg">The table has 4 rows and 2 feature columns, so <code>w</code> must have exactly 2 entries. Add a third feature (say, floor number) and both <code>X</code> and <code>w</code> grow by one; the formula stays the same.</span></div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in numpy</h2>
+<p><strong>Vector basics</strong> with <code>u = [3, 1]</code> and <code>v = [1, 2]</code>:</p>
+<ul>
+  <li><code>u + v = [3+1, 1+2] = [4, 3]</code></li>
+  <li><code>2u = [6, 2]</code></li>
+  <li><code>u · v = 3×1 + 1×2 = 5</code></li>
+  <li><code>|u| = √(9 + 1) = √10 ≈ 3.162</code> and <code>|v| = √(1 + 4) = √5 ≈ 2.236</code></li>
+  <li><code>cos = 5 / (3.162 × 2.236) = 5 / 7.071 ≈ 0.707</code>, which is the cosine of 45°.</li>
+</ul>
+<p><strong>Pricing four flats</strong> with <code>w = [2, 1.5]</code>, <code>b = 4</code>:</p>
+<div class="tbl"><table>
+<thead><tr><th>Flat</th><th>row of X</th><th>row · w</th><th>+ b</th><th>ŷ</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>[4, 1]</td><td>8 + 1.5 = 9.5</td><td>+4</td><td>13.5</td></tr>
+<tr><td>B</td><td>[6, 2]</td><td>12 + 3 = 15</td><td>+4</td><td>19</td></tr>
+<tr><td>C</td><td>[8, 2]</td><td>16 + 3 = 19</td><td>+4</td><td>23</td></tr>
+<tr><td>D</td><td>[10, 3]</td><td>20 + 4.5 = 24.5</td><td>+4</td><td>28.5</td></tr>
+</tbody></table></div>
+<p>In numpy, a vector and a matrix are both <code>np.array</code>. The <code>@</code> operator is matrix multiplication (and the dot product, for two vectors). Plain <code>*</code> is something else, as the third line shows.</p>
+<pre><code>import numpy as np
+
+<span class="c"># vectors: one flat = [area in hundreds of sq ft, bedrooms]</span>
+u = np.array([3, 1])
+v = np.array([1, 2])
+print(u + v)          <span class="c"># [4 3]</span>
+print(2 * u)          <span class="c"># [6 2]</span>
+print(u * v)          <span class="c"># [3 2]   element-wise, NOT the dot product</span>
+print(u @ v)          <span class="c"># 5       dot product: 3*1 + 1*2</span>
+print(round(np.linalg.norm(u), 3), round(np.linalg.norm(v), 3))   <span class="c"># 3.162 2.236</span>
+cos = (u @ v) / (np.linalg.norm(u) * np.linalg.norm(v))
+print(round(cos, 3), round(np.degrees(np.arccos(cos)), 1))        <span class="c"># 0.707 45.0</span>
+
+<span class="c"># a matrix: 4 flats (rows) x 2 features (columns)</span>
+X = np.array([[4, 1],
+              [6, 2],
+              [8, 2],
+              [10, 3]])
+w = np.array([2, 1.5])  <span class="c"># per 100 sq ft, per bedroom (thousands of rupees)</span>
+b = 4                   <span class="c"># base rent</span>
+print(X.shape, w.shape) <span class="c"># (4, 2) (2,)</span>
+
+<span class="c"># the slow way: a loop of dot products, one per flat</span>
+print([float(row @ w + b) for row in X])   <span class="c"># [13.5, 19.0, 23.0, 28.5]</span>
+<span class="c"># the matrix way: every flat priced in one line</span>
+y_hat = X @ w + b
+print(y_hat, y_hat.shape)                  <span class="c"># [13.5 19.  23.  28.5] (4,)</span>
+
+try:
+    w @ X               <span class="c"># shapes (2,) and (4, 2) don't line up</span>
+except ValueError as e:
+    print("ValueError:", str(e)[:60])
+<span class="c"># ValueError: matmul: Input operand 1 has a mismatch in its core dimension</span>
+print(X.T.shape)        <span class="c"># (2, 4)  transpose flips rows and columns</span></code></pre>
+<p>The loop and <code>X @ w + b</code> give identical numbers. The difference is that numpy runs the matrix version in optimized compiled code, and on a GPU thousands of those multiply-adds happen in parallel. Training a neural network is, to a large degree, doing this over and over with much bigger matrices.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"Vectors are arrows from physics, so they only make sense in 2D or 3D."</span>In ML a vector is just an ordered list, and 768 entries is as valid as 2. Length, angle and dot product are all defined by the same formulas in any dimension; only the drawing stops working.</div>
+  <div><span class="wrong">"Multiplying two vectors means multiplying entry by entry."</span>That is the element-wise product, <code>u * v = [3, 2]</code>, still a vector. The dot product, <code>u @ v = 5</code>, multiplies <em>and then adds</em>, giving one number. Mixing up <code>*</code> and <code>@</code> is a classic numpy bug, and it often runs without an error because numpy happily broadcasts shapes.</div>
+  <div><span class="wrong">"Order doesn't matter, like with ordinary multiplication."</span><code>X @ w</code> works and <code>w @ X</code> raises an error, because shapes must line up in that order. For matrices in general, <code>A @ B</code> and <code>B @ A</code> are usually different, or one of them isn't even defined.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. Compute <code>[2, −1, 3] · [4, 0, 1]</code>.</p><summary>Show answer</summary><p class="a"><code>2×4 + (−1)×0 + 3×1 = 8 + 0 + 3 = 11</code>.</p></details>
+<details><p class="q">2. A dataset has 1,000 examples and 20 features. What is the shape of <code>X</code>, how long must <code>w</code> be, and what shape is <code>X @ w</code>?</p><summary>Show answer</summary><p class="a"><code>X</code> is 1000 × 20 (one row per example). <code>w</code> needs 20 entries, one per feature column. <code>X @ w</code> has shape (1000,): one prediction per example. If <code>w</code> had 19 entries, numpy would raise a shape error.</p></details>
+<details><p class="q">3. What is <code>[2, 1] · [−1, 2]</code>, and what does that tell you about the two arrows?</p><summary>Show answer</summary><p class="a"><code>2×(−1) + 1×2 = 0</code>. A dot product of zero (with neither vector being all zeros) means the arrows are at a right angle. In ML language, the two vectors share nothing in common direction; later, with embeddings, that will read as "unrelated".</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">An example is a vector, a dataset is a matrix, and a linear model's prediction for every example is one matrix–vector product: ŷ = X w + b.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 05 · Derivatives and slopes, intuitively</h2>
+<p>We can now compute predictions for any number of features, but we still pick the weights by guessing or brute-force search. Derivatives tell us, for each weight, which way to nudge it to make the error smaller. That is the missing piece before gradient descent.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://www.3blue1brown.com/topics/linear-algebra" target="_blank" rel="noopener">3Blue1Brown: Essence of Linear Algebra</a>, short visual videos. Chapters 1, 3 and 9 (vectors, matrices as transformations, dot products) fit this lesson best.</li>
+  <li><a href="https://numpy.org/doc/stable/user/absolute_beginners.html" target="_blank" rel="noopener">NumPy: the absolute basics for beginners</a>, the official guide to arrays, shapes and operations.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="03-model-is-a-function.html">← Lesson 03 · A model is a function</a>
+  <span class="muted">Next: Lesson 05 · Derivatives and slopes, intuitively (coming soon)</span>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const ns="http://www.w3.org/2000/svg";
+  /* ---------- dot product lab ---------- */
+  const svg=$('arrows'), O=160, S=30;
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+  const px=v=>O+v*S, py=v=>O-v*S;
+  const ins=['u1','u2','v1','v2'].map($);
+  const fmt=n=>(n<0?'−':'')+Math.abs(n);
+  function arrow(x,y,color,label){
+    if(x===0&&y===0){el(svg,'circle',{cx:O,cy:O,r:5,fill:color});return;}
+    const len=Math.hypot(x,y)*S, ux=x*S/len, uy=-y*S/len;
+    const tx=px(x), ty=py(y), hx=tx-ux*10, hy=ty-uy*10;
+    el(svg,'line',{x1:O,y1:O,x2:hx,y2:hy,stroke:color,'stroke-width':3});
+    el(svg,'path',{d:`M${tx},${ty} L${hx-uy*6},${hy+ux*6} L${hx+uy*6},${hy-ux*6} Z`,fill:color});
+    const lx=tx+ux*14, ly=ty+uy*14;
+    el(svg,'text',{x:Math.max(14,Math.min(306,lx)),y:Math.max(14,Math.min(312,ly+4)),'font-size':13,'font-weight':600,'text-anchor':'middle',fill:color},label);
+  }
+  function drawDot(){
+    const [a,b,c,d]=ins.map(i=>+i.value);
+    ['u1v','u2v','v1v','v2v'].forEach((id,k)=>$(id).textContent=fmt([a,b,c,d][k]));
+    svg.innerHTML='';
+    el(svg,'rect',{x:10,y:10,width:300,height:300,fill:'var(--paper)',stroke:'var(--line)'});
+    for(let k=-4;k<=4;k++){
+      el(svg,'line',{x1:px(k),y1:10,x2:px(k),y2:310,stroke:'var(--line)'});
+      el(svg,'line',{x1:10,y1:py(k),x2:310,y2:py(k),stroke:'var(--line)'});
+    }
+    el(svg,'line',{x1:10,y1:O,x2:310,y2:O,stroke:'var(--muted)'});
+    el(svg,'line',{x1:O,y1:10,x2:O,y2:310,stroke:'var(--muted)'});
+    [-4,-2,2,4].forEach(k=>{el(svg,'text',{x:px(k),y:O+16,'font-size':11,'text-anchor':'middle',fill:'var(--muted)'},fmt(k));el(svg,'text',{x:O-8,y:py(k)+4,'font-size':11,'text-anchor':'end',fill:'var(--muted)'},fmt(k));});
+    arrow(a,b,'var(--accent)','u'); arrow(c,d,'var(--amber)','v');
+    const dot=a*c+b*d, lu=Math.hypot(a,b), lv=Math.hypot(c,d);
+    $('dotfn').innerHTML=`u · v = <b>${fmt(a)}</b>×${c<0?'('+fmt(c)+')':c} + <b>${fmt(b)}</b>×${d<0?'('+fmt(d)+')':d} = <b>${fmt(dot)}</b>`;
+    $('dot').textContent=fmt(dot); $('lu').textContent=lu.toFixed(3); $('lv').textContent=lv.toFixed(3);
+    let msg;
+    if(lu===0||lv===0){$('cs').textContent='—';$('ang').textContent='—';msg='A zero vector has no direction, so the angle is undefined. Its dot product with anything is 0.';}
+    else{
+      const cs=Math.max(-1,Math.min(1,dot/(lu*lv))), ang=Math.acos(cs)*180/Math.PI;
+      $('cs').textContent=(cs<0?'−':'')+Math.abs(cs).toFixed(3); $('ang').textContent=ang.toFixed(1)+'°';
+      msg = dot===0 ? 'Right angle: cos = 0, so the dot product is exactly 0. The arrows share no direction.'
+          : cs>0.999 ? 'Same direction: cos = 1. The dot product is just the two lengths multiplied.'
+          : cs<-0.999 ? 'Opposite directions: cos = −1. As negative as these two lengths allow.'
+          : dot>0 ? 'Angle under 90°: they point roughly the same way, so the dot product is positive.'
+          : 'Angle over 90°: they point roughly away from each other, so the dot product is negative.';
+    }
+    $('dmsg').textContent=msg+'  Check: |u| × |v| × cos = '+(lu*lv===0?0:(lu*lv*(dot/(lu*lv)))).toFixed(3)+'.';
+  }
+  ins.forEach(i=>i.addEventListener('input',drawDot));
+  $('perp').addEventListener('click',()=>{ins[0].value=3;ins[1].value=1;ins[2].value=-1;ins[3].value=3;drawDot();});
+  $('reset1').addEventListener('click',()=>{ins[0].value=3;ins[1].value=1;ins[2].value=1;ins[3].value=2;drawDot();});
+  drawDot();
+
+  /* ---------- pricing machine ---------- */
+  const X=[[4,1],[6,2],[8,2],[10,3]], L='ABCD';
+  let sel=2;
+  const w1=$('w1'), w2=$('w2'), bb=$('bb');
+  const n=v=>+(+v).toFixed(2);
+  function drawPrice(){
+    const a=w1.value/10, c=w2.value/2, b=bb.value/2;
+    $('w1v').textContent=a.toFixed(1); $('w2v').textContent=c.toFixed(1); $('bbv').textContent=b.toFixed(1);
+    let h='<thead><tr><th>flat</th><th>x₁ area</th><th>x₂ beds</th><th>x · w</th><th>ŷ = x · w + b</th><th>rent</th></tr></thead><tbody>';
+    X.forEach((r,i)=>{const d=r[0]*a+r[1]*c, y=d+b;
+      h+=`<tr data-i="${i}"${i===sel?' class="hl"':''}><td>${L[i]}</td><td>${r[0]}</td><td>${r[1]}</td><td>${n(d)}</td><td>${n(y)}</td><td>₹${Math.round(y*1000).toLocaleString('en-IN')}</td></tr>`;});
+    $('ptab').innerHTML=h+'</tbody>';
+    const r=X[sel], d=r[0]*a+r[1]*c;
+    $('pfn').innerHTML=`flat ${L[sel]}: <b>${r[0]}</b>×${n(a)} + <b>${r[1]}</b>×${n(c)} + ${n(b)} = ${n(r[0]*a)} + ${n(r[1]*c)} + ${n(b)} = <b>${n(d+b)}</b>`;
+  }
+  $('ptab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-i]');if(tr){sel=+tr.dataset.i;drawPrice();}});
+  [w1,w2,bb].forEach(i=>i.addEventListener('input',drawPrice));
+  drawPrice();
+})();
+</script>
+</body>
+</html>

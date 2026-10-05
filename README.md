@@ -47,6 +47,9 @@ A from-zero AI course in 60 lessons (plus deep dives), one concept per lesson, p
 | Lesson | Part | What you can do |
 | --- | --- | --- |
 | [01 · What AI actually is](lessons/01-what-ai-is.html) | Foundations | Slide a spam-filter threshold over eight emails, then watch the computer try every value and keep the best |
+| [02 · Data: examples, features, labels, datasets](lessons/02-data.html) | Foundations | Run a feature recipe on any email you type, then pick two features and see the best rule reach zero mistakes |
+| [03 · A model is a function](lessons/03-model-is-a-function.html) | Foundations | Turn a line's two knobs to fit five flats, compare a constant and a lookup table, then search every setting |
+| [04 · Vectors and matrices, intuitively](lessons/04-vectors-matrices.html) | Foundations | Drag two arrows to watch the dot product and angle change, then re-price four flats at once with ŷ = Xw + b |
 
 Each lesson has the same sections: where we are, why it matters, the intuition, how it works (every symbol defined), a diagram or widget computing real values, a worked example by hand and in Python, common misconceptions, three check-yourself questions, the one-line takeaway, what comes next, and optional further reading. The full curriculum is in `window.LESSONS` in [`topics/registry.js`](topics/registry.js).
 

@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 02 · Data: examples, features, labels, datasets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.best { background: var(--accent-soft); font-weight: 600; }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab .controls { align-items: center; gap: .8rem 1.2rem; margin-top: .6rem; }
+  .lab .controls label { font: 500 .85rem/1.4 var(--mono); }
+  input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); min-width: 0; }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* added for lessons 02–04 */
+  figure svg { min-width: 520px; }
+  figure svg.sq { min-width: 0; max-width: 380px; margin: 0 auto; }
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  td.lbl, th.lbl { border-left: 2px solid var(--accent); }
+  .lab select, .lab textarea { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; max-width: 100%; }
+  .lab textarea { width: 100%; min-height: 7.5rem; resize: vertical; line-height: 1.5; display: block; }
+  .lab input[type=checkbox] { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  .lab button:disabled { opacity: .45; cursor: not-allowed; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 1rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-x: auto; white-space: nowrap; }
+  .fn b { color: var(--accent); }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  .lab .tbl table { font-family: var(--mono); font-size: .82rem; }
+
+  .lab .controls label { display: flex; align-items: center; gap: .4rem; }
+  .vec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin-top: .9rem; }
+  .vec div { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem; background: var(--paper); min-width: 0; }
+  .vec span { display: block; font: 500 .7rem/1.4 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .vec b { font: 600 1.35rem/1.3 var(--mono); font-variant-numeric: tabular-nums; color: var(--accent); }
+  .rowline { font: 500 .86rem/1.5 var(--mono); margin-top: .7rem; overflow-x: auto; white-space: nowrap; }
+  .rules { display: grid; gap: .35rem; margin-top: .8rem; font: 500 .84rem/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+  .rules div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--line); padding-bottom: .3rem; min-width: 0; }
+  .rules div span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .rules div span:last-child { white-space: nowrap; }
+  .rules div.win { color: var(--accent); font-weight: 600; }
+  @media (max-width: 520px) { .vec { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 02 of 60</span><span>~18 min read</span></div>
+  <h1><span class="num">02</span> · Data: examples, features, labels, datasets</h1>
+  <p class="lede">A model never sees an email, a photo or a patient. It sees a table of numbers someone chose to write down. This lesson is about that table: what goes in each row and column, and why choosing it well matters more than almost anything else.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>Zooming in on the raw material</h2>
+<p>In Lesson 01 a computer "learned" a spam rule, <code>spam if "!" count ≥ 3</code>, from eight emails. It got 7 of 8 right and could never do better, because email G was spam with only one "!". Today we ask why: the problem was not the learning, it was the data we gave it.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Better data beat better algorithms</h2>
+<p>The 2012 jump in image recognition that kicked off the deep learning boom ran on <strong>ImageNet</strong>, a collection of over 14 million photos that people had labelled by hand, one by one. The network was important, but without those labels it had nothing to learn from. In real ML jobs, most of the time goes into collecting, cleaning and describing data, not into the model.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A deck of flashcards</h2>
+<p>Think of how a child learns to tell a ripe mango from an unripe one. You show them mangoes, one at a time. For each one they notice a few things: <em>colour, how soft it feels, how sweet it smells</em>. Then you tell them the answer: "ripe" or "not ripe".</p>
+<p>Write that on flashcards. The <strong>front</strong> of each card lists what you noticed: <em>yellow, soft, strong smell</em>. The <strong>back</strong> has the answer: <em>ripe</em>. A stack of these cards is exactly what a learning algorithm needs.</p>
+<ul>
+  <li>One card is an <mark>example</mark>.</li>
+  <li>Each thing written on the front is a <mark>feature</mark>.</li>
+  <li>The answer on the back is the <mark>label</mark>.</li>
+  <li>The whole stack is the <mark>dataset</mark>.</li>
+</ul>
+<p>Notice what the child can and can't learn from. If you only ever wrote down colour, they could never learn that a green-skinned variety can still be ripe. <strong>What you choose to write on the front sets the limit on what can be learned.</strong></p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>From the world to a table of numbers</h2>
+
+<dl class="defn">
+  <dt>Example (also: sample, instance, row, data point)</dt>
+  <dd>One thing you have observed: one email, one house sale, one photo, one loan application.</dd>
+  <dt>Feature (also: attribute, input variable, column)</dt>
+  <dd>One measurable property of an example, written as a number: the count of "!", the floor area in square feet, the brightness of one pixel.</dd>
+  <dt>Label (also: target, output, <code>y</code>)</dt>
+  <dd>The answer you want the model to produce for that example: spam or not, the sale price, "cat".</dd>
+  <dt>Dataset</dt>
+  <dd>A collection of examples, usually stored as a table: one row per example, one column per feature, plus a label column.</dd>
+</dl>
+
+<h3>The notation, one symbol at a time</h3>
+<p>Last lesson, <code>x</code> was a single number. Now each email is described by several numbers, so <code>x</code> becomes a list of them, called a <strong>feature vector</strong>. For our emails we will use four features:</p>
+<ol>
+  <li><code>bangs</code>: how many "!" the email contains</li>
+  <li><code>links</code>: how many web links it contains</li>
+  <li><code>known</code>: 1 if the sender is in your contacts, 0 if not</li>
+  <li><code>words</code>: how long the email is, in words</li>
+</ol>
+<p>Email G (the one that fooled us last time) becomes the vector <code>x = [1, 4, 0, 70]</code>: one "!", four links, unknown sender, 70 words. Its label is <code>y = 1</code> (spam).</p>
+<p>A few more symbols you will see in every ML text:</p>
+<ul>
+  <li><code>n</code> is the number of examples (rows). Here <code>n = 8</code>.</li>
+  <li><code>d</code> is the number of features (columns). Here <code>d = 4</code>.</li>
+  <li><code>X</code> (capital) is the whole table of features: <code>n</code> rows by <code>d</code> columns, so 8 × 4 = 32 numbers.</li>
+  <li><code>y</code> is the list of all <code>n</code> labels, one per row.</li>
+  <li>A subscript picks a feature: <code>x₂</code> is feature number 2 (<code>links</code>). Some books put a superscript in brackets to pick a row: <code>x⁽⁷⁾</code> is the 7th example (email G).</li>
+</ul>
+
+<h3>Kinds of features, and how each becomes a number</h3>
+<p>A model can only do arithmetic, so everything must end up numeric. How you convert matters:</p>
+<ul>
+  <li><strong>Numeric</strong> (counts, sizes, prices): use the number as is. <code>links = 4</code>.</li>
+  <li><strong>Yes/no</strong>: use 1 and 0. <code>known = 0</code>.</li>
+  <li><strong>Categories</strong> (city, colour, sender's email provider): <em>don't</em> number them 1, 2, 3. That would tell the model Chennai (3) is "more" than Delhi (1), and that Mumbai (2) sits halfway between them. Instead use <strong>one-hot encoding</strong>: one 0/1 column per category. Delhi becomes <code>[1, 0, 0]</code>, Mumbai <code>[0, 1, 0]</code>, Chennai <code>[0, 0, 1]</code>.</li>
+  <li><strong>Raw text, images, audio</strong>: these need a recipe to become numbers. Counting "!" is a very crude recipe for text; a photo is simply a grid of pixel brightness values. Much of this course (embeddings, tokenization) is about better recipes.</li>
+</ul>
+<p>Turning raw things into useful numbers is called <strong>feature engineering</strong>. Deep learning's big selling point, which we will reach in Part 2, is that the network learns many of these recipes itself.</p>
+
+<h3>Kinds of labels</h3>
+<ul>
+  <li>If the label is a <strong>category</strong> (spam / not spam, cat / dog / bird), the task is <strong>classification</strong>.</li>
+  <li>If the label is a <strong>number on a scale</strong> (price, temperature, delivery time), the task is <strong>regression</strong>.</li>
+  <li>If there are <strong>no labels at all</strong> and you only want to find structure (groups of similar customers), it is <strong>unsupervised learning</strong> (Lesson 18). Learning from labelled examples, like everything so far, is <strong>supervised learning</strong>.</li>
+</ul>
+
+<h3>What makes data good</h3>
+<ul>
+  <li><strong>Informative features.</strong> The features must actually carry information about the label. Email length tells you little about spam; links tell you a lot.</li>
+  <li><strong>Correct labels.</strong> Labels are written by people or processes, and they contain mistakes. A model will faithfully learn those mistakes too.</li>
+  <li><strong>Representative examples.</strong> The examples must look like what the model will face later. A spam filter trained only on English emails will be lost on Hindi ones.</li>
+  <li><strong>No leakage.</strong> A feature must be something you would know <em>before</em> you know the answer. A feature like "the user moved this to the spam folder" is the label in disguise: it looks brilliant in training and is useless in real use.</li>
+</ul>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>One email becomes one row</h2>
+
+<figure>
+<svg viewBox="0 0 680 300" role="img" aria-label="A raw email is turned by a feature recipe into a vector of four numbers, which becomes one row in the dataset table, next to its label.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <text x="10" y="20" font-size="11" fill="var(--muted)" letter-spacing="1">RAW EXAMPLE</text>
+  <rect x="10" y="30" width="190" height="120" rx="8" fill="var(--panel)" stroke="currentColor"/>
+  <text x="22" y="52" font-size="11" fill="var(--muted)">From: deals@track-now.info</text>
+  <text x="22" y="74" font-size="11" fill="currentColor">Your parcel is on hold!</text>
+  <text x="22" y="92" font-size="11" fill="currentColor">Pay the fee at http://…</text>
+  <text x="22" y="110" font-size="11" fill="currentColor">or http://… or http://…</text>
+  <text x="22" y="128" font-size="11" fill="currentColor">unsubscribe: http://…</text>
+  <line x1="200" y1="90" x2="258" y2="90" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="229" y="82" font-size="10" fill="var(--muted)" text-anchor="middle">recipe</text>
+  <text x="262" y="20" font-size="11" fill="var(--muted)" letter-spacing="1">FEATURE VECTOR x</text>
+  <g font-size="13" text-anchor="middle">
+    <rect x="262" y="66" width="52" height="48" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="288" y="96" fill="currentColor" font-weight="600">1</text><text x="288" y="130" font-size="10" fill="var(--muted)">bangs</text>
+    <rect x="318" y="66" width="52" height="48" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="344" y="96" fill="currentColor" font-weight="600">4</text><text x="344" y="130" font-size="10" fill="var(--muted)">links</text>
+    <rect x="374" y="66" width="52" height="48" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="400" y="96" fill="currentColor" font-weight="600">0</text><text x="400" y="130" font-size="10" fill="var(--muted)">known</text>
+    <rect x="430" y="66" width="52" height="48" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="456" y="96" fill="currentColor" font-weight="600">70</text><text x="456" y="130" font-size="10" fill="var(--muted)">words</text>
+  </g>
+  <line x1="496" y1="90" x2="540" y2="90" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="544" y="20" font-size="11" fill="var(--muted)" letter-spacing="1">LABEL y</text>
+  <rect x="544" y="66" width="126" height="48" rx="6" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <text x="607" y="88" font-size="13" text-anchor="middle" fill="var(--amber)" font-weight="600">1 = spam</text>
+  <text x="607" y="105" font-size="10" text-anchor="middle" fill="var(--muted)">written by a person</text>
+
+  <text x="10" y="186" font-size="11" fill="var(--muted)" letter-spacing="1">THE DATASET: n = 8 ROWS × d = 4 FEATURE COLUMNS + 1 LABEL COLUMN</text>
+  <g font-size="11">
+    <rect x="10" y="196" width="660" height="24" fill="var(--paper)" stroke="var(--line)"/>
+    <text x="30" y="212" fill="var(--muted)">email</text><text x="140" y="212" fill="var(--muted)">bangs</text><text x="240" y="212" fill="var(--muted)">links</text><text x="340" y="212" fill="var(--muted)">known</text><text x="440" y="212" fill="var(--muted)">words</text><text x="570" y="212" fill="var(--muted)">y</text>
+    <text x="30" y="238" fill="currentColor">F</text><text x="140" y="238" fill="currentColor">5</text><text x="240" y="238" fill="currentColor">3</text><text x="340" y="238" fill="currentColor">0</text><text x="440" y="238" fill="currentColor">25</text><text x="570" y="238" fill="var(--amber)">1</text>
+    <rect x="10" y="246" width="660" height="24" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="30" y="262" fill="currentColor" font-weight="600">G</text><text x="140" y="262" fill="currentColor" font-weight="600">1</text><text x="240" y="262" fill="currentColor" font-weight="600">4</text><text x="340" y="262" fill="currentColor" font-weight="600">0</text><text x="440" y="262" fill="currentColor" font-weight="600">70</text><text x="570" y="262" fill="var(--amber)" font-weight="600">1</text>
+    <text x="30" y="288" fill="currentColor">H</text><text x="140" y="288" fill="currentColor">4</text><text x="240" y="288" fill="currentColor">1</text><text x="340" y="288" fill="currentColor">0</text><text x="440" y="288" fill="currentColor">140</text><text x="570" y="288" fill="var(--amber)">1</text>
+    <line x1="545" y1="196" x2="545" y2="296" stroke="var(--accent)" stroke-width="2"/>
+  </g>
+</svg>
+<figcaption>The recipe turns an email into four numbers; the label is added by a person. Stack eight such rows and you have the dataset: the table <code>X</code> (left of the blue line) and the column <code>y</code> (right of it).</figcaption>
+</figure>
+
+<div class="lab" id="lab1">
+  <h3>Feature recipe lab</h3>
+  <p style="margin-top:0">Type or paste any email. The page runs the same four-feature recipe on it and shows the row it becomes. Try adding links or "!" and watch the numbers change.</p>
+  <label for="mail" class="note" style="display:block;border:0;padding:0;margin:0 0 .4rem">email text</label>
+  <textarea id="mail" spellcheck="false"></textarea>
+  <div class="controls">
+    <label for="known"><input type="checkbox" id="known"> sender is in my contacts</label>
+    <button id="p1" class="ghost">Load: parcel scam</button>
+    <button id="p2" class="ghost">Load: note from a colleague</button>
+  </div>
+  <div class="vec" aria-live="polite">
+    <div><span>bangs</span><b id="f0">0</b></div>
+    <div><span>links</span><b id="f1">0</b></div>
+    <div><span>known</span><b id="f2">0</b></div>
+    <div><span>words</span><b id="f3">0</b></div>
+  </div>
+  <div class="rowline" id="rowline">x = [0, 0, 0, 0]</div>
+  <p class="note">Recipe used: bangs counts "!" characters; links counts pieces of text starting with http:// or https://; known comes from the checkbox; words counts runs of non-space characters. Notice how much the recipe throws away: the page never looks at what the email actually says.</p>
+</div>
+
+<h3>Does a second feature help?</h3>
+<p>Here are all eight emails from Lesson 01, now with four features each. Pick any two features for the axes. For every choice the page searches all simple rules (one threshold on one feature, or two thresholds joined by AND / OR) and reports the best one, counted on these eight emails.</p>
+<div class="lab" id="lab2">
+  <h3>Feature pair lab</h3>
+  <div class="controls">
+    <label for="fx">across <select id="fx"></select></label>
+    <label for="fy">up <select id="fy"></select></label>
+  </div>
+  <svg id="scatter" viewBox="0 0 480 330" role="img" aria-label="Scatter plot of the eight emails on the two chosen features, with the best rule's thresholds as dashed lines."></svg>
+  <div class="rules" id="rules"></div>
+  <div class="readout"><span class="msg" id="msg2"></span></div>
+</div>
+<p>With <code>bangs</code> alone the best you can do is 1 mistake (email G). With <code>links</code> alone, also 1 (email H). Put them together and a rule with <strong>zero</strong> mistakes appears. Now try <code>words</code>: it is nearly useless, because spam and real mail are about the same length in this data. <mark>Adding the right feature helped more than any amount of cleverness with the old one could.</mark></p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>Scoring each feature by hand</h2>
+<p>The full dataset. <code>y = 1</code> means spam.</p>
+<div class="tbl"><table>
+<thead><tr><th>Email</th><th>bangs</th><th>links</th><th>known</th><th>words</th><th class="lbl">y</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0</td><td>0</td><td>1</td><td>60</td><td class="lbl ham">0</td></tr>
+<tr><td>B</td><td>1</td><td>1</td><td>1</td><td>150</td><td class="lbl ham">0</td></tr>
+<tr><td>C</td><td>0</td><td>1</td><td>0</td><td>30</td><td class="lbl ham">0</td></tr>
+<tr><td>D</td><td>2</td><td>0</td><td>1</td><td>90</td><td class="lbl ham">0</td></tr>
+<tr><td>E</td><td>3</td><td>2</td><td>0</td><td>110</td><td class="lbl spam">1</td></tr>
+<tr><td>F</td><td>5</td><td>3</td><td>0</td><td>25</td><td class="lbl spam">1</td></tr>
+<tr><td>G</td><td>1</td><td>4</td><td>0</td><td>70</td><td class="lbl spam">1</td></tr>
+<tr><td>H</td><td>4</td><td>1</td><td>0</td><td>140</td><td class="lbl spam">1</td></tr>
+</tbody></table></div>
+<p>Here <code>n = 8</code> and <code>d = 4</code>. Let's score each feature on its own, the way Lesson 01 did: try every threshold, keep the one with the fewest mistakes.</p>
+<ul>
+  <li><strong>bangs</strong>: <code>spam if bangs ≥ 3</code> flags E, F, H. It misses G. <strong>1 mistake.</strong></li>
+  <li><strong>links</strong>: <code>spam if links ≥ 2</code> flags E, F, G. It misses H (only 1 link). <strong>1 mistake.</strong></li>
+  <li><strong>known</strong>: <code>spam if known = 0</code> flags C, E, F, G, H. C is a real email from someone not in your contacts. <strong>1 mistake.</strong></li>
+  <li><strong>words</strong>: the best rule, <code>spam if words ≤ 25</code>, only catches F. <strong>3 mistakes</strong>, barely better than calling everything "not spam" (4 mistakes).</li>
+</ul>
+<p>Now combine the two best: <code>spam if bangs ≥ 3 OR links ≥ 2</code>. Walk down the table: A (0, 0) no. B (1, 1) no. C (0, 1) no. D (2, 0) no. E (3, 2) yes. F (5, 3) yes. G (1, 4) yes, thanks to links. H (4, 1) yes, thanks to bangs. All four spam caught, all four real emails left alone: <strong>0 mistakes</strong>. The learning procedure did not get smarter; the data got richer.</p>
+<p>The same thing in Python. The first part is plain Python; the last few lines show the <code>numpy</code> view, where the dataset is literally an 8 × 4 grid.</p>
+<pre><code><span class="c"># the dataset: 8 examples (emails A..H), 4 features each</span>
+X = [  <span class="c"># [bangs, links, known, words]</span>
+    [0, 0, 1,  60],
+    [1, 1, 1, 150],
+    [0, 1, 0,  30],
+    [2, 0, 1,  90],
+    [3, 2, 0, 110],
+    [5, 3, 0,  25],
+    [1, 4, 0,  70],
+    [4, 1, 0, 140],
+]
+y = [0, 0, 0, 0, 1, 1, 1, 1]   <span class="c"># 1 = spam</span>
+features = ["bangs", "links", "known", "words"]
+
+def rule(j, t, above):
+    <span class="c">"""spam if feature j &gt;= t (above=True) or &lt;= t (above=False)"""</span>
+    return lambda row: int(row[j] &gt;= t) if above else int(row[j] &lt;= t)
+
+def mistakes(f):
+    return sum(f(row) != yi for row, yi in zip(X, y))
+
+def best_single(j):
+    options = [(mistakes(rule(j, t, a)), t, a)
+               for t in sorted({row[j] for row in X}) for a in (True, False)]
+    return min(options)
+
+for j, name in enumerate(features):
+    m, t, a = best_single(j)
+    print(name, "&gt;=" if a else "&lt;=", t, "-&gt;", m, "mistakes")
+<span class="c"># bangs &gt;= 3 -&gt; 1 mistakes
+# links &gt;= 2 -&gt; 1 mistakes
+# known &lt;= 0 -&gt; 1 mistakes
+# words &lt;= 25 -&gt; 3 mistakes</span>
+
+both = lambda row: int(row[0] &gt;= 3 or row[1] &gt;= 2)
+print(mistakes(both))          <span class="c"># 0</span>
+
+import numpy as np
+Xa = np.array(X)
+print(Xa.shape)                <span class="c"># (8, 4)   rows = examples, columns = features</span>
+print(Xa[:, 1])                <span class="c"># [0 1 1 0 2 3 4 1]   one feature (links) for every email</span>
+print(Xa[6])                   <span class="c"># [ 1  4  0 70]   one example (email G)</span></code></pre>
+<p>Two habits to take away from the code: <code>X[:, j]</code> reads a <strong>column</strong> (one feature across all examples) and <code>X[i]</code> reads a <strong>row</strong> (one example across all features). You will use both constantly. Lesson 04 explains why this grid shape, a matrix, is so central.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"The model looks at the email."</span>It only ever sees the numbers your recipe produced. Our spam model has never read a single word. If the recipe drops the clue that matters, no model can recover it.</div>
+  <div><span class="wrong">"More features is always better."</span>A feature like <code>words</code> adds noise, not signal. With few examples and many weak features, a model can find patterns that are pure coincidence (Lesson 12, overfitting). Add features that plausibly carry information about the label.</div>
+  <div><span class="wrong">"Labels are the truth."</span>Labels are someone's judgement. People disagree, get tired and click the wrong button. Well-known benchmark datasets have been found to contain a noticeable share of wrong labels. A model is only as right as its labels.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. You want to predict a flat's rent from its area, number of bedrooms and distance to the metro. Name the example, the features and the label. Is this classification or regression?</p><summary>Show answer</summary><p class="a">Each flat is one example. Area, bedrooms and metro distance are the three features (<code>d = 3</code>). Rent is the label. Rent is a number on a scale, so it is regression.</p></details>
+<details><p class="q">2. A colleague encodes the feature "city" as Delhi = 1, Mumbai = 2, Chennai = 3. What is the problem, and what should they do?</p><summary>Show answer</summary><p class="a">The numbers imply an order and distances that don't exist (Chennai is not "three times" Delhi, and Mumbai is not "between" them). Use one-hot encoding: three 0/1 columns, so Delhi is <code>[1, 0, 0]</code>, Mumbai <code>[0, 1, 0]</code>, Chennai <code>[0, 0, 1]</code>.</p></details>
+<details><p class="q">3. A spam model gets 100% accuracy in testing. One of its features is "number of times any user reported this email as spam". Should you be happy?</p><summary>Show answer</summary><p class="a">No. That is label leakage: reports only exist after people have already decided it is spam. A brand-new email arriving in someone's inbox has zero reports, so in real use the feature tells the model nothing and the 100% vanishes.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">A dataset is a table: each row is an example, each column a feature turned into a number, and the label is the answer; a model can only learn what those columns make visible.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 03 · A model is a function</h2>
+<p>We now have a clean table of <code>X</code> and <code>y</code>. Next we look at the other half: the model itself, as an ordinary function from a feature vector to a guess, and learning as picking the function that best fits the table.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://developers.google.com/machine-learning/crash-course/categorical-data" target="_blank" rel="noopener">Google ML Crash Course: Working with categorical data</a>, a short, practical module on one-hot encoding and related tricks.</li>
+  <li><a href="https://www.image-net.org/about.php" target="_blank" rel="noopener">About ImageNet</a>, the dataset from section b, and how its labels were built.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="01-what-ai-is.html">← Lesson 01 · What AI actually is</a>
+  <a href="03-model-is-a-function.html">Lesson 03 · A model is a function →</a>
+</nav>
+</main>
+
+<script>
+(function(){
+  /* ---------- Lab 1: feature recipe ---------- */
+  const mail=document.getElementById('mail'), known=document.getElementById('known');
+  const P1="Your parcel is on hold! Pay the small redelivery fee today at http://parcel-help.co/pay or http://track-now.info/fee to avoid return. Questions: http://help-desk.biz . To stop these messages visit http://unsub-offers.biz";
+  const P2="Hi Ravi, the design review moved to 3pm tomorrow. The notes are in the shared doc: https://docs.example.com/review. See you there!";
+  function feats(){
+    const t=mail.value;
+    const bangs=(t.match(/!/g)||[]).length;
+    const links=(t.match(/https?:\/\/\S+/gi)||[]).length;
+    const words=(t.trim().match(/\S+/g)||[]).length;
+    return [bangs,links,known.checked?1:0,words];
+  }
+  function show(){
+    const v=feats();
+    v.forEach((n,i)=>document.getElementById('f'+i).textContent=n);
+    document.getElementById('rowline').textContent='x = ['+v.join(', ')+']';
+  }
+  mail.addEventListener('input',show); known.addEventListener('change',show);
+  document.getElementById('p1').addEventListener('click',()=>{mail.value=P1;known.checked=false;show();});
+  document.getElementById('p2').addEventListener('click',()=>{mail.value=P2;known.checked=true;show();});
+  mail.value=P1; show();
+
+  /* ---------- Lab 2: feature pairs ---------- */
+  const NAMES=["bangs","links","known","words"], LBL="ABCDEFGH";
+  const X=[[0,0,1,60],[1,1,1,150],[0,1,0,30],[2,0,1,90],[3,2,0,110],[5,3,0,25],[1,4,0,70],[4,1,0,140]];
+  const Y=[0,0,0,0,1,1,1,1];
+  const fx=document.getElementById('fx'), fy=document.getElementById('fy');
+  NAMES.forEach((n,i)=>{fx.add(new Option(n,i));fy.add(new Option(n,i));});
+  fx.value=0; fy.value=1;
+  // all single-threshold conditions on feature j
+  function conds(j){
+    const vals=[...new Set(X.map(r=>r[j]))].sort((a,b)=>a-b), out=[];
+    vals.forEach(t=>{out.push({j,t,ge:true});out.push({j,t,ge:false});});
+    return out;
+  }
+  const test=(c,r)=>c.ge?r[c.j]>=c.t:r[c.j]<=c.t;
+  const ctext=c=>NAMES[c.j]+(c.ge?' ≥ ':' ≤ ')+c.t;
+  const miss=f=>X.reduce((s,r,i)=>s+((f(r)?1:0)!==Y[i]?1:0),0);
+  function bestSingle(j){
+    let best=null;
+    conds(j).forEach(c=>{const m=miss(r=>test(c,r));if(!best||m<best.m)best={m,cs:[c],op:null};});
+    return best;
+  }
+  function bestPair(a,b,start){
+    let best=start;
+    conds(a).forEach(c1=>conds(b).forEach(c2=>{
+      [['OR',r=>test(c1,r)||test(c2,r)],['AND',r=>test(c1,r)&&test(c2,r)]].forEach(([op,f])=>{
+        const m=miss(f); if(m<best.m) best={m,cs:[c1,c2],op,f};
+      });
+    }));
+    return best;
+  }
+  const svg=document.getElementById('scatter'), ns="http://www.w3.org/2000/svg";
+  const el=(n,a,txt)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e;};
+  const L=58,R=466,T=16,B=270;
+  function range(j){const v=X.map(r=>r[j]);let lo=Math.min(...v),hi=Math.max(...v);if(j!==3){lo=Math.min(lo,0);}const pad=(hi-lo)*0.08||0.5;return [lo-pad,hi+pad];}
+  // threshold drawn halfway between t and the next value on the flagged side's boundary
+  function cut(c){
+    const vals=[...new Set(X.map(r=>r[c.j]))].sort((a,b)=>a-b), i=vals.indexOf(c.t);
+    if(c.ge){return i>0?(vals[i-1]+c.t)/2:c.t;} return i<vals.length-1?(c.t+vals[i+1])/2:c.t;
+  }
+  function draw(){
+    const a=+fx.value, b=+fy.value;
+    const sa=bestSingle(a), sb=bestSingle(b);
+    let best=sa.m<=sb.m?sa:sb;
+    const combo=a===b?best:bestPair(a,b,best);
+    const rule=combo.op?combo:best;
+    const pred=r=>rule.op?(rule.op==='OR'?test(rule.cs[0],r)||test(rule.cs[1],r):test(rule.cs[0],r)&&test(rule.cs[1],r)):test(rule.cs[0],r);
+    const [x0,x1]=range(a), [y0,y1]=range(b);
+    const sx=v=>L+(R-L)*(v-x0)/(x1-x0), sy=v=>B-(B-T)*(v-y0)/(y1-y0);
+    svg.innerHTML='';
+    el('rect',{x:L,y:T,width:R-L,height:B-T,fill:'var(--paper)',stroke:'var(--line)'});
+    // ticks: integer steps, or 25-word steps
+    const step=j=>j===3?25:1;
+    for(let v=Math.ceil(x0/step(a))*step(a);v<=x1;v+=step(a)){el('line',{x1:sx(v),y1:B,x2:sx(v),y2:B+5,stroke:'var(--ink)'});el('text',{x:sx(v),y:B+22,'font-size':14,'text-anchor':'middle',fill:'var(--ink)'},v);}
+    for(let v=Math.ceil(y0/step(b))*step(b);v<=y1;v+=step(b)){el('line',{x1:L-5,y1:sy(v),x2:L,y2:sy(v),stroke:'var(--ink)'});el('text',{x:L-9,y:sy(v)+5,'font-size':14,'text-anchor':'end',fill:'var(--ink)'},v);}
+    el('text',{x:(L+R)/2,y:B+48,'font-size':14,'text-anchor':'middle',fill:'var(--muted)'},NAMES[a]+' →');
+    el('text',{x:16,y:(T+B)/2,'font-size':14,'text-anchor':'middle',fill:'var(--muted)',transform:'rotate(-90 16 '+(T+B)/2+')'},NAMES[b]+' →');
+    // threshold lines of the winning rule
+    rule.cs.forEach(c=>{
+      const v=cut(c);
+      if(c.j===a && !(a===b && c!==rule.cs[0])) el('line',{x1:sx(v),y1:T,x2:sx(v),y2:B,stroke:'var(--accent)','stroke-width':2,'stroke-dasharray':'6 4'});
+      if(c.j===b && a!==b) el('line',{x1:L,y1:sy(v),x2:R,y2:sy(v),stroke:'var(--accent)','stroke-width':2,'stroke-dasharray':'6 4'});
+      if(c.j!==a && c.j!==b) return;
+    });
+    // points (offset overlapping ones)
+    const seen={};
+    X.forEach((r,i)=>{
+      const key=r[a]+','+r[b]; const k=seen[key]=(seen[key]||0)+1;
+      const cx=sx(r[a])+(k-1)*30, cy=sy(r[b]);
+      const wrong=(pred(r)?1:0)!==Y[i];
+      el('circle',{cx,cy,r:14,fill:Y[i]?'var(--amber)':'var(--ok)'});
+      if(wrong) el('circle',{cx,cy,r:19,fill:'none',stroke:'var(--ink)','stroke-width':1.5,'stroke-dasharray':'3 3'});
+      el('text',{x:cx,y:cy+5,'font-size':14,'text-anchor':'middle',fill:'var(--panel)','font-weight':600},LBL[i]);
+    });
+    // readout
+    const rows=[
+      ['best using only '+NAMES[a]+': spam if '+ctext(sa.cs[0]),sa.m],
+      ...(a!==b?[['best using only '+NAMES[b]+': spam if '+ctext(sb.cs[0]),sb.m]]:[]),
+      ...(a!==b?[[combo.op?'best using both: spam if '+ctext(combo.cs[0])+' '+combo.op+' '+ctext(combo.cs[1]):'best using both: no pair beats a single feature',combo.m]]:[])
+    ];
+    const minM=Math.min(...rows.map(r=>r[1]));
+    document.getElementById('rules').innerHTML='';
+    rows.forEach(([t,m],i)=>{const d=document.createElement('div');if(m===minM&&i===rows.length-1)d.className='win';
+      const s1=document.createElement('span');s1.textContent=t;const s2=document.createElement('span');s2.textContent=m+' mistake'+(m===1?'':'s');
+      d.append(s1,s2);document.getElementById('rules').appendChild(d);});
+    document.getElementById('msg2').textContent=(a===b?'Pick two different features to see them combined. ':'')+'Dashed lines show the winning rule; dashed rings mark the emails it gets wrong. Orange = spam, green = real mail.';
+  }
+  fx.addEventListener('change',draw); fy.addEventListener('change',draw);
+  draw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 03 · A model is a function</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.best { background: var(--accent-soft); font-weight: 600; }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab .controls { align-items: center; gap: .8rem 1.2rem; margin-top: .6rem; }
+  .lab .controls label { font: 500 .85rem/1.4 var(--mono); }
+  input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); min-width: 0; }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* added for lessons 02–04 */
+  figure svg { min-width: 520px; }
+  figure svg.sq { min-width: 0; max-width: 380px; margin: 0 auto; }
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  td.lbl, th.lbl { border-left: 2px solid var(--accent); }
+  .lab select, .lab textarea { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; max-width: 100%; }
+  .lab textarea { width: 100%; min-height: 7.5rem; resize: vertical; line-height: 1.5; display: block; }
+  .lab input[type=checkbox] { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  .lab button:disabled { opacity: .45; cursor: not-allowed; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 1rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-x: auto; white-space: nowrap; }
+  .fn b { color: var(--accent); }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  .lab .tbl table { font-family: var(--mono); font-size: .82rem; }
+
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; }
+  .lab .controls label span { display: flex; justify-content: space-between; gap: .5rem; }
+  .lab .controls label b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .lab .controls select { width: 100%; }
+  .lab input[type=range] { width: 100%; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 03 of 60</span><span>~17 min read</span></div>
+  <h1><span class="num">03</span> · A model is a function</h1>
+  <p class="lede">Strip away the mystique and every machine learning model, from a spam filter to a chatbot, is the same kind of thing you write every day: a function that takes inputs and returns an output. The only twist is that some of its numbers are left blank, and the data fills them in.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>From the table to the thing that reads it</h2>
+<p>Lesson 02 turned the world into a table: rows of feature vectors <code>x</code>, each with a label <code>y</code>. Today we look at the other half, the model, and say exactly what "learning" does to it.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>One idea, from two numbers to billions</h2>
+<p>When people say a language model "has 175 billion parameters" (that was GPT-3 in 2020), they are describing a function with 175 billion adjustable numbers inside. Once you see a model as a function with knobs, words like <em>weights</em>, <em>training</em> and <em>inference</em> stop being jargon. You will build the smallest possible version today: a function with two knobs, fitted to five flats.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A recipe with blanks</h2>
+<p>Picture an old radio. The circuit inside is fixed: someone designed it, and you can't change it. But on the front there are two knobs, tuning and volume. Turn them and the same radio gives very different output. Finding a station means turning the knobs until the sound matches what you want.</p>
+<p>A model works the same way.</p>
+<ul>
+  <li>The <mark>shape</mark> of the function is chosen by a person, like the radio's circuit. "The rent goes up in a straight line with the area" is a shape.</li>
+  <li>The <mark>knobs</mark> are numbers inside that shape that are left blank. How steep is the line? Where does it start?</li>
+  <li><mark>Learning</mark> is turning the knobs until the function's outputs match the answers in the data as closely as possible.</li>
+</ul>
+<p>So the programmer still writes code. They write <code>rent = ? × area + ?</code>, and the data fills in the question marks.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Inputs, knobs, output</h2>
+
+<h3>You already know what a function is</h3>
+<p>In code, a function takes inputs and returns an output, and the same inputs always give the same output:</p>
+<pre><code>def rent_guess(area):
+    return 2 * area + 6</code></pre>
+<p>Maths writes the same thing as <code>f(x) = 2x + 6</code>. <code>f</code> is the function's name, <code>x</code> is the input, and the right-hand side says what to compute. Put in <code>x = 4</code> and you get <code>2 × 4 + 6 = 14</code>.</p>
+
+<h3>Now leave the numbers blank</h3>
+<p>Replace the 2 and the 6 with letters:</p>
+<div class="eq">ŷ = f(x) = w · x + b</div>
+<dl class="defn">
+  <dt>x: the input</dt>
+  <dd>The feature value of one example. Today there is a single feature: a flat's area, in hundreds of square feet (so <code>x = 8</code> means 800 sq ft).</dd>
+  <dt>ŷ ("y-hat"): the prediction</dt>
+  <dd>The function's output, its guess. The hat means "estimated". Plain <code>y</code> stays reserved for the true label from the data, here the actual rent in thousands of rupees.</dd>
+  <dt>w: the weight</dt>
+  <dd>How much the output changes for each unit of input. <code>w = 2</code> means every extra 100 sq ft adds ₹2,000 to the rent. On a graph it is the slope of the line.</dd>
+  <dt>b: the bias</dt>
+  <dd>A fixed amount added no matter what. On a graph it is where the line crosses the vertical axis (the value at <code>x = 0</code>). It has nothing to do with "bias" in the sense of unfairness.</dd>
+  <dt>Parameters (also: weights)</dt>
+  <dd>The knobs together: here <code>w</code> and <code>b</code>. Often written as one symbol, θ (theta), and the model as <code>f(x; θ)</code>, read "f of x, given θ".</dd>
+</dl>
+<p>Each choice of <code>w</code> and <code>b</code> gives a different line. The set of all lines you could get by turning the knobs is called the <strong>model family</strong> (or hypothesis space). Picking the family is the person's job. Picking the one member of the family that fits best is the computer's job.</p>
+
+<h3>Three steps that every ML system follows</h3>
+<ol>
+  <li><strong>Choose a family.</strong> "A straight line in the area" is one choice. "Always guess the same number" is a simpler one. A neural network is a much bigger one.</li>
+  <li><strong>Fit the knobs (training).</strong> Score each setting by how far its guesses land from the true labels, and keep the setting with the best score. Today we score by squaring each miss and adding them up, the <strong>total squared error</strong>. Squaring makes every miss positive and punishes big misses more than small ones. Lesson 07 looks at this choice properly.</li>
+  <li><strong>Use it (inference).</strong> Freeze the knobs. Now the model is an ordinary function: give it a new <code>x</code> and it returns <code>ŷ</code>. The training data is no longer needed.</li>
+</ol>
+
+<h3>This was already true in Lesson 02</h3>
+<p>The spam rule <code>spam if bangs ≥ 3 OR links ≥ 2</code> is also a function. Its input is a feature vector, its output is 0 or 1, and its knobs are the two thresholds, 3 and 2. Training searched every threshold and kept the pair with the fewest mistakes. Same three steps, different family.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>The function machine</h2>
+
+<figure>
+<svg viewBox="0 0 680 250" role="img" aria-label="An input x enters a box labelled f with two knobs, w and b. Its output, the guess y-hat, is compared with the true label y. The difference is used to adjust the knobs during training.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <text x="20" y="22" font-size="11" fill="var(--muted)" letter-spacing="1">INPUT</text>
+  <rect x="20" y="70" width="90" height="56" rx="8" fill="var(--panel)" stroke="currentColor"/>
+  <text x="65" y="96" font-size="14" text-anchor="middle" fill="currentColor" font-weight="600">x = 8</text>
+  <text x="65" y="114" font-size="10" text-anchor="middle" fill="var(--muted)">800 sq ft</text>
+  <line x1="110" y1="98" x2="200" y2="98" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="300" y="22" font-size="11" fill="var(--muted)" letter-spacing="1" text-anchor="middle">MODEL f</text>
+  <rect x="204" y="48" width="192" height="100" rx="12" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="300" y="80" font-size="14" text-anchor="middle" fill="currentColor">ŷ = w · x + b</text>
+  <circle cx="258" cy="116" r="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>
+  <line x1="258" y1="116" x2="266" y2="105" stroke="var(--accent)" stroke-width="2"/>
+  <text x="282" y="121" font-size="12" fill="currentColor">w=2</text>
+  <circle cx="330" cy="116" r="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>
+  <line x1="330" y1="116" x2="322" y2="105" stroke="var(--accent)" stroke-width="2"/>
+  <text x="354" y="121" font-size="12" fill="currentColor">b=6</text>
+  <line x1="396" y1="98" x2="484" y2="98" stroke="currentColor" marker-end="url(#ar)"/>
+  <text x="488" y="22" font-size="11" fill="var(--muted)" letter-spacing="1">GUESS vs ANSWER</text>
+  <rect x="488" y="70" width="80" height="56" rx="8" fill="var(--panel)" stroke="currentColor"/>
+  <text x="528" y="96" font-size="14" text-anchor="middle" fill="currentColor" font-weight="600">ŷ = 22</text>
+  <text x="528" y="114" font-size="10" text-anchor="middle" fill="var(--muted)">guess</text>
+  <rect x="580" y="70" width="80" height="56" rx="8" fill="none" stroke="var(--ok)" stroke-width="2"/>
+  <text x="620" y="96" font-size="14" text-anchor="middle" fill="var(--ok)" font-weight="600">y = 22</text>
+  <text x="620" y="114" font-size="10" text-anchor="middle" fill="var(--muted)">from data</text>
+  <path d="M574,130 L574,200 L300,200 L300,152" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text x="437" y="222" font-size="11" text-anchor="middle" fill="var(--amber)">training only: compare, then turn the knobs</text>
+</svg>
+<figcaption>The box's wiring (<code>w · x + b</code>) is fixed by a person. Training uses the gap between guess and answer to turn the knobs. At inference time the dashed loop is gone: knobs frozen, input in, guess out.</figcaption>
+</figure>
+
+<p>Here is the data we will fit: five flats from one neighbourhood (made-up but realistic numbers).</p>
+<div class="tbl"><table>
+<thead><tr><th>Flat</th><th>Area (sq ft)</th><th>x</th><th>Rent (₹/month)</th><th>y</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>400</td><td>4</td><td>14,000</td><td>14</td></tr>
+<tr><td>B</td><td>600</td><td>6</td><td>19,000</td><td>19</td></tr>
+<tr><td>C</td><td>800</td><td>8</td><td>22,000</td><td>22</td></tr>
+<tr><td>D</td><td>1,000</td><td>10</td><td>28,000</td><td>28</td></tr>
+<tr><td>E</td><td>1,200</td><td>12</td><td>31,000</td><td>31</td></tr>
+</tbody></table></div>
+
+<div class="lab" id="lab">
+  <h3>Knob lab</h3>
+  <p style="margin-top:0">Pick a model family, then turn the knobs yourself and watch the total squared error. The vertical strokes show each miss. When you give up, press the search button: the page tries every knob setting on a grid and keeps the best, which is exactly what "training" means here.</p>
+  <div class="controls">
+    <label for="fam"><span>model family</span>
+      <select id="fam">
+        <option value="line">line: w·x + b (2 knobs)</option>
+        <option value="const">constant: b (1 knob)</option>
+        <option value="table">lookup table: memorize every flat</option>
+      </select>
+    </label>
+    <label for="qx"><span>new flat to price <b id="qxv">900 sq ft</b></span>
+      <input type="range" id="qx" min="3" max="14" step="0.5" value="9">
+    </label>
+    <label for="w" id="wl"><span>w (slope) <b id="wv">2.00</b></span>
+      <input type="range" id="w" min="0" max="80" step="1" value="40">
+    </label>
+    <label for="b"><span>b (starting value) <b id="bv">6.0</b></span>
+      <input type="range" id="b" min="-100" max="300" step="1" value="60">
+    </label>
+  </div>
+  <div class="fn" id="fn"></div>
+  <svg id="plot" viewBox="0 0 480 320" role="img" aria-label="Scatter plot of the five flats, area across and rent up, with the current model's predictions drawn as a line and each miss as a vertical stroke."></svg>
+  <div class="readout">
+    <span>total squared error <span class="big" id="sse">6.00</span></span>
+    <span>prediction for new flat <span class="big" id="pred">24.0</span></span>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="btns">
+    <button id="search">Search all knob settings</button>
+    <button id="reset" class="ghost">Reset to w = 2, b = 6</button>
+  </div>
+  <div class="tbl"><table id="rows"></table></div>
+</div>
+<p>Three things to try. First, with the straight line, see how low you can get the error by hand before pressing search. Second, switch to the constant family: the best it can do is always guess the average rent, and its error is about 100 times worse, because it is not allowed to use area at all. Third, switch to the lookup table: zero error, which looks perfect, until you ask it about a 900 sq ft flat.</p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>Fitting the line by hand</h2>
+<p><strong>Guess 1: <code>w = 3, b = 0</code></strong>, so <code>ŷ = 3x</code>. Go flat by flat, computing the guess, the miss (<code>ŷ − y</code>) and the miss squared.</p>
+<div class="tbl"><table>
+<thead><tr><th>Flat</th><th>x</th><th>y</th><th>ŷ = 3x</th><th>miss</th><th>miss²</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>4</td><td>14</td><td>12</td><td>−2</td><td>4</td></tr>
+<tr><td>B</td><td>6</td><td>19</td><td>18</td><td>−1</td><td>1</td></tr>
+<tr><td>C</td><td>8</td><td>22</td><td>24</td><td>+2</td><td>4</td></tr>
+<tr><td>D</td><td>10</td><td>28</td><td>30</td><td>+2</td><td>4</td></tr>
+<tr><td>E</td><td>12</td><td>31</td><td>36</td><td>+5</td><td>25</td></tr>
+<tr><td class="tot" colspan="5">total squared error</td><td class="tot">38</td></tr>
+</tbody></table></div>
+<p>The misses grow from left to right: too low for small flats, far too high for big ones. The line is too steep. So lower the slope and raise the starting point.</p>
+<p><strong>Guess 2: <code>w = 2, b = 6</code></strong>. Guesses 14, 18, 22, 26, 30. Misses 0, −1, 0, −2, −1. Squared: 0, 1, 0, 4, 1. <strong>Total 6</strong>, much better.</p>
+<p><strong>Let the computer search.</strong> Try every <code>w</code> from 0 to 4 in steps of 0.05 and every <code>b</code> from −10 to 20 in steps of 0.1. That is 81 × 301 = 24,381 settings, each scored the same way. The winner is <code>w = 2.15, b = 5.6</code>, with total squared error <strong>1.90</strong>. In words: about ₹5,600 plus ₹2,150 for every 100 sq ft.</p>
+<p><strong>Use it.</strong> A 900 sq ft flat (<code>x = 9</code>) that was never in the data: <code>2.15 × 9 + 5.6 = 24.95</code>, so about ₹24,950 a month. The five rows can now be thrown away. Everything the model learned is stored in two numbers.</p>
+<p>For comparison, the best <em>constant</em> model guesses the average, 22.8, for every flat, with total squared error 186.8.</p>
+<pre><code><span class="c"># the dataset: 5 flats. x = area in hundreds of sq ft, y = rent in thousands of rupees</span>
+X = [4, 6, 8, 10, 12]
+Y = [14, 19, 22, 28, 31]
+
+def f(x, w, b):
+    <span class="c">"""the model: a straight line with two knobs, w (slope) and b (starting value)"""</span>
+    return w * x + b
+
+def total_error(w, b):
+    <span class="c">"""add up (guess - answer) squared over every flat"""</span>
+    return sum((f(x, w, b) - y) ** 2 for x, y in zip(X, Y))
+
+print(round(total_error(3, 0), 2))     <span class="c"># 38   first guess</span>
+print(round(total_error(2, 6), 2))     <span class="c"># 6    second guess</span>
+
+<span class="c"># "learning": try every knob setting on a grid, keep the one with least error</span>
+best = None
+for i in range(0, 81):                 <span class="c"># w = 0.00, 0.05, ... 4.00</span>
+    for j in range(-100, 201):         <span class="c"># b = -10.0, -9.9, ... 20.0</span>
+        w, b = i * 0.05, j / 10
+        e = total_error(w, b)
+        if best is None or e &lt; best[0]:
+            best = (e, w, b)
+print(81 * 301, "settings tried")      <span class="c"># 24381 settings tried</span>
+e, w, b = best
+print(f"best: w = {w:.2f}, b = {b:.1f}, error = {e:.2f}")
+<span class="c"># best: w = 2.15, b = 5.6, error = 1.90</span>
+
+<span class="c"># using the trained model on a flat it has never seen: 900 sq ft</span>
+print(round(f(9, w, b), 2))            <span class="c"># 24.95</span>
+
+<span class="c"># compare: the best constant model f(x) = b ignores area entirely</span>
+mean_y = sum(Y) / len(Y)
+print(mean_y, round(sum((mean_y - y) ** 2 for y in Y), 2))   <span class="c"># 22.8 186.8</span></code></pre>
+<p>Trying every setting works for two knobs. It is hopeless for a million knobs: even 10 values per knob would mean 10<sup>1,000,000</sup> settings. That is why Lessons 05 and 08 build a smarter way to turn the knobs: feel which direction lowers the error, and step that way.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"In ML, nobody writes the program."</span>A person writes the shape (<code>w · x + b</code>, or a neural network's layout) and the scoring rule. The data only fills in the numbers. Choosing the shape well is a big part of the craft.</div>
+  <div><span class="wrong">"A trained model looks things up in its training data."</span>After training, our model is two numbers, 2.15 and 5.6. The five flats are gone. Large models work the same way: they store parameters, not a copy of the data (though with enough parameters they can memorize pieces of it, which is a known problem).</div>
+  <div><span class="wrong">"Zero error on the data means the best model."</span>The lookup table scores a perfect 0 and can't price a single new flat. The goal is good guesses on examples the model has <em>not</em> seen. Lessons 11 and 12 are about measuring exactly that.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. Using the trained model <code>ŷ = 2.15x + 5.6</code>, what rent does it predict for a 1,000 sq ft flat? How far off is it from flat D's real rent?</p><summary>Show answer</summary><p class="a"><code>x = 10</code>, so <code>2.15 × 10 + 5.6 = 27.1</code>, about ₹27,100. Flat D's real rent is ₹28,000, so the miss is −0.9 (₹900 too low). Its squared miss, 0.81, is one part of the total 1.90.</p></details>
+<details><p class="q">2. You add a second feature, number of bedrooms (<code>x₂</code>), to the straight-line model. Write the new function. How many knobs does it have?</p><summary>Show answer</summary><p class="a"><code>ŷ = w₁·x₁ + w₂·x₂ + b</code>. Each feature gets its own weight, plus one bias: 3 parameters. With <code>d</code> features a line-shaped model has <code>d + 1</code> parameters. Lesson 04 shows how to write this compactly with vectors.</p></details>
+<details><p class="q">3. Which part of the model does training change: the formula <code>w · x + b</code>, or the values of <code>w</code> and <code>b</code>? And which part did a person decide?</p><summary>Show answer</summary><p class="a">Training changes only the values of <code>w</code> and <code>b</code>. A person decided the formula (the model family) and how to score a setting (total squared error). If the true relationship were curved, no setting of these two knobs could capture it; you would need a different family.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">A model is a function with adjustable numbers inside; a person picks its shape, and learning is the search for the numbers that make its outputs match the data.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 04 · Vectors and matrices, intuitively</h2>
+<p>Our line had one input. Real models take hundreds of features and have millions of weights, and writing <code>w₁x₁ + w₂x₂ + …</code> by hand stops working. Vectors and matrices are the notation (and the numpy code) that let one short line describe all of it.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://developers.google.com/machine-learning/crash-course/linear-regression" target="_blank" rel="noopener">Google ML Crash Course: Linear regression</a>, the same weight-and-bias model with interactive exercises.</li>
+  <li><a href="https://www.3blue1brown.com/lessons/neural-networks" target="_blank" rel="noopener">3Blue1Brown: But what is a neural network?</a>, a visual video that ends with the same idea: a network is "just a function" with about 13,000 knobs.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="02-data.html">← Lesson 02 · Data</a>
+  <a href="04-vectors-matrices.html">Lesson 04 · Vectors and matrices →</a>
+</nav>
+</main>
+
+<script>
+(function(){
+  const X=[4,6,8,10,12], Y=[14,19,22,28,31], L="ABCDE";
+  const $=id=>document.getElementById(id);
+  const fam=$('fam'), wi=$('w'), bi=$('b'), qx=$('qx');
+  const W=()=>(+wi.value)*0.05, B=()=>(+bi.value)/10;
+  // model: returns prediction, or null when the family has no answer
+  function predict(x){
+    const f=fam.value;
+    if(f==='line') return W()*x+B();
+    if(f==='const') return B();
+    const i=X.indexOf(x); return i<0?null:Y[i];
+  }
+  const sse=()=>X.reduce((s,x,i)=>{const p=predict(x);return s+(p-Y[i])**2;},0);
+
+  const svg=$('plot'), ns="http://www.w3.org/2000/svg";
+  const el=(n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;svg.appendChild(e);return e;};
+  const Lp=56,Rp=468,Tp=12,Bp=262, x0=0,x1=15,y0=0,y1=45;
+  const sx=v=>Lp+(Rp-Lp)*(v-x0)/(x1-x0), sy=v=>Bp-(Bp-Tp)*(v-y0)/(y1-y0);
+  const clampY=v=>Math.max(y0,Math.min(y1,v));
+
+  function draw(){
+    const f=fam.value, q=+qx.value;
+    $('wl').hidden=(f!=='line');
+    bi.disabled=(f==='table'); $('search').disabled=(f==='table');
+    $('wv').textContent=W().toFixed(2); $('bv').textContent=B().toFixed(1);
+    $('qxv').textContent=Math.round(q*100).toLocaleString('en-IN')+' sq ft';
+    $('fn').innerHTML = f==='line' ? 'ŷ = <b>'+W().toFixed(2)+'</b> · x + <b>'+B().toFixed(1)+'</b>'
+      : f==='const' ? 'ŷ = <b>'+B().toFixed(1)+'</b>   (area is ignored)'
+      : 'ŷ = the stored rent if x is exactly 4, 6, 8, 10 or 12; otherwise no answer';
+    svg.innerHTML='';
+    el('rect',{x:Lp,y:Tp,width:Rp-Lp,height:Bp-Tp,fill:'var(--paper)',stroke:'var(--line)'});
+    for(let v=0;v<=14;v+=2){el('line',{x1:sx(v),y1:Bp,x2:sx(v),y2:Bp+5,stroke:'var(--ink)'});el('text',{x:sx(v),y:Bp+21,'font-size':13,'text-anchor':'middle',fill:'var(--ink)'},v);}
+    for(let v=0;v<=40;v+=10){el('line',{x1:Lp-5,y1:sy(v),x2:Lp,y2:sy(v),stroke:'var(--ink)'});el('line',{x1:Lp,y1:sy(v),x2:Rp,y2:sy(v),stroke:'var(--line)'});el('text',{x:Lp-9,y:sy(v)+4,'font-size':13,'text-anchor':'end',fill:'var(--ink)'},v);}
+    el('text',{x:(Lp+Rp)/2,y:Bp+44,'font-size':13,'text-anchor':'middle',fill:'var(--muted)'},'x: area (hundreds of sq ft) →');
+    el('text',{x:14,y:(Tp+Bp)/2,'font-size':13,'text-anchor':'middle',fill:'var(--muted)',transform:'rotate(-90 14 '+(Tp+Bp)/2+')'},'y: rent (₹ thousands) →');
+    // model curve, clipped to the plot box
+    if(f!=='table'){
+      const ya=predict(x0), yb=predict(x1);
+      // clip the segment to y range
+      let ax=x0, ay=ya, bx=x1, by=yb;
+      const slope=(yb-ya)/(x1-x0);
+      if(slope!==0){
+        if(ay<y0){ax=x0+(y0-ya)/slope;ay=y0;} if(ay>y1){ax=x0+(y1-ya)/slope;ay=y1;}
+        if(by<y0){bx=x0+(y0-ya)/slope;by=y0;} if(by>y1){bx=x0+(y1-ya)/slope;by=y1;}
+      }
+      if(ax<bx && !(slope===0 && (ay<y0||ay>y1))) el('line',{x1:sx(ax),y1:sy(ay),x2:sx(bx),y2:sy(by),stroke:'var(--accent)','stroke-width':2.5});
+    } else {
+      X.forEach((x,i)=>el('line',{x1:sx(x)-10,y1:sy(Y[i]),x2:sx(x)+10,y2:sy(Y[i]),stroke:'var(--accent)','stroke-width':3}));
+    }
+    // misses and points
+    X.forEach((x,i)=>{
+      const p=predict(x);
+      if(p!==null) el('line',{x1:sx(x),y1:sy(clampY(p)),x2:sx(x),y2:sy(Y[i]),stroke:'var(--amber)','stroke-width':2});
+      el('circle',{cx:sx(x),cy:sy(Y[i]),r:9,fill:'var(--ok)'});
+      el('text',{x:sx(x),y:sy(Y[i])+4,'font-size':11,'text-anchor':'middle',fill:'var(--panel)','font-weight':600},L[i]);
+    });
+    // query flat
+    const pq=predict(q);
+    el('line',{x1:sx(q),y1:Tp,x2:sx(q),y2:Bp,stroke:'var(--muted)','stroke-dasharray':'4 4'});
+    if(pq!==null && pq>=y0 && pq<=y1){
+      el('rect',{x:sx(q)-7,y:sy(pq)-7,width:14,height:14,fill:'none',stroke:'var(--accent)','stroke-width':2.5,transform:'rotate(45 '+sx(q)+' '+sy(pq)+')'});
+    } else if(pq===null){
+      el('text',{x:sx(q)+(q>11?-6:6),y:Tp+18,'font-size':12,'text-anchor':q>11?'end':'start',fill:'var(--amber)'},'no answer');
+    }
+    // readouts
+    const e=sse();
+    $('sse').textContent=e.toFixed(2);
+    $('pred').textContent=pq===null?'none':'₹'+Math.round(pq*1000).toLocaleString('en-IN');
+    const msg = f==='table' ? 'Zero error on the five flats it memorized, yet it cannot price any flat it has not seen. Try a new flat of 800 sq ft, then 900.'
+      : f==='const' ? 'One knob only. The best it can do is the average rent, 22.8, for every flat.'
+      : 'Green dots: real rents. Orange strokes: each miss. Diamond on the dashed line: the guess for the new flat.';
+    $('msg').textContent=msg;
+    // table of rows
+    let h='<thead><tr><th>flat</th><th>x</th><th>y</th><th>ŷ</th><th>miss</th><th>miss²</th></tr></thead><tbody>';
+    X.forEach((x,i)=>{const p=predict(x),m=p-Y[i];h+='<tr><td>'+L[i]+'</td><td>'+x+'</td><td>'+Y[i]+'</td><td>'+(+p.toFixed(2))+'</td><td>'+(m>=0?'+':'−')+Math.abs(m).toFixed(2)+'</td><td>'+(m*m).toFixed(2)+'</td></tr>';});
+    h+='</tbody>'; $('rows').innerHTML=h;
+  }
+  // training: exhaustive search over the same grid as the Python snippet
+  $('search').addEventListener('click',()=>{
+    const f=fam.value; let best=null, n=0;
+    const is=f==='line'?[...Array(81).keys()]:[+wi.value];
+    const jmax=f==="line"?200:300;
+    is.forEach(i=>{for(let j=-100;j<=jmax;j++){
+      n++; const w=i*0.05,b=j/10;
+      const e=X.reduce((s,x,k)=>s+((f==='line'?w*x+b:b)-Y[k])**2,0);
+      if(!best||e<best.e) best={e,i,j};
+    }});
+    wi.value=best.i; bi.value=best.j; draw();
+    $('msg').textContent='Tried '+n.toLocaleString('en-IN')+' knob settings and kept the one with the lowest total squared error. That search is the training.';
+  });
+  $('reset').addEventListener('click',()=>{fam.value='line';wi.value=40;bi.value=60;draw();});
+  [fam,wi,bi,qx].forEach(e=>e.addEventListener('input',draw));
+  fam.addEventListener('change',draw);
+  draw();
+})();
+</script>
+</body>
+</html>
