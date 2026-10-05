@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Uber</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 620px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .fleet { display: grid; gap: 6px; margin-top: 10px; }
+  .drv { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; justify-content: space-between; gap: 10px; }
+  .drv .t { font: 500 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap; }
+  .drv.offered { border-color: var(--amber); }
+  .drv.busy { border-color: var(--ok); }
+  .drv.clash { border-color: var(--bad); }
+  .drv.clash .t { color: var(--bad); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .stage-row { display: grid; gap: 8px; }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="uber" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design Uber</h1>
+    <p class="lede">Build a ride-hailing service: a rider asks for a ride, nearby drivers are found in seconds, one of them accepts, and nobody gets two rides at once. Two forces shape the design. Drivers report their position every few seconds, which is a firehose of tiny writes. And matching is a race: many riders want the same nearest driver at the same moment.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope to the ride itself. Payments, ratings, pooled rides and scheduled rides are follow-ups.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Riders: enter a pickup and destination and see a fare estimate.</li>
+          <li>Riders: request a ride and be matched with a nearby available driver.</li>
+          <li>Drivers: go online, share their location, and accept or decline ride offers.</li>
+          <li>Both: see the ride's status and the driver's position until pickup.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Match a rider within about a minute, or say no driver was found.</li>
+          <li>Be <b>consistent</b> about assignment: a driver is never given two rides at once.</li>
+          <li>Absorb millions of location updates a second, and surges near events.</li>
+          <li>Stay available for location updates; a few seconds of staleness is fine.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> notice the two different consistency needs. Driver locations can be slightly stale (a car moves maybe 50 metres between updates), so favor availability and speed. Assignment must be exact, so it needs a lock or a transaction. Splitting those paths is most of the design.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>Rider</h3><code>rider_id, name
+payment_method</code></div>
+      <div class="entity"><h3>Driver</h3><code>driver_id, vehicle
+status: offline |
+  available | on_trip</code></div>
+      <div class="entity"><h3>Location</h3><code>driver_id, lat, lng
+updated_at
+(hot, in memory, TTL)</code></div>
+      <div class="entity"><h3>Fare</h3><code>fare_id, pickup, dest
+price, expires_at</code></div>
+      <div class="entity"><h3>Ride</h3><code>ride_id, rider_id
+driver_id, fare_id
+status, timestamps</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+<pre class="api"><span class="verb">POST</span>  /fares                 { pickup, destination }  → Fare
+<span class="verb">POST</span>  /rides                 { fare_id }              → Ride  <span class="c">// status: matching</span>
+<span class="verb">POST</span>  /drivers/location      { lat, lng }             <span class="c">// every few seconds</span>
+<span class="verb">PATCH</span> /rides/{id}            { action: accept | decline | pickup | complete }
+
+<span class="c">// rider and driver come from the auth token, never the body</span></pre>
+    <div class="aside"><p><b>Why a separate fare step?</b> The price must be the one the rider saw. Creating a <span class="mono">Fare</span> with an expiry, then requesting a ride by <span class="mono">fare_id</span>, stops a client from sending its own price. Offers reach drivers over a connection the driver app already keeps open for location updates, with a mobile push as a backup.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">A toy city: 20 km × 20 km with 5,000 online drivers, and riders want someone within 2 km. Three drivers sit near the rider. Send pings, request rides (one rider, or two at the same moment), accept, and compare what each stage costs and where it breaks.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button id="ping">Drivers send locations</button>
+          <button class="primary" id="req">Ana requests a ride</button>
+          <button id="two">Ana and Bo request at once</button>
+          <button id="acc">Driver accepts</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 800 400" role="img" aria-label="Architecture diagram with animated requests"></svg></div>
+        <div class="cost" id="cost"></div>
+        <div class="fleet" id="fleet" aria-live="polite"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="matching" data-nav="Deep dive: matching" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: offering a ride without double-booking</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">The location index returns candidates sorted by distance. The matching service walks that list, takes a short lock on a driver before offering, and releases it if they decline or don't answer. The lock (a key with a 10-second expiry, set only if absent) is what stops two riders' requests from grabbing the same driver.</p>
+    <div id="matchViz"></div>
+    <div class="aside"><p><b>Why the lock expires on its own:</b> if the matching server crashes mid-offer, nobody will ever delete the lock. The TTL frees the driver anyway. In this run a decline takes 3 seconds, an accept 4, and no answer costs the full 10-second timeout.</p></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: location firehose" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: sizing the location firehose</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Location updates dwarf everything else. Each one is tiny and only the latest per driver matters, so keep them in memory, overwrite in place, and expire drivers who go silent. Ride requests are rarer but bursty, and each one is a geo query.</p>
+    <div class="calc">
+      <label class="field" for="drivers"><span class="row"><span>Drivers online at peak</span><b class="mono num" id="driversOut"></b></span><input type="range" id="drivers" min="4" max="6.7" step="0.1" value="6"></label>
+      <label class="field" for="every"><span class="row"><span>Seconds between location updates</span><b class="mono num" id="everyOut"></b></span><input type="range" id="every" min="1" max="30" step="1" value="5"></label>
+      <label class="field" for="rides"><span class="row"><span>Rides per day</span><b class="mono num" id="ridesOut"></b></span><input type="range" id="rides" min="6" max="7.6" step="0.1" value="7.3"></label>
+      <label class="field" for="peak"><span class="row"><span>Peak ÷ average request rate</span><b class="mono num" id="peakOut"></b></span><input type="range" id="peak" min="1" max="10" step="0.5" value="3"></label>
+      <label class="field" for="node"><span class="row"><span>Writes per second one index node handles</span><b class="mono num" id="nodeOut"></b></span><input type="range" id="node" min="4" max="5.7" step="0.1" value="5"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+    <h3 style="margin-top:6px">Where to keep driver locations</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Option</th><th>Write cost</th><th>"Who's within 2 km?"</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><b>SQL table, B-tree on lat and lng</b></td><td>row update + two index updates on disk</td><td>an index narrows one axis only: scans a whole band of the city</td><td>fine for a prototype</td></tr>
+        <tr><td><b>Postgres + PostGIS (R-tree / GiST)</b></td><td>disk write per ping</td><td>true 2-D search</td><td>good queries, write rate is the limit</td></tr>
+        <tr><td><b>In-memory geo index (Redis GEO, geohash cells)</b></td><td>one overwrite in RAM, with TTL</td><td>check the rider's cell and its neighbours</td><td>the usual answer</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Ana leaves a concert</h2>
+    <p class="kicker">Using the final design. It's 11 pm, the venue empties, and requests in that part of the city jump tenfold.</p>
+    <ol class="steps">
+      <li><div><h3>Fare first</h3><p>Ana's app sends pickup and destination. The ride service computes a route and price, stores <span class="mono">fare 7712</span> with a two-minute expiry, and shows her the price.</p></div></li>
+      <li><div><h3>Request</h3><p><span class="mono">POST /rides {fare_id: 7712}</span> writes a ride row with status <span class="mono">matching</span> and puts a match job on the queue for her region. Ana gets an immediate "finding your driver". The queue absorbs the burst; matching workers drain it at their own pace.</p></div></li>
+      <li><div><h3>Find candidates</h3><p>A matching worker asks the location index for drivers near the pickup. It checks the geohash cell holding the pickup and the 8 around it, keeps available drivers updated in the last 30 seconds, and sorts by distance (in production, by estimated pickup time): D1 at 0.4 km, D2 at 0.9 km, D3 at 1.3 km.</p></div></li>
+      <li><div><h3>Lock and offer</h3><p>The worker tries <span class="mono">SET lock:D1 ride-9 NX EX 10</span>. Another rider's job already holds it, so the set fails and the worker moves on. D2's lock succeeds, the offer goes out over D2's open connection, and D2 declines after 3 seconds. The worker deletes the lock and tries D3, who accepts.</p></div></li>
+      <li><div><h3>Assign</h3><p>The ride row is updated to <span class="mono">driver_id = D3, status = accepted</span> in one conditional write ("only if status is still matching"), and D3's status becomes <span class="mono">on_trip</span>. Ana's app switches to the live map, fed by D3's location updates.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A continuously updated map of free drivers, a fast "who's near this point?" query, and an exclusive handshake between one rider and one driver.</p></div>
+      <div><span class="q">Why it's hard</span><p>Two opposite workloads share one system: a huge stream of disposable location writes, and a small stream of matches that must never conflict.</p></div>
+      <div><span class="q">Key insight</span><p>Split them. Locations live in memory, are overwritten, and are allowed to be a little stale. Assignment goes through a lock with an expiry and a conditional write.</p></div>
+      <div><span class="q">Where it bends</span><p>Dense downtown cells hold thousands of drivers while rural cells hold none. Adapt the search radius, or use an index with finer cells where it's busy (a quadtree, or several geohash precisions).</p></div>
+      <div><span class="q">What's derived</span><p>The location index is rebuilt from pings within seconds if a node dies. The rides database is the source of truth and must be durable.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>From a black-car app to a hexagon map of the planet</h2>
+    <p>Uber started as UberCab, an idea Garrett Camp and Travis Kalanick worked out in 2008: tap a phone, get a black car. It began offering rides in San Francisco in 2010. The early dispatch system was simple, and it grew city by city until the company rebuilt it.</p>
+    <p>At QCon London in March 2015, Matt Ranney, Uber's chief systems architect, described the rewrite. The dispatch system was written almost entirely in Node.js. Drivers sent their location about every 4 seconds. To answer "who is near this rider?", the earth was divided into cells with Google's S2 library, using level-12 cells of roughly 3 to 6 square kilometres. To spread that state across many servers, Uber built Ringpop: a consistent hash ring whose members find each other with the SWIM gossip protocol, so any server can tell which one owns a given cell.</p>
+    <p>In 2018 Uber open-sourced H3, its own grid of hexagons. Hexagons have one useful property squares lack: every neighbour's center is the same distance away. H3 has 16 resolutions, each cell about a seventh of the area of its parent, and Uber computes surge pricing from supply and demand inside these hexagons.</p>
+    <ol class="timeline">
+      <li><span class="year">2008</span><p>Garrett Camp and Travis Kalanick come up with UberCab.</p></li>
+      <li><span class="year">2010</span><p>Rides start in San Francisco.</p></li>
+      <li><span class="year">2015</span><p>Matt Ranney's QCon talk: Node.js dispatch, S2 cells, and Ringpop's gossip-based hash ring.</p></li>
+      <li><span class="year">2018</span><p>Uber open-sources H3, its hexagonal hierarchical index, used for surge pricing.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Reducing pings:</b> send updates less often when the car is parked or the driver is on a trip far from any rider, and more often when moving in a busy area. Fewer writes, same matching quality.</li>
+        <li><b>Better matching:</b> rank by estimated time to pickup on the road network, not straight-line distance. Batch requests over a second or two and solve the assignment for the group.</li>
+        <li><b>Surge pricing:</b> count requests and free drivers per cell (H3 hexagons, for example) over a short window and raise the price where demand outruns supply.</li>
+        <li><b>A matching server dies mid-offer:</b> the lock expires on its own, the job is still on the queue (acknowledged only after assignment), and another worker picks it up.</li>
+        <li><b>Global scale:</b> shard everything by region. A ride never crosses cities, so locks, queues and location indexes stay local.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/geohash-quadtree.html">Geohash and Quadtrees</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/b-tree.html">B-Tree Index</a>
+        <a href="../topics/rate-limiter.html">Rate Limiters</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+
+  // ================= toy city model: every number below comes from these =================
+  const CITY = 20, DRIVERS = 5000, R = 2, CELL = 1;           // km, drivers, search radius km, cell side km
+  const density = DRIVERS / (CITY * CITY);
+  const bandRows = Math.round(DRIVERS * (2 * R / CITY));          // a lat-only index range scan
+  const cellsChecked = Math.pow(2 * Math.ceil(R / CELL) + 1, 2);  // rider's cell plus neighbours
+  const cellRows = Math.round(cellsChecked * CELL * CELL * density);
+  const inCircle = Math.round(Math.PI * R * R * density);
+
+  // ================= Live design simulation =================
+  const N = {
+    rider: { x: 70, y: 90, label: "Rider app", sub: "Ana, Bo" },
+    driver: { x: 70, y: 320, label: "Driver apps", sub: "D1 · D2 · D3" },
+    ride: { x: 250, y: 90, label: "Ride service", sub: "fares, ride state" },
+    queue: { x: 250, y: 205, label: "Match queue", sub: "per region" },
+    dgw: { x: 250, y: 320, label: "Driver gateway", sub: "open connections" },
+    rdb: { x: 445, y: 90, label: "Rides DB", sub: "source of truth" },
+    match: { x: 445, y: 205, label: "Matching service", sub: "walks candidates" },
+    geo: { x: 445, y: 320, label: "Location store", sub: "" },
+    lock: { x: 650, y: 205, label: "Driver locks", sub: "SET NX, TTL 10 s" }
+  };
+  const ROUND = { rdb: 1, geo: 1, lock: 1, queue: 1 };
+  const STAGES = [
+    {
+      name: "1 · SQL table", geoSub: "SQL table, lat/lng",
+      nodes: ["rider", "driver", "ride", "dgw", "rdb", "geo"],
+      edges: [["rider", "ride"], ["ride", "rdb"], ["ride", "geo"], ["ride", "dgw"], ["driver", "dgw"], ["dgw", "geo"]],
+      adds: "Drivers' pings update a row in a drivers table. A ride request runs a query for drivers whose latitude and longitude are within 2 km, picks the nearest, and sends the offer through the driver gateway.",
+      why: "It's the simplest thing that works, and every piece is familiar. Fine for one small city.",
+      breaks: `A B-tree index sorts by one column, so "lat between X and Y" returns a whole band of the city (${fmt(bandRows)} rows here) to filter by longitude. Every ping is a disk write plus index updates. And press <b>Ana and Bo request at once</b>: both queries pick D1.`
+    },
+    {
+      name: "2 · In-memory geo index", geoSub: "Redis GEO · geohash",
+      nodes: ["rider", "driver", "ride", "dgw", "rdb", "geo"],
+      edges: [["rider", "ride"], ["ride", "rdb"], ["ride", "geo"], ["ride", "dgw"], ["driver", "dgw"], ["dgw", "geo"]],
+      adds: `Locations move to an in-memory index keyed by geohash cell. A ping overwrites one entry and refreshes its TTL. A search reads the rider's cell and its neighbours (${cellsChecked} cells, about ${fmt(cellRows)} drivers here) and sorts the ~${inCircle} inside 2 km by distance.`,
+      why: "Only the latest position matters and it's useless after a few seconds, so durability is wasted on it. RAM handles the write rate, and cells give true 2-D search.",
+      breaks: "Matching is still a read-then-offer with nothing in between. Two requests at the same instant read the same nearest driver and both send offers. One rider will be left hanging."
+    },
+    {
+      name: "3 · Matching + locks", geoSub: "Redis GEO · geohash",
+      nodes: ["rider", "driver", "ride", "dgw", "rdb", "geo", "match", "lock"],
+      edges: [["rider", "ride"], ["ride", "rdb"], ["ride", "match"], ["match", "geo"], ["match", "lock"], ["match", "dgw"], ["driver", "dgw"], ["dgw", "geo"]],
+      adds: "A matching service owns the offer loop. Before offering, it sets a lock on the driver that only succeeds if no lock exists, with a 10-second expiry. A failed set means \"busy, try the next candidate\".",
+      why: "The lock turns \"read nearest, then offer\" into an exclusive claim. The expiry means a crashed matcher or a silent driver can't freeze anyone for long.",
+      breaks: "When a concert ends, requests in one area jump tenfold. Calls go straight from the ride service to matching, so a burst overloads it and requests time out."
+    },
+    {
+      name: "4 · Queue + regions", geoSub: "sharded by region",
+      nodes: ["rider", "driver", "ride", "dgw", "rdb", "geo", "match", "lock", "queue"],
+      edges: [["rider", "ride"], ["ride", "rdb"], ["ride", "queue"], ["queue", "match"], ["ride", "match"], ["match", "geo"], ["match", "lock"], ["match", "dgw"], ["driver", "dgw"], ["dgw", "geo"]],
+      adds: "Ride requests go on a queue partitioned by region; matching workers pull from it. Location stores, locks and queues are all sharded by region, since a ride never crosses cities.",
+      why: "The queue smooths bursts (riders wait a few extra seconds instead of failing) and a job isn't lost if a worker dies. Regional shards keep each piece small and close to its users.",
+      breaks: "Nothing major. Smarter ranking (time to pickup), batching requests, and adaptive ping rates are the usual follow-ups."
+    }
+  ];
+  const DIST = { D1: 0.4, D2: 0.9, D3: 1.3 };
+  let stage = 0, dots = [], cost = null, drivers, pings;
+
+  function resetSim() { dots = []; cost = null; pings = 0; drivers = { D1: { offers: [], busy: null }, D2: { offers: [], busy: null }, D3: { offers: [], busy: null } }; }
+  function travel(path, kind, done, delay = 0) { dots.push({ path, seg: 0, f: 0, x: N[path[0]].x, y: N[path[0]].y, kind, done, wait: delay }); }
+  const locked = () => stage >= 2;
+
+  function pingAll() {
+    for (let i = 0; i < 3; i++) travel(["driver", "dgw", "geo"], "ping", i === 2 ? () => { pings += 3; render(); } : null, i * 0.15);
+    cost = stage === 0
+      ? { action: "3 location pings", writes: 9, reads: 0, note: "Each ping updates a row on disk and rewrites its entries in the lat and lng indexes: 3 writes per ping." }
+      : { action: "3 location pings", writes: 3, reads: 0, note: "Each ping overwrites one in-memory entry and refreshes its TTL. Nothing touches disk." };
+    render();
+  }
+  // pick a driver the way this stage would
+  function pick(rider) {
+    const order = Object.keys(DIST).sort((a, b) => DIST[a] - DIST[b]).filter(d => !drivers[d].busy);
+    if (!locked()) return { d: order[0], tried: 1 };               // no lock: everyone reads the same nearest driver
+    let tried = 0;
+    for (const d of order) { tried++; if (!drivers[d].offers.length) return { d, tried }; }
+    return { d: null, tried };
+  }
+  function requestPath() {
+    if (stage <= 1) return ["rider", "ride", "geo", "ride", "dgw", "driver"];
+    if (stage === 2) return ["rider", "ride", "match", "geo", "match", "lock", "match", "dgw", "driver"];
+    return ["rider", "ride", "queue", "match", "geo", "match", "lock", "match", "dgw", "driver"];
+  }
+  function request(riders) {
+    const results = [];
+    riders.forEach((r, k) => {
+      const p = pick(r);
+      results.push({ r, ...p });
+      travel(["ride", "rdb"], "write", null, k * 0.3);
+      if (p.d) drivers[p.d].offers.push(r);   // the claim (or, without locks, the blind pick) happens at decision time
+      travel(requestPath(), "req", () => render(), k * 0.3 + 0.1);
+    });
+    const scanned = stage === 0 ? bandRows : cellRows;
+    const lockOps = locked() ? results.reduce((n, x) => n + x.tried, 0) : 0;
+    const clash = !locked() && results.length > 1 && results[0].d === results[1].d;
+    cost = {
+      action: riders.length > 1 ? "Ana and Bo request" : "Ana requests",
+      writes: riders.length + lockOps, reads: scanned * riders.length,
+      note: (stage === 0 ? `Lat-only index range scan returns ${fmt(bandRows)} drivers per search; longitude is filtered row by row.` : `${cellsChecked} cells checked, ~${fmt(cellRows)} drivers read per search.`) +
+        (locked() ? ` ${lockOps} lock attempt${lockOps === 1 ? "" : "s"}: ${results.map(x => `${x.r} → ${x.d || "nobody free"}${x.tried > 1 ? ` (after ${x.tried - 1} busy)` : ""}`).join(", ")}.` : clash ? ` <b style="color:var(--bad)">Both requests read D1 as nearest and both offers go to D1.</b>` : "")
+    };
+    render();
+  }
+  function accept() {
+    const d = Object.keys(drivers).find(k => drivers[k].offers.length && !drivers[k].busy);
+    if (!d) { cost = { action: "Driver accepts", writes: 0, reads: 0, note: "No driver has a pending offer. Request a ride first." }; render(); return; }
+    const offers = drivers[d].offers, winner = offers[0], losers = offers.slice(1);
+    const path = stage >= 2 ? ["driver", "dgw", "match", "ride", "rdb"] : ["driver", "dgw", "ride", "rdb"];
+    travel(path, "acc", () => { drivers[d].busy = winner; drivers[d].offers = []; travel(["rdb", "ride", "rider"], "acc", () => render()); render(); });
+    cost = {
+      action: `${d} accepts ${winner}`, writes: 2, reads: 0,
+      note: `Conditional update of ${winner}'s ride ("only if still matching") and ${d}'s status → on trip.` + (losers.length ? ` <b style="color:var(--bad)">${losers.join(", ")} was also offered ${d} and is now stuck waiting.</b>` : locked() ? " The lock becomes the assignment." : "")
+    };
+    render();
+  }
+
+  function step(dt) {
+    const SPEED = 600;
+    dots.forEach(d => {
+      if (d.wait > 0) { d.wait -= dt; return; }
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = N[d.path[d.seg]], b = N[d.path[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = N[d.path[d.seg]], b2 = N[d.path[Math.min(d.seg + 1, d.path.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.path.length - 1 && !d.finished) { d.finished = true; if (d.done) d.done(); }
+    });
+    dots = dots.filter(d => !d.finished);
+  }
+  function draw() {
+    const st = STAGES[stage];
+    let s = "";
+    st.edges.forEach(([a, b]) => { const p = N[a], q = N[b]; s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"/>`; });
+    const colors = { ping: "var(--muted)", req: "var(--accent)", write: "var(--amber)", acc: "var(--ok)" };
+    dots.forEach(d => { if (d.wait > 0) return; s += `<circle cx="${d.x}" cy="${d.y}" r="${d.kind === "req" ? 7 : 5}" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    const clash = Object.values(drivers).some(x => x.offers.length > 1);
+    st.nodes.forEach(k => {
+      const n = N[k], w = 128, h = 46, round = ROUND[k];
+      let sub = k === "geo" ? st.geoSub : n.sub, hot = false;
+      if (k === "geo" && stage === 0 && pings) { sub = `${pings} pings → ${pings * 3} disk writes`; }
+      if (k === "driver" && clash) { sub = "D1 has 2 offers!"; hot = true; }
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${round ? 14 : 6}" fill="var(--panel)" stroke="${hot ? "var(--bad)" : round ? "var(--accent)" : "var(--ink)"}" stroke-width="${hot ? 2.4 : 1.6}"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="13.5" font-weight="700" fill="var(--ink)">${n.label}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${hot ? "var(--bad)" : "var(--muted)"}">${sub}</text>`;
+    });
+    s += `<text x="12" y="392" font-family="var(--mono)" font-size="11" fill="var(--muted)">grey ping · blue ride request · amber ride write · green accept</text>`;
+    $("arch").innerHTML = s;
+  }
+  function render() {
+    $("cost").innerHTML = cost ? `
+      <div><span>Last action</span><b style="font-size:.9rem">${cost.action}</b></div>
+      <div><span>Writes</span><b>${fmt(cost.writes)}</b></div>
+      <div><span>Rows / entries read</span><b>${fmt(cost.reads)}</b></div>
+      <div style="grid-column:1/-1"><span>${cost.note}</span></div>` : `<div style="grid-column:1/-1"><span>Press a button to see what one action costs in this stage.</span></div>`;
+    $("fleet").innerHTML = `<span class="stage-label">Drivers near the pickup</span>` + Object.keys(drivers).map(d => {
+      const x = drivers[d], cls = x.busy ? "busy" : x.offers.length > 1 ? "clash" : x.offers.length ? "offered" : "";
+      const st = x.busy ? `on trip with ${x.busy}` : x.offers.length > 1 ? `offered to ${x.offers.join(" and ")}!` : x.offers.length ? `offered to ${x.offers[0]}${locked() ? " · locked" : ""}` : "available";
+      return `<div class="drv ${cls}"><span><b>${d}</b> · ${DIST[d]} km away</span><span class="t">${st}</span></div>`;
+    }).join("");
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); render(); };
+  $("ping").onclick = pingAll;
+  $("req").onclick = () => request(["Ana"]);
+  $("two").onclick = () => request(["Ana", "Bo"]);
+  $("acc").onclick = accept;
+
+  // ================= Matching stepper =================
+  const WAIT = { accept: 4, decline: 3, timeout: 10, busy: 0 };
+  Stepper($("matchViz"), {
+    code: [
+      "def match(ride, candidates):   # nearest first",
+      "  for d in candidates:",
+      "    if not lock.set(d, ride, nx=True, ex=10):",
+      "      continue                  # someone else holds d",
+      "    send_offer(d, ride)",
+      "    reply = wait_for(d, timeout=10)",
+      "    if reply == 'accept':",
+      "      rides.assign(ride, d)     # only if still matching",
+      "      return d",
+      "    lock.delete(d)              # free d for others",
+      "  return None                   # widen the radius, retry"
+    ],
+    inputs: [
+      { key: "d", label: "Candidate distances (km, sorted)", value: "0.4, 0.9, 1.3, 2.1" },
+      { key: "r", label: "What each driver does", value: "busy, decline, accept, accept" }
+    ],
+    presets: [
+      { label: "Ana at the concert", values: { d: "0.4, 0.9, 1.3, 2.1", r: "busy, decline, accept, accept" } },
+      { label: "Nearest accepts", values: { d: "0.3, 0.8, 1.5", r: "accept, accept, accept" } },
+      { label: "Two no-shows", values: { d: "0.5, 0.7, 1.1, 1.9", r: "timeout, timeout, decline, accept" } },
+      { label: "Nobody available", values: { d: "0.6, 1.2, 1.8", r: "busy, decline, timeout" } }
+    ],
+    build({ d, r }) {
+      const parts = d.split(/[\s,]+/).filter(Boolean);
+      if (parts.length < 1 || parts.length > 8) return { error: "Enter between 1 and 8 distances, separated by commas." };
+      const dist = parts.map(x => Math.round(Number(x) * 10) / 10);
+      if (dist.some(x => !Number.isFinite(x) || x <= 0 || x > 50)) return { error: "Distances must be numbers like 0.4 or 1.2, between 0.1 and 50 km." };
+      if (dist.some((x, i) => i && x < dist[i - 1])) return { error: "Sort the distances nearest first." };
+      const reps = r.split(/[\s,]+/).filter(Boolean).map(x => x.toLowerCase());
+      if (reps.length !== dist.length) return { error: `Give one reply per driver: ${dist.length} distance${dist.length > 1 ? "s" : ""} but ${reps.length} repl${reps.length === 1 ? "y" : "ies"}.` };
+      if (reps.some(x => !(x in WAIT))) return { error: "Each reply must be accept, decline, timeout or busy." };
+      const frames = [], mark = {}, names = dist.map((_, i) => `D${i + 1}`);
+      let i = -1, t = 0, lock = "none", offers = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, dist, mark: { ...mark, ...extra }, i, vars: { driver: i >= 0 ? `${names[i]} (${dist[i]} km)` : "–", lock, "offers sent": offers, "rider waited": t + " s" } });
+      snap(0, `The location index returned ${dist.length} candidate${dist.length > 1 ? "s" : ""}, nearest first.`);
+      for (i = 0; i < dist.length; i++) {
+        snap(1, `Next candidate: ${names[i]}, ${dist[i]} km away.`, { [i]: "active" });
+        if (reps[i] === "busy") {
+          lock = `${names[i]} held by another ride`;
+          snap(2, `SET lock:${names[i]} NX fails: another ride's offer already holds ${names[i]}.`, { [i]: "skip" });
+          mark[i] = "done"; lock = "none";
+          snap(3, `Skip ${names[i]} without bothering them.`);
+          continue;
+        }
+        lock = `${names[i]} → this ride, 10 s`;
+        snap(2, `SET lock:${names[i]} NX succeeds. No other ride can offer ${names[i]} for 10 s.`, { [i]: "active" });
+        offers++; snap(4, `Offer sent to ${names[i]} over their open connection.`, { [i]: "active" });
+        t += WAIT[reps[i]];
+        snap(5, reps[i] === "timeout" ? `${names[i]} doesn't answer. The wait times out after 10 s.` : `${names[i]} replies "${reps[i]}" after ${WAIT[reps[i]]} s.`, { [i]: reps[i] === "accept" ? "hit" : "skip" });
+        if (reps[i] === "accept") {
+          snap(6, "It's an accept.", { [i]: "hit" });
+          lock = `${names[i]} assigned`;
+          snap(7, `Conditional write: ride → ${names[i]}, status accepted.`, { [i]: "hit" });
+          snap(8, `<b class="ok">Matched with ${names[i]}</b> after ${offers} offer${offers > 1 ? "s" : ""}; the rider waited ${t} s.`, { [i]: "hit" });
+          return { frames };
+        }
+        snap(6, "Not an accept.");
+        mark[i] = "done"; lock = "none";
+        snap(9, `Delete lock:${names[i]} so other riders can reach them.`);
+      }
+      i = -1;
+      snap(10, `<b class="bad">No driver accepted</b> after ${offers} offer${offers === 1 ? "" : "s"} and ${t} s. Search a wider radius, or tell the rider no cars are free.`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row"><span class="stage-label">Candidates by distance (km)</span>${drawArray(f.dist, { ptr: { next: f.i }, mark: f.mark })}<p class="legend">blue: trying now · amber: busy or declined · green: accepted · faded: passed over</p></div>`;
+    }
+  });
+
+  // ================= Scale estimates =================
+  function renderScale() {
+    const drv = Math.pow(10, +$("drivers").value), every = +$("every").value, rides = Math.pow(10, +$("rides").value), peak = +$("peak").value, node = Math.pow(10, +$("node").value);
+    const writes = drv / every, mem = drv * 64, avg = rides / 86400, pk = avg * peak, nodes = Math.ceil(writes / node), reads = pk * cellRows;
+    $("driversOut").textContent = fmt(drv); $("everyOut").textContent = every + " s"; $("ridesOut").textContent = fmt(rides); $("peakOut").textContent = peak + "×"; $("nodeOut").textContent = fmt(node);
+    $("scaleResults").innerHTML = `
+      <div><span>Location updates per second</span><b style="color:var(--bad)">${fmt(writes)}</b></div>
+      <div><span>Memory for latest positions (64 B each)</span><b>${mem >= 1e9 ? (mem / 1e9).toFixed(1) + " GB" : Math.round(mem / 1e6) + " MB"}</b></div>
+      <div><span>Ride requests per second, average</span><b>${fmt(avg)}</b></div>
+      <div><span>Ride requests per second, peak</span><b>${fmt(pk)}</b></div>
+      <div><span>Driver entries read per second at peak</span><b>${fmt(reads)}</b></div>
+      <div><span>Index nodes for the write load</span><b style="color:var(--ok)">${nodes}</b></div>`;
+    $("scaleNotes").innerHTML = [
+      `Location writes outnumber ride requests ${fmt(writes / avg)} to 1. Design the location path for writes first.`,
+      `All positions fit in ${mem >= 1e9 ? (mem / 1e9).toFixed(1) + " GB" : Math.round(mem / 1e6) + " MB"} of RAM. Memory isn't the limit; the write rate is, which takes ${nodes} node${nodes === 1 ? "" : "s"} at ${fmt(node)} writes/s each.`,
+      `Shard the location store by region (or by cell with <a href="../topics/consistent-hashing.html">consistent hashing</a>), so a search near the pickup touches one or two shards, not all ${nodes}.`,
+      `Each search reads about ${fmt(cellRows)} entries in the toy city's density. Downtown at rush hour the same radius can hold far more: shrink the radius or the cell size there.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["drivers", "every", "rides", "peak", "node"].forEach(id => $(id).oninput = renderScale);
+
+  // ================= boot =================
+  resetSim(); renderExplain(); render(); renderScale();
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  setTimeout(pingAll, 400);
+</script>
+</body>
+</html>

@@ -73,8 +73,15 @@ window.TOPICS = [
     usedIn: "Cassandra, RocksDB, LevelDB, HBase, Bigtable",
     glyph: "lsm"
   },
-  { slug: "b-tree", title: "B-Tree Index", area: "Database indexing", status: "planned",
-    blurb: "Nodes fill, split and push keys up. See why a lookup touches only three or four pages." },
+  {
+    slug: "b-tree",
+    title: "B-Tree Index",
+    area: "Database indexing",
+    status: "ready",
+    blurb: "Insert keys until nodes split and push separators up, search and range-scan the linked leaves, and see why a billion rows need only four levels.",
+    usedIn: "PostgreSQL, MySQL InnoDB, SQLite, NTFS, APFS",
+    glyph: "btree"
+  },
   { slug: "kafka", title: "Kafka Partitions", area: "Key technologies", status: "planned",
     blurb: "Producers, partitions, offsets and consumer groups, including a rebalance when a consumer dies." },
   { slug: "count-min-sketch", title: "Count-Min Sketch and Top K", area: "Big data", status: "planned",
@@ -125,7 +132,13 @@ window.QUESTIONS = [
     blurb: "Post as a normal user and a celebrity across four design stages, step a k-way merge that builds one feed page, and size fan-out on write.",
     concepts: ["lru-cache", "consistent-hashing", "lsm-tree"]
   },
-  { slug: "uber", title: "Design Uber", status: "planned", blurb: "Matching riders to nearby drivers with geospatial indexes and location updates." },
+  {
+    slug: "uber",
+    title: "Design Uber",
+    status: "ready",
+    blurb: "Move driver locations from a SQL table to an in-memory geo index, watch two riders grab the same driver until a lock stops it, and size the location firehose.",
+    concepts: ["geohash-quadtree", "consistent-hashing", "b-tree"]
+  },
   { slug: "top-k", title: "Design YouTube Top K", status: "planned", blurb: "Most-viewed videos over sliding windows using stream processing and sketches." },
   { slug: "web-crawler", title: "Design a Web Crawler", status: "planned", blurb: "Frontier queues, politeness, deduplication and failure recovery." },
   { slug: "distributed-cache", title: "Design a Distributed Cache", status: "planned", blurb: "Eviction, sharding, replication and hot keys." },
@@ -154,7 +167,9 @@ window.DSA = [
     { slug: "fast-slow", title: "Fast and Slow Pointers", status: "ready",
       blurb: "One pointer walks, one runs: find the middle, detect a loop, locate where it starts, and spot happy numbers, stepped node by node.",
       problems: ["Middle of the list", "Does the list loop?", "Where does the loop start?", "Happy numbers"] },
-    { slug: "reversal", title: "In-place Reversal", status: "planned", blurb: "Rewire next pointers to reverse a list or a segment of it." }
+    { slug: "reversal", title: "In-place Reversal", status: "ready",
+      blurb: "Three pointers flip each next arrow: reverse a whole list, a segment, every group of k, and half a list to test for a palindrome.",
+      problems: ["Reverse a list", "Reverse positions left to right", "Reverse every k nodes", "Palindrome linked list"] }
   ] },
   { area: "Stack", patterns: [
     { slug: "monotonic-stack", title: "Monotonic Stack", status: "planned", blurb: "Next greater element, daily temperatures and the largest rectangle." }

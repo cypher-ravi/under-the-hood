@@ -178,6 +178,15 @@
       for (let i = 0; i < 5; i++) s += `<rect x="${70 + i * 56}" y="146" width="50" height="30" rx="5" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/>`;
       return s;
     },
+    btree() {
+      const node = (x, y, n, on) => { let s = `<rect x="${x}" y="${y}" width="${n * 22 + 8}" height="26" rx="5" fill="${on ? "var(--accent-soft)" : "var(--panel)"}" stroke="${on ? "var(--accent)" : "var(--ink)"}" stroke-width="2"/>`; for (let i = 1; i < n; i++) s += `<line x1="${x + 4 + i * 22}" y1="${y + 5}" x2="${x + 4 + i * 22}" y2="${y + 21}" stroke="var(--line)" stroke-width="1.5"/>`; return s; };
+      let s = "";
+      [[115, 100], [200, 100], [285, 100]].forEach(([x2, y2], i) => { s += `<line x1="${178 + i * 22}" y1="56" x2="${x2}" y2="${y2}" stroke="${i === 1 ? "var(--accent)" : "var(--line)"}" stroke-width="2"/>`; });
+      s += node(167, 30, 3, true);
+      [[78, 100], [163, 100], [248, 100]].forEach(([x, y], i) => { s += node(x, y, 3, i === 1); if (i < 2) s += `<path d="M${x + 74} 113 h8" stroke="var(--muted)" stroke-width="2"/>`; });
+      [[100, 150], [190, 150], [280, 150]].forEach(([x, y], i) => { s += `<rect x="${x}" y="${y}" width="${i === 1 ? 20 : 20}" height="20" rx="4" fill="${i === 1 ? "var(--ok)" : "none"}" stroke="${i === 1 ? "var(--ok)" : "var(--line)"}" stroke-width="1.5"/>`; });
+      return s;
+    },
     cluster() {
       const cx = 200, cy = 100, r = 62; let pts = [];
       for (let i = 0; i < 5; i++) {

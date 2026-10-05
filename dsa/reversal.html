@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>In-place Reversal of a Linked List</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 8px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="reversal" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Linked List</span>
+  </div>
+
+  <header class="intro">
+    <h1>In-place Reversal</h1>
+    <p class="lede">Reverse a linked list, or a piece of one, by turning each <span class="mono">next</span> arrow around as you walk past it. Three pointers do the whole job: the node behind you, the node you're on, and the node ahead that you must remember before you cut its link. No new nodes, no array copy, O(1) extra memory.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Flip one arrow at a time, without losing the rest</h2>
+    <p>In a singly linked list each node knows only its successor. To reverse the list, every arrow must point the other way: node 2 should point to node 1, node 3 to node 2, and the old head to nothing. You could copy the values into an array and rebuild, but that costs O(n) memory, and the question usually forbids it.</p>
+    <p>The catch with flipping in place is that the moment you set <span class="mono">curr.next = prev</span>, you've cut the only link to the rest of the list. So save it first: <span class="mono">nxt = curr.next</span>. Then flip, then slide both <span class="mono">prev</span> and <span class="mono">curr</span> one node forward. Every node is visited once, and at any moment the list is two clean pieces: an already-reversed piece headed by <span class="mono">prev</span>, and an untouched piece headed by <span class="mono">curr</span>.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Whole list</h3><p>Run the three-pointer loop from head to null. The last node becomes the head.</p><a href="#p1">Problem 1: Reverse a list</a></div>
+      <div><h3>A segment</h3><p>Walk to the node before the segment, reverse exactly its length, then stitch both ends back on.</p><a href="#p2">Problem 2: Reverse positions left to right</a><a href="#p3">Problem 3: Reverse every k nodes</a></div>
+      <div><h3>As a helper</h3><p>Reverse half of a list so you can walk it backwards, then compare or weave the halves.</p><a href="#p4">Problem 4: Is the list a palindrome?</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is a <b>singly linked list</b> and the answer needs it (or part of it) in <b>reverse order</b>.</li>
+      <li>The problem says "<b>in place</b>", "without extra memory" or "<b>O(1) space</b>", ruling out a stack or an array copy.</li>
+      <li>It talks about <b>positions or groups</b>: "from position m to n", "every k nodes", "pairs".</li>
+      <li>You need to read a list <b>back to front</b> (compare ends, interleave first and last), and a stack isn't allowed.</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signal:</b> if you only need to <i>print</i> or <i>read</i> values backwards and memory is fine, recursion or a stack is simpler and leaves the list intact. Reversing in place modifies the input; say so in an interview, and restore it if the caller still needs it.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">prev, curr = None, head
+while curr:                   <span class="c"># or: for _ in range(segment_length)</span>
+    nxt = curr.next           <span class="c"># 1. remember the rest of the list</span>
+    curr.next = prev          <span class="c"># 2. flip this arrow</span>
+    prev = curr               <span class="c"># 3. the reversed part grows by one</span>
+    curr = nxt                <span class="c"># 4. step into the untouched part</span>
+return prev                   <span class="c"># new head of the reversed part</span></pre>
+    <p>For a segment, add two things. A <b>dummy node</b> in front of the head, so "the node before the segment" always exists, even when the segment starts at position 1. And a <b>stitch</b> after the loop: the node before the segment must point to <span class="mono">prev</span> (the segment's new first node), and the segment's old first node, now its last, must point to <span class="mono">curr</span> (the first node after it).</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Reverse a list" data-num="P1">
+    <span class="eyebrow">Problem 1 · Whole list</span>
+    <h2>Reverse a linked list</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a singly linked list, reverse it by changing the links between nodes, and return the new head. Don't create new nodes or copy the values elsewhere.</p>
+      <div class="io"><div><span>Input</span>4 → 9 → 2 → 7 → 5</div><div><span>Output</span>5 → 7 → 2 → 9 → 4</div><div><span>Edge case</span>an empty list or one node comes back unchanged</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do you lose if you flip before saving?</summary><p>Setting <span class="mono">curr.next = prev</span> overwrites the only reference to the rest of the list. Store <span class="mono">curr.next</span> in a temporary first; then the flip is safe. When <span class="mono">curr</span> runs off the end, <span class="mono">prev</span> is on the old last node, the new head.</p></details>
+    <div id="viz1"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Recursive version: O(n) call stack</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Reverse a segment" data-num="P2">
+    <span class="eyebrow">Problem 2 · A segment</span>
+    <h2>Reverse positions left to right</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a linked list and two positions <span class="mono">left ≤ right</span> (counting from 1), reverse only the nodes from position <span class="mono">left</span> through <span class="mono">right</span>, leaving the rest in place. Do it in one pass.</p>
+      <div class="io"><div><span>Input</span>1 → 2 → 3 → 4 → 5 → 6, left = 2, right = 5</div><div><span>Output</span>1 → 5 → 4 → 3 → 2 → 6</div></div>
+    </div>
+    <details class="hint"><summary>Think first: which two links change at the edges?</summary><p>Reverse the segment with the usual loop, run exactly <span class="mono">right − left + 1</span> times. Afterwards <span class="mono">prev</span> is the segment's new first node and <span class="mono">curr</span> is the node just after it. The node before the segment must now point to <span class="mono">prev</span>, and the old first node of the segment (now its last) must point to <span class="mono">curr</span>. A dummy node in front handles <span class="mono">left = 1</span>.</p></details>
+    <div id="viz2"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Copy segment to an array: O(k) space</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Reverse every k" data-num="P3">
+    <span class="eyebrow">Problem 3 · Repeated segments</span>
+    <h2>Reverse every group of k nodes</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a linked list and a whole number <span class="mono">k</span>, reverse the nodes in consecutive groups of <span class="mono">k</span>. If the last group has fewer than <span class="mono">k</span> nodes, leave it as it is. Use constant extra memory.</p>
+      <div class="io"><div><span>Input</span>1 → 2 → 3 → 4 → 5 → 6 → 7 → 8, k = 3</div><div><span>Output</span>3 → 2 → 1 → 6 → 5 → 4 → 7 → 8</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what does Problem 2 give you for free?</summary><p>Each group is a Problem 2 segment. Before reversing, check that k nodes remain ahead; if not, stop. After stitching a group, its old first node is now its last, which makes it the "node before" the next group. Move <span class="mono">before</span> there and repeat.</p></details>
+    <div id="viz3"></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Each node is counted once and flipped once: about 2n steps</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Palindrome list" data-num="P4">
+    <span class="eyebrow">Problem 4 · Reversal as a helper</span>
+    <h2>Is the linked list a palindrome?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the head of a singly linked list of numbers, decide whether the values read the same forwards and backwards. Use O(1) extra memory, so no copying the values into an array.</p>
+      <div class="io"><div><span>Input</span>3 → 1 → 4 → 1 → 3</div><div><span>Output</span>true</div><div><span>Input</span>3 → 1 → 4 → 4 → 2</div><div><span>Output</span>false</div></div>
+    </div>
+    <details class="hint"><summary>Think first: how do you walk the back half backwards?</summary><p>Find the middle with fast and slow pointers. Reverse the list from the middle to the end. Now one pointer from the head and one from the old tail walk toward each other, comparing values. The back half is never longer than the front, so stop when the back pointer runs out.</p></details>
+    <div id="viz4"></div>
+    <div class="aside"><p><b>Be a polite caller:</b> this modifies the input list. Reverse the back half again before returning if anyone else holds the list. It's one more O(n) pass and keeps the O(1) memory.</p></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Copy into an array: O(n) space</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>One invariant carries every variant</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>Before each pass of the loop, <span class="mono">prev</span> heads the nodes already visited, linked in reverse order, and <span class="mono">curr</span> heads the nodes not yet visited, still in their original order. No node is in both pieces and none is lost.</p></div>
+      <div><span class="q">Step</span><p>Saving <span class="mono">nxt</span>, flipping <span class="mono">curr.next</span> to <span class="mono">prev</span> and sliding both pointers moves exactly one node from the front of the untouched piece to the front of the reversed piece. The invariant still holds.</p></div>
+      <div><span class="q">End</span><p>The untouched piece shrinks by one each pass, so the loop ends after n passes (or k for a segment). Then the reversed piece is everything, in reverse, headed by <span class="mono">prev</span>.</p></div>
+      <div><span class="q">Segments</span><p>For a segment, the invariant holds inside it, and the two stitches reconnect the three pieces: before → reversed segment → after. Getting those two links right is the whole difference between Problems 1 and 2.</p></div>
+      <div><span class="q">In an interview</span><p>Draw three boxes and say the invariant out loud. Then mention the dummy node for segments that start at the head, and that the input is modified.</p></div>
+    </div>
+    <p class="formula">before: [reversed ← prev]  [curr → … → null]<br>after one pass: the node at curr has moved to the left piece</p>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const PCOL = { P: "var(--accent)", C: "var(--amber)", N: "var(--ok)", B: "var(--ink)", T: "var(--bad)", S: "var(--accent)", F: "var(--amber)", A: "var(--accent)", Z: "var(--amber)" };
+
+  // ---------- linked list drawing with arbitrary next pointers ----------
+  // vals: node values (drawn left to right in their original slots). next[i]: slot that node i points to, or -1 for null.
+  // opts.ptr {label: slot}, opts.mark {slot: kind}, opts.head: slot of the current head, opts.dummy: slot 0 is a dummy node
+  function drawLinks(vals, next, opts = {}) {
+    const n = vals.length, cw = 40, gap = 30, top = 40, cy = top + cw / 2;
+    const xOf = k => 12 + k * (cw + gap);
+    const long = next.some((j, i) => j >= 0 && Math.abs(j - i) > 1);
+    const maxSpan = Math.max(1, ...next.map((j, i) => j >= 0 ? Math.abs(j - i) : 0));
+    const W = xOf(n - 1) + cw + 22, H = top + cw + 18 + (long ? 18 + Math.min(40, maxSpan * 7) : 0);
+    let s = "";
+    next.forEach((j, i) => {
+      if (j < 0) {   // null: a small ∅ off the node's top-right
+        s += `<text x="${xOf(i) + cw + 2}" y="${top + 3}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--bad)">∅</text>`;
+        return;
+      }
+      if (j === i + 1) {
+        const x1 = xOf(i) + cw - 1, x2 = xOf(j) + 2, y = cy - 7;
+        s += `<line x1="${x1}" y1="${y}" x2="${x2 - 6}" y2="${y}" stroke="var(--muted)" stroke-width="1.7"/><path d="M${x2} ${y} l-7 -4 v8 z" fill="var(--muted)"/>`;
+      } else if (j === i - 1) {
+        const x1 = xOf(i) + 1, x2 = xOf(j) + cw - 2, y = cy + 7;
+        s += `<line x1="${x1}" y1="${y}" x2="${x2 + 6}" y2="${y}" stroke="var(--accent)" stroke-width="1.9"/><path d="M${x2} ${y} l7 -4 v8 z" fill="var(--accent)"/>`;
+      } else {
+        const xa = xOf(i) + cw / 2, xb = xOf(j) + cw / 2, yb = top + cw, d = 18 + Math.min(40, Math.abs(j - i) * 7);
+        const c = j > i ? "var(--muted)" : "var(--accent)";
+        s += `<path d="M${xa} ${yb + 1} C ${xa} ${yb + d}, ${xb} ${yb + d}, ${xb} ${yb + 9}" fill="none" stroke="${c}" stroke-width="1.7"/><path d="M${xb} ${yb + 2} l-4 7 h8 z" fill="${c}"/>`;
+      }
+    });
+    vals.forEach((v, k) => {
+      const x = xOf(k), m = (opts.mark || {})[k], dummy = opts.dummy && k === 0;
+      const fill = m === "hit" ? "var(--ok)" : m === "active" ? "var(--accent)" : m === "miss" ? "var(--bad)" : m === "seg" ? "var(--amber-soft)" : dummy ? "var(--paper)" : "var(--panel)";
+      const text = m === "hit" || m === "active" || m === "miss" ? "var(--panel)" : dummy ? "var(--muted)" : "var(--ink)";
+      const stroke = m === "seg" ? "var(--amber)" : m ? fill : dummy ? "var(--muted)" : "var(--ink)";
+      s += `<rect x="${x}" y="${top}" width="${cw}" height="${cw}" rx="20" fill="${fill}" stroke="${stroke}" stroke-width="1.6" ${dummy ? 'stroke-dasharray="4 3"' : ""}/>`;
+      s += `<text x="${x + cw / 2}" y="${cy + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${String(v).length > 2 ? 12 : 15}" font-weight="600" fill="${text}">${esc(v)}</text>`;
+      if (opts.head === k) s += `<text x="${x + cw / 2}" y="${top + cw + 12}" text-anchor="middle" font-family="var(--mono)" font-size="9" font-weight="700" fill="var(--ok)">head</text>`;
+    });
+    const at = {};
+    Object.entries(opts.ptr || {}).forEach(([l, v]) => { if (v !== null && v !== undefined && v >= 0 && v < n) (at[v] = at[v] || []).push(l); });
+    Object.entries(at).forEach(([v, ls]) => {
+      const x = xOf(+v) + cw / 2, c = ls.length > 1 ? "var(--ink)" : (PCOL[ls[0]] || "var(--ink)");
+      s += `<path d="M${x} ${top - 3} l-5 -7 h10 z" fill="${c}"/>`;
+      s += `<text x="${x}" y="${top - 14}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${ls.join(" ")}</text>`;
+    });
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Linked list with its current next pointers">${s}</svg></div>`;
+  }
+  // read the list by following next pointers from head
+  function walk(vals, next, head) {
+    const out = [], seen = new Set(); let i = head;
+    while (i >= 0 && !seen.has(i)) { seen.add(i); out.push(vals[i]); i = next[i]; }
+    return out.join(" → ") || "empty";
+  }
+  const nm = (vals, i) => i < 0 ? "None" : `${vals[i]}`;
+  const chain = n => Array.from({ length: n }, (_, i) => i < n - 1 ? i + 1 : -1);
+
+  // ---------- The idea: mid-reversal picture ----------
+  (() => {
+    const v = [4, 9, 2, 7, 5], nx = [-1, 0, 3, 4, -1];   // after two passes: 9 → 4 → null, 2 → 7 → 5 → null
+    document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawLinks(v, nx, { ptr: { P: 1, C: 2, N: 3 }, mark: { 0: "seg", 1: "seg" } })}
+      <p class="legend">P prev · C curr · N nxt · blue arrows are flipped</p>
+      <p style="font-size:14px;color:var(--muted)">Two passes in: 9 → 4 → null is the reversed piece (shaded), 2 → 7 → 5 is untouched. Next, C's arrow flips to point at P, and all three pointers slide right.</p></div>`;
+  })();
+
+  // ---------- Problem 1: reverse whole list ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def reverse(head):",
+      "  prev, curr = None, head",
+      "  while curr:",
+      "    nxt = curr.next",
+      "    curr.next = prev",
+      "    prev = curr",
+      "    curr = nxt",
+      "  return prev"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "4, 9, 2, 7, 5" }],
+    presets: [
+      { label: "Five nodes", values: { a: "4, 9, 2, 7, 5" } },
+      { label: "Two nodes", values: { a: "1, 2" } },
+      { label: "One node", values: { a: "8" } },
+      { label: "Longer", values: { a: "10, 20, 30, 40, 50, 60, 70, 80" } }
+    ],
+    build({ a }) {
+      const r = parseNums(a, { min: 1, max: 10 }); if (r.error) return r;
+      const v = r.nums, n = v.length, nx = chain(n), frames = [];
+      let P = -1, C = 0, N = null, flips = 0;
+      const seg = () => { const m = {}; let i = P; const seen = new Set(); while (i >= 0 && !seen.has(i)) { seen.add(i); m[i] = "seg"; i = nx[i]; } return m; };
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, v, nx: nx.slice(), P, C, N, head: P >= 0 && C < 0 ? P : 0, mark: { ...seg(), ...extra },
+        vars: { prev: nm(v, P), curr: nm(v, C), nxt: N === null ? "–" : nm(v, N), "arrows flipped": flips } });
+      snap(1, "prev starts as None (the reversed piece is empty); curr is the head.");
+      while (true) {
+        if (C < 0) { snap(2, "curr is None: every node has been moved to the reversed piece."); break; }
+        snap(2, `curr is node ${v[C]}, so there is work left.`);
+        N = nx[C]; snap(3, `Save curr.next = ${nm(v, N)} before it gets overwritten.`);
+        nx[C] = P; flips++; snap(4, `Flip: node ${v[C]} now points to ${nm(v, P)}.`, { [C]: "active" });
+        P = C; snap(5, `prev moves to ${v[P]}. Reversed so far: ${walk(v, nx, P)}.`);
+        C = N; snap(6, `curr moves to ${nm(v, C)}, the saved node.`);
+      }
+      snap(7, `<b class="ok">Return ${v[P]}</b>, the new head: ${walk(v, nx, P)}. ${flips} arrow${flips === 1 ? "" : "s"} flipped, no nodes created.`, { [P]: "hit" });
+      return { frames };
+    },
+    draw(f) { return drawLinks(f.v, f.nx, { ptr: { P: f.P, C: f.C, N: f.N }, mark: f.mark, head: f.head }) + `<p class="legend">P prev · C curr · N nxt · blue arrows flipped · shaded: reversed piece</p>`; }
+  });
+
+  // ---------- Problem 2: reverse between ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def reverse_between(head, left, right):",
+      "  dummy = Node(0, next=head)",
+      "  before = dummy",
+      "  for _ in range(left - 1): before = before.next",
+      "  prev, curr = None, before.next",
+      "  for _ in range(right - left + 1):",
+      "    nxt = curr.next",
+      "    curr.next = prev",
+      "    prev, curr = curr, nxt",
+      "  tail = before.next    # old first, now last",
+      "  before.next = prev",
+      "  tail.next = curr",
+      "  return dummy.next"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "1, 2, 3, 4, 5, 6" }, { key: "l", label: "left", value: "2" }, { key: "r", label: "right", value: "5" }],
+    presets: [
+      { label: "Middle segment", values: { a: "1, 2, 3, 4, 5, 6", l: "2", r: "5" } },
+      { label: "From the head", values: { a: "7, 3, 9, 1, 6", l: "1", r: "3" } },
+      { label: "To the tail", values: { a: "7, 3, 9, 1, 6", l: "3", r: "5" } },
+      { label: "One node (no-op)", values: { a: "5, 6, 7", l: "2", r: "2" } }
+    ],
+    build({ a, l, r }) {
+      const p = parseNums(a, { min: 1, max: 9 }); if (p.error) return p;
+      const L = Number(l), R = Number(r), n0 = p.nums.length;
+      if (!Number.isInteger(L) || !Number.isInteger(R) || L < 1 || R > n0 || L > R) return { error: `Need whole numbers with 1 ≤ left ≤ right ≤ ${n0}.` };
+      const v = ["D", ...p.nums], n = v.length, nx = chain(n), frames = [];
+      let B = 0, P = -1, C = null, N = null, T = null, step = "";
+      const segMark = () => { const m = {}; for (let i = L; i <= R; i++) m[i] = "seg"; return m; };
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, v, nx: nx.slice(), B, P, C, N, T, mark: { ...segMark(), ...extra },
+        vars: { before: B === 0 ? "dummy" : nm(v, B), prev: nm(v, P), curr: C === null ? "–" : nm(v, C), nxt: N === null ? "–" : nm(v, N), list: walk(v, nx, nx[0]) } });
+      snap(1, `A dummy node (D) sits in front of the head. Positions ${L} to ${R} are shaded.`);
+      snap(2, "before starts at the dummy.");
+      for (let i = 0; i < L - 1; i++) { B = nx[B]; snap(3, `Walk before forward: now on ${v[B]} (position ${B}).`); }
+      if (L === 1) snap(3, "left is 1, so before stays on the dummy. This is why the dummy exists.");
+      C = nx[B]; P = -1; snap(4, `prev = None, curr = ${v[C]}, the first node of the segment.`);
+      for (let i = 0; i < R - L + 1; i++) {
+        snap(5, `Pass ${i + 1} of ${R - L + 1}.`);
+        N = nx[C]; snap(6, `Save nxt = ${nm(v, N)}.`);
+        nx[C] = P; snap(7, `Flip: ${v[C]} now points to ${nm(v, P)}.`, { [C]: "active" });
+        P = C; C = N; snap(8, `prev → ${v[P]}, curr → ${nm(v, C)}.`);
+      }
+      T = nx[B]; snap(9, `The segment is reversed but detached. tail = before.next = ${v[T]}, the segment's old first node, now its last.`, { [T]: "active" });
+      nx[B] = P; snap(10, `Stitch the front: ${B === 0 ? "dummy" : v[B]} → ${v[P]}.`, { [P]: "active" });
+      nx[T] = C === null ? -1 : C; snap(11, `Stitch the back: ${v[T]} → ${nm(v, C)}.`, { [T]: "active" });
+      snap(12, `<b class="ok">Return dummy.next</b>: ${walk(v, nx, nx[0])}.`, { [nx[0]]: "hit" });
+      return { frames };
+    },
+    draw(f) { return drawLinks(f.v, f.nx, { ptr: { B: f.B, P: f.P, C: f.C, N: f.N, T: f.T }, mark: f.mark, dummy: true, head: f.nx[0] }) + `<p class="legend">B before · P prev · C curr · N nxt · T tail · D dummy</p>`; }
+  });
+
+  // ---------- Problem 3: reverse in k-groups ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def reverse_k_group(head, k):",
+      "  dummy = Node(0, next=head); before = dummy",
+      "  while True:",
+      "    probe = before",
+      "    for _ in range(k):",
+      "      probe = probe.next",
+      "      if not probe: return dummy.next",
+      "    prev, curr = None, before.next",
+      "    for _ in range(k):",
+      "      nxt = curr.next",
+      "      curr.next = prev",
+      "      prev, curr = curr, nxt",
+      "    tail = before.next",
+      "    before.next, tail.next = prev, curr",
+      "    before = tail"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "1, 2, 3, 4, 5, 6, 7, 8" }, { key: "k", label: "k", value: "3" }],
+    presets: [
+      { label: "k = 3, two left over", values: { a: "1, 2, 3, 4, 5, 6, 7, 8", k: "3" } },
+      { label: "k = 2 (swap pairs)", values: { a: "1, 2, 3, 4, 5, 6", k: "2" } },
+      { label: "k = list length", values: { a: "6, 2, 8, 4", k: "4" } },
+      { label: "k = 1 (no change)", values: { a: "6, 2, 8", k: "1" } }
+    ],
+    build({ a, k }) {
+      const p = parseNums(a, { min: 1, max: 9 }); if (p.error) return p;
+      const K = Number(k); if (!Number.isInteger(K) || K < 1 || K > 9) return { error: "k must be a whole number from 1 to 9." };
+      const v = ["D", ...p.nums], n = v.length, nx = chain(n), frames = [];
+      let B = 0, P = -1, C = null, N = null, T = null, Z = null, groups = 0, segLo = -1, segHi = -1;
+      const snap = (line, msg, extra = {}) => { const m = {}; for (let i = segLo; i >= 0 && i <= segHi; i++) m[i] = "seg";
+        frames.push({ line, msg, v, nx: nx.slice(), B, P, C, N, T, Z, mark: { ...m, ...extra },
+          vars: { before: B === 0 ? "dummy" : nm(v, B), probe: Z === null ? "–" : nm(v, Z), prev: nm(v, P), curr: C === null ? "–" : nm(v, C), "groups done": groups, list: walk(v, nx, nx[0]) } }); };
+      snap(1, `Dummy in front, before on the dummy. Group size k = ${K}.`);
+      while (true) {
+        Z = B; P = -1; C = null; N = null; T = null; segLo = -1;
+        snap(3, `Group ${groups + 1}: first check that ${K} node${K > 1 ? "s" : ""} remain after before.`);
+        let short = false;
+        for (let i = 0; i < K; i++) {
+          Z = nx[Z];
+          if (Z < 0) { Z = null; snap(6, `${i === 0 ? "No nodes left" : `Only ${i} node${i === 1 ? "" : "s"} left, fewer than k`}. <b class="ok">Return dummy.next</b>: ${walk(v, nx, nx[0])}.`, nx[0] >= 0 ? { [nx[0]]: "hit" } : {}); short = true; break; }
+          snap(5, `probe → ${v[Z]} (${i + 1} of ${K}).`);
+        }
+        if (short) break;
+        segLo = nx[B]; segHi = Z; Z = null;
+        // the group's slots, for shading: walk from before.next k times
+        const slots = []; { let x = nx[B]; for (let i = 0; i < K; i++) { slots.push(x); x = nx[x]; } }
+        segLo = Math.min(...slots); segHi = Math.max(...slots);
+        C = nx[B]; snap(7, `A full group: ${slots.map(s => v[s]).join(", ")}. prev = None, curr = ${v[C]}.`);
+        for (let i = 0; i < K; i++) {
+          N = nx[C]; snap(9, `Save nxt = ${nm(v, N)}.`);
+          nx[C] = P; snap(10, `Flip: ${v[C]} → ${nm(v, P)}.`, { [C]: "active" });
+          P = C; C = N; snap(11, `prev → ${v[P]}, curr → ${nm(v, C)}.`);
+        }
+        T = nx[B]; snap(12, `tail = ${v[T]}: it led the group, now it ends it.`, { [T]: "active" });
+        nx[B] = P; nx[T] = C === null ? -1 : C; groups++;
+        snap(13, `Stitch: ${B === 0 ? "dummy" : v[B]} → ${v[P]} and ${v[T]} → ${nm(v, C)}. List: ${walk(v, nx, nx[0])}.`);
+        B = T; snap(14, `before moves to ${v[B]}, the node just before the next group.`);
+      }
+      return { frames };
+    },
+    draw(f) { return drawLinks(f.v, f.nx, { ptr: { B: f.B, Z: f.Z, P: f.P, C: f.C, N: f.N, T: f.T }, mark: f.mark, dummy: true, head: f.nx[0] }) + `<p class="legend">B before · Z probe · P prev · C curr · N nxt · T tail · shaded: current group</p>`; }
+  });
+
+  // ---------- Problem 4: palindrome ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def is_palindrome(head):",
+      "  slow = fast = head",
+      "  while fast and fast.next:",
+      "    slow, fast = slow.next, fast.next.next",
+      "  prev, curr = None, slow",
+      "  while curr:",
+      "    curr.next, prev, curr = prev, curr, curr.next",
+      "  a, b = head, prev",
+      "  while b:",
+      "    if a.val != b.val: return False",
+      "    a, b = a.next, b.next",
+      "  return True"
+    ],
+    inputs: [{ key: "a", label: "List values", value: "3, 1, 4, 1, 3" }],
+    presets: [
+      { label: "Odd palindrome", values: { a: "3, 1, 4, 1, 3" } },
+      { label: "Even palindrome", values: { a: "2, 5, 5, 2" } },
+      { label: "Not a palindrome", values: { a: "3, 1, 4, 4, 2" } },
+      { label: "Fails in the middle", values: { a: "1, 2, 3, 4, 2, 1" } }
+    ],
+    build({ a }) {
+      const r = parseNums(a, { min: 1, max: 10 }); if (r.error) return r;
+      const v = r.nums, n = v.length, nx = chain(n), frames = [];
+      let S = 0, F = 0, P = -1, C = null, A = null, Z = null, phase = "1: find the middle", cmp = 0;
+      const snap = (line, msg, mark = {}) => frames.push({ line, msg, v, nx: nx.slice(), S, F, P, C, A, Z, mark,
+        vars: { phase, ...(phase.startsWith("1") ? { slow: nm(v, S), fast: F === null ? "–" : nm(v, F) } : phase.startsWith("2") ? { prev: nm(v, P), curr: C === null ? "–" : nm(v, C) } : { a: nm(v, A), b: nm(v, Z), compared: cmp }) } });
+      snap(1, "slow and fast start at the head.");
+      while (F >= 0 && nx[F] >= 0) {
+        S = nx[S]; F = nx[nx[F]];
+        snap(3, `slow → ${v[S]}, fast → ${nm(v, F)}.`);
+      }
+      snap(2, `fast can't take two more steps. slow is on ${v[S]} (index ${S}), the start of the back half.`, { [S]: "active" });
+      phase = "2: reverse the back half"; F = null; P = -1; C = S;
+      const mid = S;
+      snap(4, `Reverse from ${v[S]} to the end with the usual loop.`);
+      while (C >= 0) {
+        const nxt = nx[C]; nx[C] = P; P = C; C = nxt;
+        snap(6, `Flip ${v[P]} → ${nm(v, nx[P])}; prev → ${v[P]}, curr → ${nm(v, C)}.`, { [P]: "active" });
+      }
+      snap(5, `Back half reversed: ${walk(v, nx, P)}. The front half still ends by pointing at ${v[mid]}.`);
+      phase = "3: compare"; A = 0; Z = P; C = null; S = null;
+      snap(7, `a starts at the head (${v[A]}), b at the old tail (${v[Z]}).`);
+      while (Z >= 0) {
+        snap(8, `b is on ${v[Z]}, keep comparing.`);
+        cmp++;
+        if (v[A] !== v[Z]) { snap(9, `${v[A]} ≠ ${v[Z]}. <b class="bad">Return False</b>: not a palindrome (${cmp} comparison${cmp === 1 ? "" : "s"}).`, { [A]: "miss", [Z]: "miss" }); return { frames }; }
+        snap(9, `${v[A]} = ${v[Z]}, a match.`, { [A]: "hit", [Z]: "hit" });
+        A = nx[A]; Z = nx[Z];
+        snap(10, `a → ${nm(v, A)}, b → ${nm(v, Z)}.`);
+      }
+      snap(11, `b ran out with every pair equal. <b class="ok">Return True</b> after ${cmp} comparison${cmp === 1 ? "" : "s"}.`);
+      return { frames };
+    },
+    draw(f) { return drawLinks(f.v, f.nx, { ptr: { S: f.S, F: f.F, P: f.P, C: f.C, A: f.A, Z: f.Z }, mark: f.mark, head: 0 }) + `<p class="legend">S slow · F fast · P prev · C curr · A front walker · Z back walker</p>`; }
+  });
+</script>
+</body>
+</html>

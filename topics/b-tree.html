@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>B-Tree Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; min-width: 0; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .tree-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); padding: 8px 0; }
+  #tree { display: block; margin: 0 auto; height: auto; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .keyrow { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+  .keyrow label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); flex: 0 0 80px; }
+  .keyrow input, .keyrow select { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .scale-head { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Database indexing</span>
+  </div>
+
+  <header class="intro">
+    <h1>B-Tree Index</h1>
+    <p class="lede">A B-tree is a search tree built for storage that reads in pages, not bytes. Each node is one page and holds many sorted keys, so the tree is very wide and very short: a few hundred children per node means a billion rows sit only four levels deep. Nodes that overflow split in half and push a key up to their parent, which keeps every leaf at the same depth without any rebalancing rotations. This page simulates the B+ tree variant used by most databases, where all keys live in linked leaves.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="cfgLabel"></span><span class="eyebrow" id="sizeLabel"></span></div>
+      <div class="tree-wrap"><svg id="tree" viewBox="0 0 400 200" role="img" aria-label="B+ tree: internal nodes on top, linked leaves at the bottom"></svg></div>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <div class="keyrow">
+        <label for="key">Key (1–99)<input id="key" type="number" min="1" max="99" value="27"></label>
+        <button class="primary" id="ins">Insert</button>
+        <button id="find">Search</button>
+      </div>
+      <div class="keyrow">
+        <label for="lo">From<input id="lo" type="number" min="1" max="99" value="10"></label>
+        <label for="hi">To<input id="hi" type="number" min="1" max="99" value="30"></label>
+        <button id="range">Range scan</button>
+      </div>
+      <div class="controls">
+        <button id="rand">Insert 8 random keys</button>
+        <button id="seq">Insert 8 in ascending order</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="order"><span class="row"><span>Max keys per node · changing rebuilds</span><b class="mono num" id="orderOut"></b></span><input type="range" id="order" min="3" max="6" value="3"></label>
+      <div class="stat-row"><span>Keys stored</span><b id="sKeys"></b></div>
+      <div class="stat-row"><span>Height (levels)</span><b id="sH"></b></div>
+      <div class="stat-row"><span>Pages (internal · leaf)</span><b id="sPages"></b></div>
+      <div class="stat-row"><span>Average leaf fill</span><b id="sFill"></b></div>
+      <div class="stat-row"><span>Splits so far</span><b id="sSplits"></b></div>
+      <div class="compare">
+        <div><span>Pages touched, last operation</span><b id="pLast"></b><span id="pLastNote">read on the way down</span></div>
+        <div><span>Binary search tree, same keys</span><b id="bst"></b><span>levels if perfectly balanced: ⌈log₂(n+1)⌉</span></div>
+      </div>
+      <span class="scale-head">At real page sizes</span>
+      <label class="field" for="rows"><span class="row"><span>Rows in the table</span><b class="mono num" id="rowsOut"></b></span><input type="range" id="rows" min="3" max="10" step="0.5" value="9"></label>
+      <label class="field" for="ksz"><span class="row"><span>Key size (bytes)</span><b class="mono num" id="kszOut"></b></span><input type="range" id="ksz" min="4" max="64" step="4" value="8"></label>
+      <label class="field" for="psz"><span class="row"><span>Page size</span><b class="mono num" id="pszOut"></b></span><input type="range" id="psz" min="0" max="2" step="1" value="1"></label>
+      <div class="stat-row"><span>Fanout (keys + 6-byte pointers per page)</span><b id="fan"></b></div>
+      <div class="compare">
+        <div><span>B+ tree height</span><b id="bigH"></b><span id="bigHNote"></span></div>
+        <div><span>Balanced binary tree</span><b id="bigB"></b><span>levels, each a possible disk read</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Seven inserts and a lookup, traced by hand</h2>
+    <p class="kicker">Each node holds at most 3 keys. To follow along, set the slider to 3, press Reset, and insert 10, 20, 30, 40, 50, 60 and 25 one at a time.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>The root starts as a leaf</h3>
+        <p>Insert 10, 20, 30. The tree is a single page, kept sorted: <span class="mono">[10 20 30]</span>. It's full, but not over.</p>
+      </div></li>
+      <li><div>
+        <h3>Insert 40: the first split</h3>
+        <p>The leaf would hold <span class="mono">[10 20 30 40]</span>, one too many. Split it into <span class="mono">[10 20]</span> and <span class="mono">[30 40]</span>, link the left leaf to the right one, and <b>copy</b> the right leaf's first key, 30, up as a separator. There is no parent, so a new root <span class="mono">[30]</span> is made. Height goes from 1 to 2. The tree grows at the top, never at the bottom, which is why every leaf stays at the same depth.</p>
+      </div></li>
+      <li><div>
+        <h3>Insert 50 and 60</h3>
+        <p>Both are ≥ 30, so they go right. 50 fits: <span class="mono">[30 40 50]</span>. 60 overflows it, so it splits into <span class="mono">[30 40]</span> and <span class="mono">[50 60]</span>, and 50 is copied up. The root becomes <span class="mono">[30 50]</span> with three children.</p>
+      </div></li>
+      <li><div>
+        <h3>Insert 25</h3>
+        <p>At the root, 25 &lt; 30, so take the first child: <span class="mono">[10 20 25]</span>. No split. Most inserts are like this: one leaf page written, nothing else touched.</p>
+      </div></li>
+      <li><div>
+        <h3>Search 40</h3>
+        <p>Root <span class="mono">[30 50]</span>: 40 is ≥ 30 and &lt; 50, so follow the middle pointer. Leaf <span class="mono">[30 40]</span>: found. Two pages read, one per level.</p>
+        <p class="formula">pages read per lookup = height = 2 (for 7 keys)</p>
+      </div></li>
+      <li><div>
+        <h3>Range scan 20 to 50</h3>
+        <p>Descend once to the leaf that would hold 20, then walk right along the leaf links: <span class="mono">[10 20 25] → [30 40] → [50 60]</span>, stopping once a key passes 50. Result: 20, 25, 30, 40, 50 from four page reads. This leaf chain is why B+ trees are so good at <span class="mono">ORDER BY</span> and <span class="mono">BETWEEN</span>.</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>Internal splits work slightly differently.</b> When an internal node overflows, its middle key <b>moves</b> up (it isn't copied), because internal keys are only signposts. Insert 70, 80, 90 and 95 in the simulation after the steps above: the root fills up to <span class="mono">[30 50 70 90]</span>, splits, and 70 moves up into a new root. The height reaches 3.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>An index for disks that read in blocks</h2>
+    <p>In the late 1960s, Rudolf Bayer and Edward McCreight were working at Boeing Research Labs on a practical problem: how to keep a large index on disk that supports fast lookups, inserts and deletes all at once. Binary trees were fine in memory, but on a disk each node visited could cost a separate seek, and a balanced binary tree over a million keys is twenty levels deep. Their answer was to make each node as big as a disk block and let it hold many keys, so one read narrows the search by a factor of hundreds instead of two.</p>
+    <p>Their paper, "Organization and Maintenance of Large Ordered Indices", first circulated in July 1970 and was published in <i>Acta Informatica</i> in 1972. Nobody ever settled what the "B" stands for. McCreight later said it could be Boeing, balanced, or Bayer, and that they never decided which made the most sense.</p>
+    <p>By June 1979, Douglas Comer could title his survey in <i>ACM Computing Surveys</i> "The Ubiquitous B-Tree". The variant that took over, the B+ tree, keeps every record in the leaves and links the leaves together for range scans. Today it's the default index in PostgreSQL, MySQL's InnoDB, SQLite and Oracle, and file systems such as NTFS, HFS+ and APFS use B-trees for their metadata.</p>
+    <blockquote class="pull">Make each node exactly as big as one read from the disk, and the tree becomes short enough that its height almost doesn't matter.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">1970</span><p>Bayer and McCreight circulate their B-tree paper from Boeing Research Labs.</p></li>
+      <li><span class="year">1972</span><p>The paper is published in Acta Informatica.</p></li>
+      <li><span class="year">1979</span><p>Douglas Comer's survey "The Ubiquitous B-Tree" appears in ACM Computing Surveys.</p></li>
+      <li><span class="year">Today</span><p>B+ trees index almost every relational database and many file systems.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A balanced search tree whose nodes are pages holding many sorted keys. Internal nodes hold separator keys and child pointers; leaves hold the keys (and row pointers or rows) and link to their neighbours.</p></div>
+      <div><span class="q">Why</span><p>Storage is read a page at a time, and reading one byte costs about as much as reading the whole page. So pack as many keys into each page as fit. With fanout f, a lookup reads log<sub>f</sub>(n) pages instead of log<sub>2</sub>(n).</p></div>
+      <div><span class="q">When</span><p>Read-heavy data that needs point lookups, range scans and sorted order, with updates in place: most OLTP tables and their secondary indexes.</p></div>
+      <div><span class="q">Where</span><p>PostgreSQL, MySQL InnoDB, SQLite, Oracle, SQL Server, MongoDB's WiredTiger, and file systems like NTFS, HFS+ and APFS.</p></div>
+      <div><span class="q">How</span><p>Insert into the right leaf. If it overflows, split it in two and add a separator to the parent; if that overflows, split again, up to the root. A root split adds a level on top, so all leaves stay at equal depth. Deletes do the reverse, borrowing from or merging with a sibling when a node gets too empty (not simulated here).</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> balance by splitting full nodes upward, not by rotating, and size each node to one page.</p>
+      <p><b>The trade-off:</b> every write updates a page in place, so random inserts mean random page writes, plus a write-ahead log for crash safety. That's the cost an <a href="lsm-tree.html">LSM tree</a> avoids, at the price of slower reads and background compaction.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Press <b>Insert 8 random keys</b> a few times and watch the height. It grows by one only when the root splits, and every leaf is always on the bottom row.</li>
+        <li>Press Reset, then <b>Insert 8 in ascending order</b> several times. Every split happens at the right edge and leaves the left half behind half full, so average leaf fill drifts toward 50%. Random inserts settle closer to 70%. That's why many databases special-case appends at the right edge.</li>
+        <li><b>Search</b> any key and compare "pages touched" with the height: always equal. Then raise <b>max keys per node</b>; the tree gets flatter and the count drops.</li>
+        <li>Run a <b>Range scan</b>: one descent, then the leaf links. In "At real page sizes", set a billion rows and an 8 KB page. The tree is 4 levels tall; a balanced binary tree would be 30.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>"Why do databases use B-trees, not binary trees or hash tables?"</b> Page-sized nodes make the tree 3 or 4 levels deep, and the top levels stay cached, so a lookup is about one disk read. A hash index can't do range queries or <span class="mono">ORDER BY</span>; a B+ tree's linked leaves give both.</p>
+        <p><b>Why are auto-increment or time-ordered keys good for inserts?</b> They always land in the rightmost leaf, so the same few pages stay hot in memory. Random keys like UUIDv4 touch a random leaf each time and cause more splits and cache misses.</p>
+        <p><b>B-tree or LSM tree?</b> B-tree for read-heavy workloads that need predictable point and range reads. LSM for write-heavy, append-like data where sequential writes matter more than read cost.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const MAXKEYS = 40;
+  let M, root, nextId, order, splits, lastOp, lastPath, hitKeys, fresh, lastPages, lastPagesNote;
+
+  // ---------- the B+ tree model ----------
+  const newNode = leaf => ({ id: nextId++, leaf, keys: [], children: leaf ? null : [], next: null });
+  function reset(keys = []) {
+    M = +$("order").value; nextId = 1; root = newNode(true); order = []; splits = 0;
+    lastOp = null; lastPath = new Set(); hitKeys = new Set(); fresh = new Set(); lastPages = null; lastPagesNote = "";
+    keys.forEach(k => insert(k, true));
+    lastPath = new Set(); fresh = new Set();
+  }
+  // child index: number of separator keys that are <= k
+  const childIdx = (node, k) => { let i = 0; while (i < node.keys.length && k >= node.keys[i]) i++; return i; };
+  function descend(k) {
+    const path = []; let node = root;
+    while (!node.leaf) { path.push(node); node = node.children[childIdx(node, k)]; }
+    return { path, leaf: node };
+  }
+  function countKeys() { let n = 0, l = leftmostLeaf(); while (l) { n += l.keys.length; l = l.next; } return n; }
+  function leftmostLeaf() { let n = root; while (!n.leaf) n = n.children[0]; return n; }
+
+  function insert(k, quiet) {
+    const { path, leaf } = descend(k);
+    if (leaf.keys.includes(k)) { lastOp = { msg: `<b>${k} is already in the tree.</b>`, note: `Found it after reading ${path.length + 1} page${path.length ? "s" : ""}; keys in an index like this are unique.` }; lastPath = new Set([...path, leaf].map(n => n.id)); hitKeys = new Set([k]); lastPages = path.length + 1; lastPagesNote = "read, nothing written"; return false; }
+    if (countKeys() >= MAXKEYS) { lastOp = { msg: `<b>The demo holds at most ${MAXKEYS} keys.</b>`, note: "Press Reset to start again. Real pages hold hundreds of keys; the scale panel shows what that does.", warn: true }; return false; }
+    order.push(k);
+    lastPath = new Set([...path, leaf].map(n => n.id)); fresh = new Set([leaf.id]); hitKeys = new Set([k]);
+    const pos = childIdx(leaf, k); leaf.keys.splice(pos, 0, k);
+    const before = splits, written = new Set([leaf.id]);
+    let grew = false;
+    if (leaf.keys.length > M) {
+      const mid = Math.ceil(leaf.keys.length / 2);
+      const right = newNode(true); right.keys = leaf.keys.splice(mid); right.next = leaf.next; leaf.next = right; splits++;
+      fresh.add(right.id); written.add(right.id);
+      grew = pushUp(leaf, right.keys[0], right, path, written);
+    }
+    lastPages = written.size; lastPagesNote = `written (read ${path.length + 1} on the way down)`;
+    if (!quiet) {
+      const s = splits - before;
+      lastOp = s
+        ? { msg: `<b>insert ${k} → ${s} split${s > 1 ? "s" : ""}${grew ? ", new root" : ""}.</b>`, note: `The leaf overflowed past ${M} keys and split in two; ${s > 1 ? "the parent overflowed too and split, " : ""}separator keys moved up.${grew ? " The root split, so the tree is now one level taller, and every leaf is still at the same depth." : ""} ${written.size} pages written.`, warn: true }
+        : { msg: `<b>insert ${k} → leaf ${leaf.id}.</b>`, note: `Descended ${path.length} internal page${path.length === 1 ? "" : "s"}, found room in the leaf (${leaf.keys.length}/${M}). One page written.` };
+    }
+    return true;
+  }
+  // put separator `sep` and new right sibling into the parent of `left`; split upward as needed
+  function pushUp(left, sep, right, path, written) {
+    const parent = path.pop();
+    if (!parent) {
+      const r = newNode(false); r.keys = [sep]; r.children = [left, right]; root = r;
+      fresh.add(r.id); written.add(r.id); return true;
+    }
+    written.add(parent.id); fresh.add(parent.id);
+    const i = parent.children.indexOf(left);
+    parent.keys.splice(i, 0, sep); parent.children.splice(i + 1, 0, right);
+    if (parent.keys.length <= M) return false;
+    const mid = Math.floor(parent.keys.length / 2), up = parent.keys[mid];
+    const r = newNode(false); r.keys = parent.keys.slice(mid + 1); r.children = parent.children.slice(mid + 1);
+    parent.keys = parent.keys.slice(0, mid); parent.children = parent.children.slice(0, mid + 1); splits++;
+    fresh.add(r.id); written.add(r.id);
+    return pushUp(parent, up, r, path, written);
+  }
+  function search(k) {
+    const { path, leaf } = descend(k);
+    lastPath = new Set([...path, leaf].map(n => n.id)); fresh = new Set();
+    const found = leaf.keys.includes(k);
+    hitKeys = found ? new Set([k]) : new Set();
+    lastPages = path.length + 1; lastPagesNote = "read, one per level";
+    const steps = path.map(n => { const i = childIdx(n, k); return `[${n.keys.join(" ")}] → child ${i + 1}`; }).join(", ");
+    lastOp = { msg: found ? `<b>search ${k} → found</b> in leaf ${leaf.id}.` : `<b>search ${k} → not found.</b>`, note: `${steps ? steps + ", then " : ""}leaf [${leaf.keys.join(" ")}]. ${lastPages} page${lastPages > 1 ? "s" : ""} read, equal to the height.` };
+  }
+  function rangeScan(lo, hi) {
+    if (lo > hi) [lo, hi] = [hi, lo];
+    const { path, leaf } = descend(lo);
+    const ids = path.map(n => n.id), got = []; let l = leaf, leaves = 0;
+    while (l) {
+      leaves++; ids.push(l.id);
+      l.keys.forEach(x => { if (x >= lo && x <= hi) got.push(x); });
+      if (l.keys.length && l.keys[l.keys.length - 1] > hi) break;
+      l = l.next;
+    }
+    lastPath = new Set(ids); hitKeys = new Set(got); fresh = new Set();
+    lastPages = path.length + leaves; lastPagesNote = `read: ${path.length} going down, ${leaves} leaf${leaves > 1 ? "s" : ""} along the chain`;
+    lastOp = { msg: `<b>range ${lo}–${hi} → ${got.length} key${got.length === 1 ? "" : "s"}</b>${got.length ? `: ${got.join(", ")}` : ""}.`, note: `One descent to the leaf for ${lo}, then ${leaves - 1} hop${leaves - 1 === 1 ? "" : "s"} along the leaf links. No internal page was read twice.` };
+  }
+
+  // ---------- drawing ----------
+  function render() {
+    $("orderOut").textContent = M;
+    const SW = 22, NW = M * SW + 8, NH = 26, LG = 16, LV = 64;
+    // levels, top-down
+    const levels = []; let cur = [root];
+    while (cur.length) { levels.push(cur); cur = cur[0].leaf ? [] : cur.flatMap(n => n.children); }
+    const leaves = levels[levels.length - 1], H = levels.length;
+    const pos = new Map();
+    leaves.forEach((n, i) => pos.set(n.id, 10 + i * (NW + LG)));
+    for (let d = H - 2; d >= 0; d--) levels[d].forEach(n => {
+      const a = pos.get(n.children[0].id), b = pos.get(n.children[n.children.length - 1].id);
+      pos.set(n.id, (a + b) / 2);
+    });
+    const W = Math.max(NW + 20, 10 + leaves.length * (NW + LG) - LG + 10), Ht = 18 + H * LV;
+    const yOf = d => 18 + d * LV;
+    let s = "";
+    // edges
+    levels.forEach((lvl, d) => { if (d === H - 1) return; lvl.forEach(n => n.children.forEach((c, i) => {
+      const x1 = pos.get(n.id) + 4 + i * SW, y1 = yOf(d) + NH, x2 = pos.get(c.id) + NW / 2, y2 = yOf(d + 1);
+      const on = lastPath.has(n.id) && lastPath.has(c.id);
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${on ? "var(--accent)" : "var(--line)"}" stroke-width="${on ? 2.2 : 1.4}"/>`;
+    })); });
+    // leaf links
+    leaves.forEach(n => { if (!n.next) return; const x1 = pos.get(n.id) + NW, x2 = pos.get(n.next.id), y = yOf(H - 1) + NH / 2;
+      s += `<line x1="${x1 + 1}" y1="${y}" x2="${x2 - 6}" y2="${y}" stroke="var(--muted)" stroke-width="1.4"/><path d="M${x2 - 1} ${y} l-6 -3.5 v7 z" fill="var(--muted)"/>`; });
+    // nodes
+    levels.forEach((lvl, d) => lvl.forEach(n => {
+      const x = pos.get(n.id), y = yOf(d), on = lastPath.has(n.id), nw = fresh.has(n.id);
+      s += `<rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="5" fill="${n.leaf ? "var(--panel)" : "var(--accent-soft)"}" stroke="${on ? "var(--accent)" : nw ? "var(--amber)" : "var(--muted)"}" stroke-width="${on || nw ? 2.4 : 1.2}"/>`;
+      for (let i = 0; i < M; i++) {
+        const k = n.keys[i], kx = x + 4 + i * SW;
+        if (i) s += `<line x1="${kx}" y1="${y + 4}" x2="${kx}" y2="${y + NH - 4}" stroke="var(--line)" stroke-width="1"/>`;
+        if (k === undefined) continue;
+        const hit = n.leaf && hitKeys.has(k);
+        if (hit) s += `<rect x="${kx + 1}" y="${y + 3}" width="${SW - 2}" height="${NH - 6}" rx="3" fill="var(--ok)"/>`;
+        s += `<text x="${kx + SW / 2}" y="${y + NH / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="11" font-weight="600" fill="${hit ? "var(--panel)" : "var(--ink)"}">${k}</text>`;
+      }
+    }));
+    const svg = $("tree");
+    svg.setAttribute("viewBox", `0 0 ${W} ${Ht}`);
+    svg.style.width = Math.round(W * 0.95) + "px";
+    svg.innerHTML = s;
+    const wrap = svg.parentElement; wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;   // narrow screens: start centered under the root
+
+    // numbers, all from the model
+    const n = countKeys(), internal = levels.slice(0, -1).reduce((a, l) => a + l.length, 0);
+    $("cfgLabel").textContent = `max ${M} keys per node`;
+    $("sizeLabel").textContent = `${H} level${H > 1 ? "s" : ""} · ${leaves.length} leaf page${leaves.length > 1 ? "s" : ""}`;
+    $("sKeys").textContent = `${n} / ${MAXKEYS}`;
+    $("sH").textContent = H;
+    $("sPages").textContent = `${internal} · ${leaves.length}`;
+    $("sFill").textContent = n ? Math.round(100 * n / (leaves.length * M)) + "%" : "–";
+    $("sSplits").textContent = splits;
+    $("pLast").textContent = lastPages === null ? "–" : lastPages;
+    $("pLastNote").textContent = lastPages === null ? "search or insert a key" : lastPagesNote;
+    $("bst").textContent = n ? Math.ceil(Math.log2(n + 1)) : "–";
+    const v = $("verdict");
+    if (!lastOp) { v.className = "verdict-box"; v.innerHTML = `<b>Insert, search or scan a range.</b><p>Blue outline: pages read on the last operation. Amber: pages created or changed by a split. Green: matching keys.</p>`; }
+    else { v.className = "verdict-box " + (lastOp.warn ? "warn" : "ok"); v.innerHTML = `<b>${lastOp.msg}</b><p>${lastOp.note}</p>`; }
+    renderScale();
+  }
+
+  // ---------- real-scale estimate (formula on the inputs, not the toy tree) ----------
+  const fmt = x => x >= 1e9 ? (x / 1e9).toFixed(x >= 1e10 ? 0 : 1) + "B" : x >= 1e6 ? (x / 1e6).toFixed(1) + "M" : x >= 1e3 ? (x / 1e3).toFixed(1) + "K" : String(Math.round(x));
+  function renderScale() {
+    const rows = Math.round(Math.pow(10, +$("rows").value)), ksz = +$("ksz").value, page = [4096, 8192, 16384][+$("psz").value];
+    const fan = Math.floor(page / (ksz + 6)), fill = 0.69, per = Math.max(2, Math.floor(fan * fill));
+    let nodes = Math.ceil(rows / per), h = 1;
+    while (nodes > 1) { nodes = Math.ceil(nodes / per); h++; }
+    $("rowsOut").textContent = fmt(rows); $("kszOut").textContent = ksz; $("pszOut").textContent = page / 1024 + " KB";
+    $("fan").textContent = fan;
+    $("bigH").textContent = h;
+    $("bigHNote").textContent = `pages per lookup at 69% fill; with the top ${Math.min(2, h - 1)} level${h - 1 === 1 ? "" : "s"} cached, ${h - Math.min(2, h - 1)} disk read${h - Math.min(2, h - 1) === 1 ? "" : "s"}`;
+    $("bigB").textContent = Math.ceil(Math.log2(rows + 1));
+  }
+
+  const keyOf = id => { const k = Math.round(+$(id).value); return k >= 1 && k <= 99 ? k : null; };
+  const bad = () => { lastOp = { msg: "<b>Use keys from 1 to 99.</b>", note: "Small keys keep every node readable on screen.", warn: true }; render(); };
+  $("ins").onclick = () => { const k = keyOf("key"); if (k === null) return bad(); insert(k); render(); };
+  $("find").onclick = () => { const k = keyOf("key"); if (k === null) return bad(); search(k); render(); };
+  $("range").onclick = () => { const a = keyOf("lo"), b = keyOf("hi"); if (a === null || b === null) return bad(); rangeScan(a, b); render(); };
+  $("rand").onclick = () => {
+    const before = splits; let added = 0, tries = 0;
+    while (added < 8 && tries < 200 && countKeys() < MAXKEYS) { tries++; const k = 1 + Math.floor(Math.random() * 99); if (!descend(k).leaf.keys.includes(k)) { insert(k, true); added++; } }
+    lastPath = new Set(); hitKeys = new Set(); lastPages = null;
+    lastOp = added ? { msg: `<b>Inserted ${added} random keys.</b>`, note: `${splits - before} split${splits - before === 1 ? "" : "s"} along the way. Splits are rare: a leaf takes about ${Math.ceil(M / 2)} more inserts after each one before it fills again.`, warn: splits > before } : { msg: `<b>The demo holds at most ${MAXKEYS} keys.</b>`, note: "Press Reset to start again.", warn: true };
+    render();
+  };
+  $("seq").onclick = () => {
+    const before = splits; let start = 1, l = leftmostLeaf(), mx = 0;
+    while (l) { if (l.keys.length) mx = Math.max(mx, l.keys[l.keys.length - 1]); l = l.next; }
+    start = mx + 1; let added = 0;
+    for (let k = start; k < start + 8 && k <= 99 && countKeys() < MAXKEYS; k++) { insert(k, true); added++; }
+    lastPath = new Set(); hitKeys = new Set(); lastPages = null;
+    lastOp = added ? { msg: `<b>Inserted ${start}–${start + added - 1} in order.</b>`, note: `${splits - before} split${splits - before === 1 ? "" : "s"}, all at the right edge. Each one leaves a leaf behind with only ${Math.ceil((M + 1) / 2)} of ${M} slots used.`, warn: true } : { msg: "<b>No room for more keys.</b>", note: `Keys stop at 99 and the demo holds ${MAXKEYS}. Press Reset.`, warn: true };
+    render();
+  };
+  $("reset").onclick = () => { reset(); render(); };
+  $("order").oninput = () => { const keep = order.slice(); reset(keep); lastOp = { msg: `<b>Rebuilt with at most ${M} keys per node.</b>`, note: `Same ${keep.length} keys, inserted in the same order. Compare the height and page count.` }; render(); };
+  ["rows", "ksz", "psz"].forEach(id => $(id).oninput = renderScale);
+
+  // open in a working state
+  reset([20, 5, 12, 33, 41, 8, 27, 50, 3, 15, 38, 22, 45, 30]);
+  search(27);
+  render();
+</script>
+</body>
+</html>
