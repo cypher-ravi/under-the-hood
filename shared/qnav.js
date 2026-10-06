@@ -11,7 +11,13 @@
   const sections = [...document.querySelectorAll("main section[data-nav]")];
   const steps = sections.filter(s => s.dataset.num), extra = sections.filter(s => !s.dataset.num);
   const item = s => `<li><a href="#${s.id}" data-id="${s.id}"><span class="n">${s.dataset.num || "·"}</span><span>${s.dataset.nav}</span>${s.dataset.time ? `<span class="t">${s.dataset.time}</span>` : ""}</a></li>`;
-  const options = qs.map(q => `<option value="${q.slug}"${q.slug === current ? " selected" : ""}${q.status !== "ready" ? " disabled" : ""}>${q.title}${q.status !== "ready" ? " (soon)" : ""}</option>`).join("");
+  const opt = q => `<option value="${q.slug}"${q.slug === current ? " selected" : ""}${q.status !== "ready" ? " disabled" : ""}>${q.title}${q.status !== "ready" ? " (soon)" : ""}</option>`;
+  // design questions are grouped into high-level and low-level design
+  const options = kind === "dsa" ? qs.map(opt).join("")
+    : [["hld", "High-level design"], ["lld", "Low-level design"]].map(([lv, label]) => {
+        const group = qs.filter(q => (q.level || "hld") === lv);
+        return group.length ? `<optgroup label="${label}">${group.map(opt).join("")}</optgroup>` : "";
+      }).join("");
   const weights = [5, 2, 5, 13, 10];
   nav.innerHTML = `
     <label class="field" for="qswitch"><span class="eyebrow nav-label">${kind === "dsa" ? "Pattern" : "Question"}</span><select id="qswitch" aria-label="Switch ${kind === "dsa" ? "pattern" : "question"}">${options}</select></label>

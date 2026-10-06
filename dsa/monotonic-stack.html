@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monotonic Stack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 8px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .stack-empty { font: 500 13px/1 var(--mono); color: var(--muted); padding: 14px 10px; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="monotonic-stack" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Stack</span>
+  </div>
+
+  <header class="intro">
+    <h1>Monotonic Stack</h1>
+    <p class="lede">Walk the array once and keep a stack of indices whose values stay in sorted order from bottom to top. When a new value would break that order, pop until it doesn't. Every pop is a moment where one element meets its answer: the next bigger value, the previous bigger value, or the edge of a rectangle. Each index goes on once and comes off at most once, so the whole thing is O(n).</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>A waiting line that only keeps useful candidates</h2>
+    <p>Take the question "for each element, what is the first bigger element to its right?" The direct approach scans right from every position until it finds something bigger. On a falling array like 9, 8, 7, …, 1 each scan runs to the end, which is n(n−1)/2 comparisons.</p>
+    <p>Flip it around. Scan left to right and keep the elements that are <b>still waiting</b> for their answer. Notice that the waiting elements are always in decreasing order: if a bigger value arrived after a smaller one, it would already have answered it. So the waiting list is a stack whose values fall from bottom to top. When a new value x arrives, everything on top that is smaller than x gets its answer (x) and leaves. Then x joins the stack and waits too. The stack's order is the "monotonic" part; the pops are where the work happens.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Answer the popped</h3><p>The arriving element is the "next greater" for every index it pops. Whatever is left on the stack at the end has no answer.</p><a href="#p1">Problem 1: Next greater element</a><a href="#p2">Problem 2: Days until warmer</a></div>
+      <div><h3>Answer the arriving</h3><p>After popping, whatever sits on top is the nearest earlier element that survived: the "previous greater" for the new index.</p><a href="#p3">Problem 3: Stock price span</a></div>
+      <div><h3>Both sides at once</h3><p>When an index is popped, the arriving element is its right boundary and the new top is its left boundary. That gives the widest range it controls.</p><a href="#p4">Problem 4: Largest rectangle in a histogram</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>For <b>every element</b>, you need the <b>nearest</b> element to the left or right that is bigger (or smaller).</li>
+      <li>Phrases like "next warmer day", "how many days until", "how far back", "span", "visible", "blocked by".</li>
+      <li>You need, for each element, the widest range in which it is the <b>minimum</b> (or maximum): histogram rectangles, sums of subarray minimums.</li>
+      <li>The brute force is "for each i, scan outward until a condition fails", which is O(n²) on sorted or reversed input.</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signal:</b> if you need the maximum of a <i>sliding window</i> of fixed size, elements also leave from the front when they fall out of the window. That's a monotonic <i>deque</i>, a close cousin. And if the question is about the k-th largest overall, not the nearest, reach for a heap.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">stack = []                         <span class="c"># indices; their values stay sorted</span>
+for i, x in enumerate(a):
+    while stack and breaks_order(a[stack[-1]], x):
+        j = stack.pop()
+        <span class="c"># x is the next greater/smaller element for j</span>
+    <span class="c"># stack[-1], if any, is the previous greater/smaller for i</span>
+    stack.append(i)
+<span class="c"># indices still on the stack never found an answer</span></pre>
+    <p>Two choices make each problem. <b>Which order</b> the stack keeps: pop smaller values to find greater ones (a decreasing stack), or pop larger values to find smaller ones (an increasing stack). And <b>strict or not</b>: <span class="mono">&lt;</span> versus <span class="mono">&lt;=</span> decides what happens with equal values, which is where most bugs hide. Store indices, not values: you can always look the value up, but you can't recover a distance from a value.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Next greater element" data-num="P1">
+    <span class="eyebrow">Problem 1 · Answer the popped</span>
+    <h2>Next greater element to the right</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given an array of integers, build an array of the same length where position i holds the first value to the right of i that is strictly larger than <span class="mono">a[i]</span>, or −1 if there isn't one.</p>
+      <div class="io"><div><span>Input</span>[4, 2, 6, 3, 1, 5, 7]</div><div><span>Output</span>[6, 6, 7, 5, 5, 7, -1]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: who is still waiting when 6 arrives?</summary><p>Before 6 arrives, 4 and 2 haven't seen anything bigger. 6 is the first bigger value for both, so it answers them at once. After that they're done and never need to be looked at again. Keep the unanswered indices on a stack; the newest one is always the smallest, so it's the first one a new value can answer.</p></details>
+    <div id="viz1"></div>
+    <p class="legend">Array: blue = current element, amber outline = waiting on the stack, green = just answered, grey = answered earlier.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n) for the stack</span><span class="meh">Scan right from each index: O(n²)</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Days until warmer" data-num="P2">
+    <span class="eyebrow">Problem 2 · Answer the popped</span>
+    <h2>How many days until a warmer day?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You get a list of daily temperatures. For each day, report how many days you'd wait until a strictly warmer day. If no warmer day ever comes, report 0.</p>
+      <div class="io"><div><span>Input</span>[71, 69, 68, 72, 70, 74, 73]</div><div><span>Output</span>[3, 2, 1, 2, 1, 0, 0]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do you need to remember about a waiting day?</summary><p>This is Problem 1 asking for a distance instead of a value. The answer for day j is <span class="mono">i − j</span>, where i is the warmer day that pops it. That's why the stack stores indices: a temperature alone can't tell you how long ago it was.</p></details>
+    <div id="viz2"></div>
+    <p class="legend">The result row fills in out of order: a day gets its answer when a warmer day pops it, not when you pass it.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Scan ahead from each day: O(n²)</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Stock price span" data-num="P3">
+    <span class="eyebrow">Problem 3 · Answer the arriving</span>
+    <h2>Stock price span</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You get a stock's closing price for each day. The span of a day is the number of consecutive days, ending with that day and counting backwards, on which the price was less than or equal to that day's price. Return the span of every day.</p>
+      <div class="io"><div><span>Input</span>[100, 80, 60, 70, 60, 75, 85]</div><div><span>Output</span>[1, 1, 1, 2, 1, 4, 6]</div><div><span>Why day 5</span>75 ≥ 60, 70, 60 before it; 80 stops the run, so span = 4</div></div>
+    </div>
+    <details class="hint"><summary>Think first: which earlier days can ever stop a later run?</summary><p>The span stops at the nearest earlier day with a strictly <i>higher</i> price. Once today's price is at least as high as some earlier day, that earlier day can never be the stopper for anyone later: today is closer and just as tall. So pop it for good. After popping, the top of the stack is the stopper, and the span is the distance to it.</p></details>
+    <div id="viz3"></div>
+    <p class="legend">Here the answer goes to the arriving day, computed from whatever is left on top after the pops.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Walk back from each day: O(n²)</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Largest rectangle" data-num="P4">
+    <span class="eyebrow">Problem 4 · Both sides at once</span>
+    <h2>Largest rectangle in a histogram</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>A histogram has bars of width 1 with the given heights, standing side by side. Find the area of the largest rectangle that fits entirely inside the bars.</p>
+      <div class="io"><div><span>Input</span>[2, 1, 5, 6, 2, 3]</div><div><span>Output</span>10 (height 5 across the bars 5 and 6)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: if bar j is the shortest bar of the rectangle, how wide can it be?</summary><p>The best rectangle has some shortest bar j, and it stretches from the nearest shorter bar on the left to the nearest shorter bar on the right. Keep an <i>increasing</i> stack. When a shorter bar arrives at i, it is the right wall for the bar it pops; the new top of the stack is the left wall. Width = <span class="mono">i − left − 1</span>. A height-0 bar at the end flushes everything left on the stack.</p></details>
+    <div id="viz4"></div>
+    <div class="aside"><p><b>Read the picture:</b> amber bars are on the stack (heights rise from bottom to top). The red bar is being popped and the blue shaded box is the rectangle it measures. The green dashed outline is the best rectangle so far.</p></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Try every pair of walls: O(n²)</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why one pass is enough, and why it's linear</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>For next greater (Problem 1), the stack holds exactly the indices seen so far that haven't met a bigger value, and their values never increase from bottom to top. A new value pops only from the top, so the order survives every push.</p></div>
+      <div><span class="q">Pops are correct</span><p>When x pops index j, everything pushed between j and now was either popped by something no bigger than a[j] or still sits above j, so nothing in between was bigger than a[j]. x is the <i>first</i> bigger value. That is the answer, not just an answer.</p></div>
+      <div><span class="q">Pops are safe</span><p>For "previous greater" (Problem 3), a popped index j has a[j] ≤ x. Any later element that would stop at j would stop at i first, because i is closer and at least as tall. So j can be thrown away forever.</p></div>
+      <div><span class="q">Amortized O(n)</span><p>The inner <span class="mono">while</span> loop can run many times for one i, which looks quadratic. But each index is pushed exactly once and popped at most once, so across the whole run there are at most n pushes and n pops: at most 2n stack operations in total. The steppers above count them for you.</p></div>
+      <div><span class="q">In an interview</span><p>Name the stack's order ("values decreasing from bottom to top"), say what a pop means ("the arriving element answers the popped one"), and give the push-once, pop-once argument for O(n). Then mention how ties are handled (<span class="mono">&lt;</span> or <span class="mono">&lt;=</span>).</p></div>
+    </div>
+    <p class="formula">pushes ≤ n,  pops ≤ pushes  ⇒  total work ≤ 2n = O(n)</p>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- stack drawing ----------
+  // st: indices on the stack (bottom first). a: values. o.pop / o.push: index being popped / just pushed
+  function drawStack(st, a, o = {}) {
+    if (!st.length) return `<div class="stack-empty">stack is empty</div>`;
+    const cw = 44, gap = 6, n = st.length, W = 20 + n * (cw + gap) - gap, H = 84, top = 22;
+    let s = "";
+    st.forEach((idx, k) => {
+      const x = 10 + k * (cw + gap), popping = idx === o.pop, pushed = idx === o.push;
+      const fill = popping ? "var(--bad)" : pushed ? "var(--accent)" : "var(--panel)";
+      const text = popping || pushed ? "var(--panel)" : "var(--ink)";
+      const stroke = popping ? "var(--bad)" : pushed ? "var(--accent)" : "var(--amber)";
+      s += `<rect x="${x}" y="${top}" width="${cw}" height="${cw}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+      s += `<text x="${x + cw / 2}" y="${top + cw / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${String(a[idx]).length > 3 ? 12 : 15}" font-weight="600" fill="${text}">${esc(a[idx])}</text>`;
+      s += `<text x="${x + cw / 2}" y="${top + cw + 14}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">i=${idx}</text>`;
+    });
+    const xt = 10 + (n - 1) * (cw + gap) + cw / 2;
+    s += `<text x="${xt}" y="13" text-anchor="middle" font-family="var(--mono)" font-size="10" font-weight="700" fill="var(--accent)">top</text>`;
+    s += `<text x="10" y="13" font-family="var(--mono)" font-size="10" fill="var(--muted)">${n > 1 ? "bottom" : ""}</text>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Stack contents, bottom to top">${s}</svg></div>`;
+  }
+  // array marks: current i active, indices on the stack "skip" (amber), resolved "done", just resolved "hit"
+  function arrMarks(n, f) {
+    const m = {};
+    for (let k = 0; k < n; k++) if (f.resolved && f.resolved[k]) m[k] = "done";
+    f.stack.forEach(k => { m[k] = "skip"; });
+    if (f.pop !== undefined && f.pop >= 0) m[f.pop] = "hit";
+    if (f.i >= 0 && f.i < n) m[f.i] = "active";
+    return m;
+  }
+  function stage(f, a, resLabel) {
+    const res = f.res.map(v => v === null ? "·" : v), rm = {};
+    if (f.set !== undefined && f.set >= 0) rm[f.set] = "hit";
+    return `<div class="stage-row">
+      <span class="stage-label">Array</span>${drawArray(a, { ptr: { i: f.i }, mark: arrMarks(a.length, f) })}
+      <span class="stage-label">Stack (indices, shown with their values)</span>${drawStack(f.stack, a, { pop: f.pop, push: f.push })}
+      <span class="stage-label">${resLabel}</span>${drawArray(res, { mark: rm })}</div>`;
+  }
+
+  // ---------- The idea: a static picture, computed by running the algorithm up to i = 5 ----------
+  (function () {
+    const a = [2, 7, 3, 5, 4, 6, 8], stop = 5, st = [];
+    for (let i = 0; i < stop; i++) { while (st.length && a[st[st.length - 1]] < a[i]) st.pop(); st.push(i); }
+    const popped = st.filter(k => a[k] < a[stop]), kept = st.filter(k => a[k] >= a[stop]);
+    const mark = { [stop]: "active" }; st.forEach(k => { mark[k] = "skip"; });
+    document.getElementById("ideaViz").innerHTML = `<div class="st-stage"><div class="stage-row">${drawArray(a, { ptr: { i: stop }, mark })}<span class="stage-label">Waiting stack before a[${stop}] = ${a[stop]} arrives</span>${drawStack(st, a)}</div>
+      <p style="font-size:14px;color:var(--muted)">The waiting values ${st.map(k => a[k]).join(", ")} fall from bottom to top. The new ${a[stop]} pops ${popped.slice().reverse().map(k => a[k]).join(" and ")} (it is the next greater element for both) and stops under ${kept.map(k => a[k]).join(", ")}, which keeps waiting.</p></div>`;
+  })();
+
+  // ---------- Problems 1 and 2 share one engine: a decreasing stack that answers the popped index ----------
+  function nextGreaterFrames(a, answer, empty, lines, words) {
+    const n = a.length, res = Array(n).fill(null), resolved = Array(n).fill(false), stack = [], frames = [];
+    let i = -1, pushes = 0, pops = 0;
+    const snap = (line, msg, extra = {}) => frames.push({ line, msg, i, stack: stack.slice(), res: res.slice(), resolved: resolved.slice(), ...extra,
+      vars: { i: i < 0 ? "–" : i, [words.x]: i < 0 ? "–" : a[i], "stack size": stack.length, pushes, pops } });
+    snap(lines.init, `Start with an empty stack. No ${words.item} has an answer yet.`);
+    for (i = 0; i < n; i++) {
+      snap(lines.loop, `Next ${words.item}: a[${i}] = ${a[i]}.`);
+      while (stack.length && a[stack[stack.length - 1]] < a[i]) {
+        const j = stack[stack.length - 1];
+        snap(lines.cond, `Top of the stack is a[${j}] = ${a[j]}, which is smaller than ${a[i]}. So ${a[i]} is the first bigger value after it.`, { pop: j });
+        stack.pop(); pops++;
+        res[j] = answer(i, j); resolved[j] = true;
+        snap(lines.pop, `Pop index ${j}. ${words.result(i, j, res[j])}`, { pop: j, set: j });
+      }
+      if (stack.length) snap(lines.cond, `Top is a[${stack[stack.length - 1]}] = ${a[stack[stack.length - 1]]}, not smaller than ${a[i]}. Stop popping.`);
+      else snap(lines.cond, `The stack is empty. Stop popping.`);
+      stack.push(i); pushes++;
+      snap(lines.push, `Push index ${i}: it waits for something bigger than ${a[i]}.`, { push: i });
+    }
+    i = -1;
+    stack.forEach(k => { res[k] = empty; resolved[k] = true; });
+    snap(lines.ret, `Done. ${stack.length ? `Index${stack.length > 1 ? "es" : ""} ${stack.join(", ")} never met a bigger value, so ${stack.length > 1 ? "they keep" : "it keeps"} ${empty}. ` : ""}<b class="ok">Result: [${res.join(", ")}]</b>. ${pushes} pushes + ${pops} pops = ${pushes + pops} stack operations, at most 2n = ${2 * n}.`);
+    return frames;
+  }
+
+  // ---------- Problem 1: next greater element ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def next_greater(a):",
+      "  res = [-1] * len(a)",
+      "  stack = []          # indices still waiting",
+      "  for i, x in enumerate(a):",
+      "    while stack and a[stack[-1]] < x:",
+      "      j = stack.pop()",
+      "      res[j] = x",
+      "    stack.append(i)",
+      "  return res"
+    ],
+    inputs: [{ key: "a", label: "Array", value: "4, 2, 6, 3, 1, 5, 7" }],
+    presets: [
+      { label: "Mixed", values: { a: "4, 2, 6, 3, 1, 5, 7" } },
+      { label: "Falling, then one big value", values: { a: "9, 7, 5, 3, 1, 10" } },
+      { label: "Rising", values: { a: "1, 2, 3, 4, 5" } },
+      { label: "With ties", values: { a: "3, 3, 1, 3, 4, 2" } }
+    ],
+    build({ a }) {
+      const p = parseNums(a, { min: 1, max: 12 }); if (p.error) return p;
+      const v = p.nums;
+      const frames = nextGreaterFrames(v, (i) => v[i], -1,
+        { init: 2, loop: 3, cond: 4, pop: 6, push: 7, ret: 8 },
+        { item: "element", x: "x", result: (i, j, r) => `res[${j}] = ${r}.` });
+      frames.forEach(f => { f.a = v; });
+      return { frames };
+    },
+    draw(f) { return stage(f, f.a, "Result: next greater value (· = not known yet)"); }
+  });
+
+  // ---------- Problem 2: daily temperatures ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def days_until_warmer(t):",
+      "  wait = [0] * len(t)",
+      "  stack = []          # days still waiting",
+      "  for i, x in enumerate(t):",
+      "    while stack and t[stack[-1]] < x:",
+      "      j = stack.pop()",
+      "      wait[j] = i - j",
+      "    stack.append(i)",
+      "  return wait"
+    ],
+    inputs: [{ key: "t", label: "Temperatures", value: "71, 69, 68, 72, 70, 74, 73" }],
+    presets: [
+      { label: "A week", values: { t: "71, 69, 68, 72, 70, 74, 73" } },
+      { label: "Long cold spell", values: { t: "60, 58, 57, 55, 54, 52, 70" } },
+      { label: "Warming every day", values: { t: "50, 55, 60, 65" } },
+      { label: "Same temperature", values: { t: "65, 65, 65, 66" } }
+    ],
+    build({ t }) {
+      const p = parseNums(t, { min: 1, max: 12 }); if (p.error) return p;
+      const v = p.nums;
+      const frames = nextGreaterFrames(v, (i, j) => i - j, 0,
+        { init: 2, loop: 3, cond: 4, pop: 6, push: 7, ret: 8 },
+        { item: "day", x: "t[i]", result: (i, j, r) => `Day ${j} waits ${i} − ${j} = ${r} day${r === 1 ? "" : "s"}.` });
+      frames.forEach(f => { f.a = v; });
+      return { frames };
+    },
+    draw(f) { return stage(f, f.a, "Result: days to wait (· = not known yet)"); }
+  });
+
+  // ---------- Problem 3: stock span ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def stock_span(p):",
+      "  span, stack = [], []",
+      "  for i, x in enumerate(p):",
+      "    while stack and p[stack[-1]] <= x:",
+      "      stack.pop()",
+      "    left = stack[-1] if stack else -1",
+      "    span.append(i - left)",
+      "    stack.append(i)",
+      "  return span"
+    ],
+    inputs: [{ key: "p", label: "Prices", value: "100, 80, 60, 70, 60, 75, 85" }],
+    presets: [
+      { label: "Classic week", values: { p: "100, 80, 60, 70, 60, 75, 85" } },
+      { label: "Steady climb", values: { p: "10, 20, 30, 40, 50" } },
+      { label: "Steady fall", values: { p: "50, 40, 30, 20, 10" } },
+      { label: "Equal prices", values: { p: "30, 30, 25, 30, 35" } }
+    ],
+    build({ p }) {
+      const r = parseNums(p, { min: 1, max: 12 }); if (r.error) return r;
+      const a = r.nums; if (a.some(x => x < 0)) return { error: "Prices can't be negative." };
+      const n = a.length, res = Array(n).fill(null), resolved = Array(n).fill(false), stack = [], frames = [];
+      let i = -1, pushes = 0, pops = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, a, i, stack: stack.slice(), res: res.slice(), resolved, ...extra,
+        vars: { i: i < 0 ? "–" : i, "p[i]": i < 0 ? "–" : a[i], "stack size": stack.length, pushes, pops } });
+      snap(1, "Start with an empty stack. It will hold earlier days that could still stop a future run.");
+      for (i = 0; i < n; i++) {
+        snap(2, `Day ${i}: price ${a[i]}.`);
+        while (stack.length && a[stack[stack.length - 1]] <= a[i]) {
+          const j = stack[stack.length - 1];
+          snap(3, `Top is day ${j} with price ${a[j]} ≤ ${a[i]}. Day ${j} is inside today's run, and day ${i} will block anything day ${j} could block later.`, { pop: j });
+          stack.pop(); pops++;
+          snap(4, `Pop day ${j} for good.`, { pop: j });
+        }
+        const left = stack.length ? stack[stack.length - 1] : -1;
+        snap(5, left >= 0 ? `Top is day ${left} with price ${a[left]} > ${a[i]}. Stop popping: that day ends the run.` : "The stack is empty: no earlier day was higher.");
+        res[i] = i - left;
+        snap(6, left >= 0 ? `span = ${i} − ${left} = ${res[i]}.` : `No higher day before, so left = −1 and span = ${i} − (−1) = ${res[i]}.`, { set: i, left });
+        stack.push(i); pushes++;
+        snap(7, `Push day ${i}: it may stop the run of a later day.`, { push: i, set: i });
+      }
+      i = -1;
+      snap(8, `<b class="ok">Spans: [${res.join(", ")}]</b>. ${pushes} pushes + ${pops} pops = ${pushes + pops} stack operations, at most 2n = ${2 * n}.`);
+      return { frames };
+    },
+    draw(f) {
+      const g = Object.assign({}, f, { resolved: [] });
+      let html = stage(g, f.a, "Result: span of each day (· = not reached yet)");
+      if (f.left !== undefined && f.left >= 0) html += `<p style="font-size:13px;color:var(--muted)">The run for day ${f.i} covers days ${f.left + 1} to ${f.i}; day ${f.left} (price ${f.a[f.left]}) is the nearest higher price before it.</p>`;
+      return html;
+    }
+  });
+
+  // ---------- Problem 4: largest rectangle in a histogram ----------
+  function drawHist(h, f) {
+    const n = h.length, slots = n + 1, bw = Math.max(22, Math.min(44, Math.floor(560 / slots) - 8)), gap = 8, maxH = Math.max(...h, 1), H = 160, base = 180;
+    const W = slots * (bw + gap) + 20, y = v => base - v / maxH * H, x = k => 10 + k * (bw + gap);
+    const inStack = new Set(f.stack);
+    let s = "";
+    if (f.best) {
+      const [l, r, bh] = f.best;
+      s += `<rect x="${x(l) - 2}" y="${y(bh)}" width="${x(r) + bw - x(l) + 4}" height="${base - y(bh)}" fill="none" stroke="var(--ok)" stroke-width="2" stroke-dasharray="5 4"/>`;
+    }
+    if (f.rect) {
+      const [l, r, rh] = f.rect;
+      s += `<rect x="${x(l) - 2}" y="${y(rh)}" width="${x(r) + bw - x(l) + 4}" height="${base - y(rh)}" fill="var(--accent)" opacity=".22"/>`;
+    }
+    h.forEach((v, k) => {
+      const c = k === f.pop ? "var(--bad)" : k === f.i ? "var(--accent)" : inStack.has(k) ? "var(--amber)" : "var(--muted)";
+      const op = k === f.pop || k === f.i || inStack.has(k) ? 1 : .4;
+      s += `<rect x="${x(k)}" y="${y(v)}" width="${bw}" height="${Math.max(base - y(v), 0)}" rx="3" fill="${c}" opacity="${op}"/>`;
+      s += `<text x="${x(k) + bw / 2}" y="${y(v) - 5}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--ink)">${v}</text>`;
+      s += `<text x="${x(k) + bw / 2}" y="${base + 14}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${k}</text>`;
+    });
+    // the sentinel slot at index n (height 0) that flushes the stack
+    s += `<rect x="${x(n)}" y="${base - 18}" width="${bw}" height="18" rx="3" fill="none" stroke="${f.i === n ? "var(--accent)" : "var(--line)"}" stroke-dasharray="3 3"/>`;
+    s += `<text x="${x(n) + bw / 2}" y="${base + 14}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">end</text>`;
+    if (f.i >= 0) s += `<text x="${x(f.i) + bw / 2}" y="${base + 30}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="var(--accent)">i</text>`;
+    s += `<line x1="6" y1="${base}" x2="${W - 6}" y2="${base}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${base + 36}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Histogram bars with the stack and the rectangle being measured">${s}</svg></div>`;
+  }
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def largest_rectangle(h):",
+      "  stack, best = [], 0",
+      "  for i in range(len(h) + 1):",
+      "    cur = h[i] if i < len(h) else 0",
+      "    while stack and h[stack[-1]] >= cur:",
+      "      j = stack.pop()",
+      "      left = stack[-1] if stack else -1",
+      "      best = max(best, h[j] * (i - left - 1))",
+      "    stack.append(i)",
+      "  return best"
+    ],
+    inputs: [{ key: "h", label: "Bar heights", value: "2, 1, 5, 6, 2, 3" }],
+    presets: [
+      { label: "Classic example", values: { h: "2, 1, 5, 6, 2, 3" } },
+      { label: "Short bar wins by width", values: { h: "3, 4, 2, 5, 4, 3, 4" } },
+      { label: "Rising", values: { h: "1, 2, 3, 4, 5" } },
+      { label: "Equal heights", values: { h: "4, 4, 4, 4" } }
+    ],
+    build({ h }) {
+      const r = parseNums(h, { min: 1, max: 12 }); if (r.error) return r;
+      const a = r.nums; if (a.some(x => x < 0)) return { error: "Heights can't be negative." };
+      const n = a.length, stack = [], frames = [];
+      let i = -1, best = 0, bestRect = null, pushes = 0, pops = 0, cur = null;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, h: a, i, stack: stack.slice(), best: bestRect, bestArea: best, ...extra,
+        vars: { i: i < 0 ? "–" : i, cur: cur === null ? "–" : cur, best, pushes, pops } });
+      snap(1, "Start with an empty stack. Bar heights on it will rise from bottom to top.");
+      for (i = 0; i <= n; i++) {
+        cur = i < n ? a[i] : 0;
+        snap(3, i < n ? `Bar ${i} has height ${cur}.` : `Past the last bar: pretend there is a bar of height 0 so every bar left on the stack gets measured.`);
+        while (stack.length && a[stack[stack.length - 1]] >= cur) {
+          const j = stack[stack.length - 1];
+          snap(4, `Top is bar ${j} (height ${a[j]}) ≥ ${cur}. Bar ${j} can't extend past bar ${i}, so its rectangle ends here.`, { pop: j });
+          stack.pop(); pops++;
+          const left = stack.length ? stack[stack.length - 1] : -1, width = i - left - 1, area = a[j] * width;
+          snap(6, `Pop bar ${j}. The new top ${left >= 0 ? `is bar ${left} (height ${a[left]}), the nearest shorter bar on the left` : "doesn't exist, so the left wall is −1"}. Width = ${i} − (${left}) − 1 = ${width}.`, { pop: j, rect: [left + 1, i - 1, a[j]] });
+          if (area > best) { best = area; bestRect = [left + 1, i - 1, a[j]]; snap(7, `Area = ${a[j]} × ${width} = ${area}. <b class="ok">New best: ${best}</b>.`, { pop: j, rect: [left + 1, i - 1, a[j]] }); }
+          else snap(7, `Area = ${a[j]} × ${width} = ${area}, not better than ${best}.`, { pop: j, rect: [left + 1, i - 1, a[j]] });
+        }
+        if (i < n) { stack.push(i); pushes++; snap(8, `Push bar ${i}. ${stack.length > 1 ? `Heights on the stack: ${stack.map(k => a[k]).join(" < ")}.` : "It's the only bar on the stack."}`); }
+      }
+      i = -1; cur = null;
+      snap(9, `<b class="ok">The largest rectangle has area ${best}</b>${bestRect ? `: height ${bestRect[2]} across bars ${bestRect[0]} to ${bestRect[1]}` : ""}. ${pushes} pushes + ${pops} pops = ${pushes + pops}, at most 2n = ${2 * n}.`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawHist(f.h, f)}<span class="stage-label">Stack (bar indices, shown with their heights)</span>${drawStack(f.stack, f.h, { pop: f.pop })}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

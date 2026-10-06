@@ -82,8 +82,15 @@ window.TOPICS = [
     usedIn: "PostgreSQL, MySQL InnoDB, SQLite, NTFS, APFS",
     glyph: "btree"
   },
-  { slug: "kafka", title: "Kafka Partitions", area: "Key technologies", status: "planned",
-    blurb: "Producers, partitions, offsets and consumer groups, including a rebalance when a consumer dies." },
+  {
+    slug: "kafka",
+    title: "Kafka Partitions",
+    area: "Key technologies",
+    status: "ready",
+    blurb: "Hash keys into partitions, watch a consumer group split them, then kill a consumer and see the rebalance pause, the lag and the messages read twice.",
+    usedIn: "LinkedIn, Netflix, Uber, Confluent",
+    glyph: "kafka"
+  },
   { slug: "count-min-sketch", title: "Count-Min Sketch and Top K", area: "Big data", status: "planned",
     blurb: "Estimate the most viewed videos in a stream using a few kilobytes of counters." },
   { slug: "distributed-lock", title: "Contention and Distributed Locks", area: "Patterns", status: "planned",
@@ -100,6 +107,7 @@ window.QUESTIONS = [
   {
     slug: "bitly",
     title: "Design a URL Shortener",
+    level: "hld",
     status: "ready",
     blurb: "Watch the design grow from one server to a scaled read path, generate codes three ways, and size it with live estimates.",
     concepts: ["lru-cache", "consistent-hashing", "bloom-filter", "rate-limiter"]
@@ -107,6 +115,7 @@ window.QUESTIONS = [
   {
     slug: "rate-limiter-design",
     title: "Design a Rate Limiter",
+    level: "hld",
     status: "ready",
     blurb: "Watch a per-server limiter leak, step two gateways through a race on one counter, and size a sharded Redis tier that fails safely.",
     concepts: ["rate-limiter", "consistent-hashing", "lru-cache"]
@@ -114,6 +123,7 @@ window.QUESTIONS = [
   {
     slug: "ticketmaster",
     title: "Design Ticketmaster",
+    level: "hld",
     status: "ready",
     blurb: "Step two buyers through a race for one seat, watch abandoned holds expire on a live seat map, and size a waiting room for an on-sale surge.",
     concepts: ["rate-limiter", "lru-cache", "consistent-hashing"]
@@ -121,6 +131,7 @@ window.QUESTIONS = [
   {
     slug: "whatsapp",
     title: "Design WhatsApp",
+    level: "hld",
     status: "ready",
     blurb: "Send messages to an offline phone across four design stages, step a lost ack through retry and dedupe, and size a fleet of socket servers.",
     concepts: ["consistent-hashing", "quorum", "rate-limiter"]
@@ -128,6 +139,7 @@ window.QUESTIONS = [
   {
     slug: "news-feed",
     title: "Design a News Feed",
+    level: "hld",
     status: "ready",
     blurb: "Post as a normal user and a celebrity across four design stages, step a k-way merge that builds one feed page, and size fan-out on write.",
     concepts: ["lru-cache", "consistent-hashing", "lsm-tree"]
@@ -135,15 +147,49 @@ window.QUESTIONS = [
   {
     slug: "uber",
     title: "Design Uber",
+    level: "hld",
     status: "ready",
     blurb: "Move driver locations from a SQL table to an in-memory geo index, watch two riders grab the same driver until a lock stops it, and size the location firehose.",
     concepts: ["geohash-quadtree", "consistent-hashing", "b-tree"]
   },
-  { slug: "top-k", title: "Design YouTube Top K", status: "planned", blurb: "Most-viewed videos over sliding windows using stream processing and sketches." },
-  { slug: "web-crawler", title: "Design a Web Crawler", status: "planned", blurb: "Frontier queues, politeness, deduplication and failure recovery." },
-  { slug: "distributed-cache", title: "Design a Distributed Cache", status: "planned", blurb: "Eviction, sharding, replication and hot keys." },
-  { slug: "google-docs", title: "Design Google Docs", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
-  { slug: "dropbox", title: "Design Dropbox", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." }
+  {
+    slug: "top-k",
+    title: "Design YouTube Top K",
+    level: "hld",
+    status: "ready",
+    blurb: "Send views through four design stages from a SQL count to sharded sketches, slide hour windows over minute buckets, and size the counters live.",
+    concepts: ["kafka", "count-min-sketch", "consistent-hashing", "lru-cache", "bloom-filter"]
+  },
+  { slug: "web-crawler", title: "Design a Web Crawler", level: "hld", status: "planned", blurb: "Frontier queues, politeness, deduplication and failure recovery." },
+  { slug: "distributed-cache", title: "Design a Distributed Cache", level: "hld", status: "planned", blurb: "Eviction, sharding, replication and hot keys." },
+  { slug: "google-docs", title: "Design Google Docs", level: "hld", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
+  { slug: "dropbox", title: "Design Dropbox", level: "hld", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." },
+  {
+    slug: "lld-parking-lot",
+    title: "Design a Parking Lot",
+    level: "lld",
+    status: "ready",
+    blurb: "Step cars, bikes and trucks through gates under two spot strategies, watch a display board update as an observer, and race two gates for the last spot.",
+    concepts: [],
+    patterns: ["Strategy", "Observer", "Factory", "Singleton"]
+  },
+  { slug: "lld-lru-cache", title: "Design an LRU Cache (classes)", level: "lld", status: "planned", blurb: "A hash map and a doubly linked list behind a small, thread-safe cache interface." },
+  { slug: "lld-rate-limiter", title: "Design a Rate Limiter (classes)", level: "lld", status: "planned", blurb: "Swappable limiting algorithms behind one interface, with per-client state." },
+  { slug: "lld-elevator", title: "Design an Elevator System", level: "lld", status: "planned", blurb: "Cars, requests and a dispatcher, with elevator state and scheduling strategies." },
+  { slug: "lld-vending-machine", title: "Design a Vending Machine", level: "lld", status: "planned", blurb: "Inventory, coins and change, driven by the State pattern." },
+  { slug: "lld-splitwise", title: "Design Splitwise", level: "lld", status: "planned", blurb: "Users, groups, expenses and balances, with equal, exact and percent splits." },
+  { slug: "lld-library", title: "Design a Library Management System", level: "lld", status: "planned", blurb: "Books, copies, members, loans, holds and fines." },
+  { slug: "lld-snake-ladder", title: "Design Snake and Ladder", level: "lld", status: "planned", blurb: "Board, players, dice and turns, with configurable jumps." },
+  { slug: "lld-chess", title: "Design Chess", level: "lld", status: "planned", blurb: "Pieces, moves, validation and game state." },
+  { slug: "lld-movie-booking", title: "Design Movie Ticket Booking (BookMyShow)", level: "lld", status: "planned", blurb: "Shows, seats, holds and payments without double booking." },
+  { slug: "lld-logger", title: "Design a Logger Framework", level: "lld", status: "planned", blurb: "Levels, formatters and appenders chained together." },
+  { slug: "lld-pub-sub", title: "Design a Pub-Sub / Notification Service", level: "lld", status: "planned", blurb: "Topics, subscribers and delivery channels with the Observer pattern." },
+  { slug: "lld-atm", title: "Design an ATM", level: "lld", status: "planned", blurb: "Card, PIN, cash dispensing and transaction states." },
+  { slug: "lld-hotel-booking", title: "Design a Hotel Booking System", level: "lld", status: "planned", blurb: "Rooms, availability by date and reservations." },
+  { slug: "lld-file-system", title: "Design an In-memory File System", level: "lld", status: "planned", blurb: "Directories and files as a tree, with paths and the Composite pattern." },
+  { slug: "lld-tic-tac-toe", title: "Design Tic-tac-toe", level: "lld", status: "planned", blurb: "Board, players and an O(1) win check." },
+  { slug: "lld-food-ordering", title: "Design Online Food Ordering", level: "lld", status: "planned", blurb: "Restaurants, menus, carts, orders and delivery status." },
+  { slug: "lld-meeting-scheduler", title: "Design a Meeting Room Scheduler", level: "lld", status: "planned", blurb: "Rooms, bookings and conflict checks over time intervals." }
 ];
 
 // DSA patterns, grouped by data structure. Each pattern page teaches the idea, how to spot it,
@@ -172,7 +218,9 @@ window.DSA = [
       problems: ["Reverse a list", "Reverse positions left to right", "Reverse every k nodes", "Palindrome linked list"] }
   ] },
   { area: "Stack", patterns: [
-    { slug: "monotonic-stack", title: "Monotonic Stack", status: "planned", blurb: "Next greater element, daily temperatures and the largest rectangle." }
+    { slug: "monotonic-stack", title: "Monotonic Stack", status: "ready",
+      blurb: "Keep a stack in sorted order and let each new value pop what it answers: next greater, days until warmer, stock span and the largest rectangle.",
+      problems: ["Next greater element", "Days until warmer", "Stock price span", "Largest rectangle"] }
   ] },
   { area: "Binary Search", patterns: [
     { slug: "binary-search", title: "Binary Search on the Answer", status: "planned", blurb: "Halve a sorted range, or halve the space of possible answers." }
@@ -204,7 +252,8 @@ window.LESSONS = [
       blurb: "A line with two knobs fitted to five flats: turn the knobs by hand, then search 24,381 settings for the best." },
     { num: 4, slug: "04-vectors-matrices", title: "Vectors and matrices, intuitively", status: "ready",
       blurb: "Drag two arrows to see the dot product change sign, then price every flat at once with ŷ = Xw + b." },
-    { num: 5, slug: "05-derivatives", title: "Derivatives and slopes, intuitively", status: "planned", blurb: "How fast an output changes when you nudge an input." },
+    { num: 5, slug: "05-derivatives", title: "Derivatives and slopes, intuitively", status: "ready",
+      blurb: "Shrink a secant into a tangent, read the slope's sign as the downhill direction, and let it walk a loss knob to its best value." },
     { num: 6, slug: "06-probability", title: "Probability basics for ML", status: "planned", blurb: "Chance, distributions and expectations, just enough for ML." },
     { num: 7, slug: "07-loss-functions", title: "Loss functions", status: "planned", blurb: "One number that measures how wrong a model is." },
     { num: 8, slug: "08-gradient-descent", title: "Gradient descent", status: "planned", blurb: "Walk downhill on the loss, one small step at a time." },

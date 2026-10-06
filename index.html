@@ -78,10 +78,19 @@
       <h2>Design questions</h2>
       <span class="eyebrow">Interview problems, worked step by step</span>
     </div>
-    <p style="color:var(--muted)">Each question follows the same interview steps: requirements, core entities, API, high-level design, then deep dives. The design is drawn live and grows one component at a time, with the reason for each addition. The step order follows Hello Interview's delivery framework.</p>
-    <div class="qgrid" id="qready"></div>
-    <h3 style="margin-top:8px">Coming next</h3>
-    <ul class="planned" id="qplanned"></ul>
+    <p style="color:var(--muted)">High-level questions follow the same interview steps: requirements, core entities, API, high-level design, then deep dives, with the design drawn live and grown one component at a time. Low-level questions go from requirements to a class diagram, design patterns, a step-through of the objects at work and runnable code. The step order follows Hello Interview's delivery framework.</p>
+    <div style="display:grid;gap:10px">
+      <h3 style="font-size:1.15rem">High-level design</h3>
+      <p style="color:var(--muted);font-size:14px">System design: services, storage, scaling and the trade-offs between them.</p>
+      <div class="qgrid" id="qready"></div>
+      <ul class="planned" id="qplanned"></ul>
+    </div>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      <h3 style="font-size:1.15rem">Low-level design</h3>
+      <p style="color:var(--muted);font-size:14px">Object-oriented design: classes, relationships, design patterns and runnable code, scoped for a 45-minute interview.</p>
+      <div class="qgrid" id="lready"></div>
+      <ul class="planned" id="lplanned"></ul>
+    </div>
   </section>
 
   <section id="dsa" role="tabpanel" aria-labelledby="tab-dsa" hidden style="display:grid;gap:14px">
@@ -187,6 +196,18 @@
       [[100, 150], [190, 150], [280, 150]].forEach(([x, y], i) => { s += `<rect x="${x}" y="${y}" width="${i === 1 ? 20 : 20}" height="20" rx="4" fill="${i === 1 ? "var(--ok)" : "none"}" stroke="${i === 1 ? "var(--ok)" : "var(--line)"}" stroke-width="1.5"/>`; });
       return s;
     },
+    kafka() {
+      let s = "";
+      [0, 1, 2].forEach(r => {
+        const y = 48 + r * 46, n = [7, 5, 6][r];
+        s += `<text x="44" y="${y + 5}" font-family="var(--mono)" font-size="12" fill="var(--muted)">P${r}</text>`;
+        for (let i = 0; i < n; i++) s += `<rect x="${70 + i * 30}" y="${y - 13}" width="26" height="26" rx="4" fill="${i < n - 2 ? "var(--accent-soft)" : "var(--panel)"}" stroke="${i < n - 2 ? "var(--accent)" : "var(--ink)"}" stroke-width="1.5"/>`;
+        s += `<path d="M${70 + (n - 2) * 30 - 2} ${y + 20} v8" stroke="var(--amber)" stroke-width="2.5"/>`;
+        s += `<line x1="300" y1="${y}" x2="330" y2="${r === 2 ? 141 : 71}" stroke="var(--line)" stroke-width="2"/>`;
+      });
+      s += `<circle cx="345" cy="71" r="15" fill="var(--ok)"/><circle cx="345" cy="141" r="15" fill="var(--ok)"/>`;
+      return s;
+    },
     cluster() {
       const cx = 200, cy = 100, r = 62; let pts = [];
       for (let i = 0; i < 5; i++) {
@@ -219,18 +240,24 @@
   const qs = window.QUESTIONS || [];
   const byslug = Object.fromEntries(TOPICS.map(t => [t.slug, t.title]));
   const steps = ["Requirements", "Entities", "API", "Design", "Deep dives"];
-  document.getElementById("qready").innerHTML = qs.filter(q => q.status === "ready").map(q => `
+  const lsteps = ["Entities", "Classes", "Patterns", "Walkthrough", "Code"];
+  const qThumb = (labels, on) => `<svg viewBox="0 0 400 200" aria-hidden="true">${labels.map((st, i) => `<rect x="${24 + i * 72}" y="70" width="64" height="60" rx="6" fill="${i === on ? "var(--accent)" : "var(--panel)"}" stroke="${i === on ? "var(--accent)" : "var(--line)"}" stroke-width="1.5"/><text x="${56 + i * 72}" y="104" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="${i === on ? "var(--panel)" : "var(--muted)"}">${st}</text>`).join("")}</svg>`;
+  const qCard = (q, lld) => `
     <a class="topic" href="questions/${q.slug}.html">
-      <div class="thumb"><svg viewBox="0 0 400 200" aria-hidden="true">${steps.map((st, i) => `<rect x="${24 + i * 72}" y="70" width="64" height="60" rx="6" fill="${i === 3 ? "var(--accent)" : "var(--panel)"}" stroke="${i === 3 ? "var(--accent)" : "var(--line)"}" stroke-width="1.5"/><text x="${56 + i * 72}" y="104" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="${i === 3 ? "var(--panel)" : "var(--muted)"}">${st}</text>`).join("")}</svg></div>
+      <div class="thumb">${lld ? qThumb(lsteps, 1) : qThumb(steps, 3)}</div>
       <div class="body">
-        <div class="meta"><span class="eyebrow">Design question</span><span class="pill ready">Live</span></div>
+        <div class="meta"><span class="eyebrow">${lld ? "Low-level design" : "Design question"}</span><span class="pill ready">Live</span></div>
         <h3 style="font-size:1.3rem">${q.title}</h3>
         <p>${q.blurb}</p>
-        <span class="used">Concepts: ${q.concepts.map(c => byslug[c] || c).join(", ")}</span>
+        <span class="used">${lld && q.patterns ? "Patterns: " + q.patterns.join(", ") : q.concepts && q.concepts.length ? "Concepts: " + q.concepts.map(c => byslug[c] || c).join(", ") : ""}</span>
       </div>
-    </a>`).join("");
-  document.getElementById("qplanned").innerHTML = qs.filter(q => q.status !== "ready").map(q => `
-    <li><span class="eyebrow">Design question</span><h3>${q.title}</h3><p>${q.blurb}</p></li>`).join("");
+    </a>`;
+  const qPlan = (q, lld) => `<li><span class="eyebrow">${lld ? "Low-level design" : "Design question"} · coming next</span><h3>${q.title}</h3><p>${q.blurb}</p></li>`;
+  const hld = qs.filter(q => (q.level || "hld") === "hld"), lld = qs.filter(q => q.level === "lld");
+  document.getElementById("qready").innerHTML = hld.filter(q => q.status === "ready").map(q => qCard(q, false)).join("");
+  document.getElementById("qplanned").innerHTML = hld.filter(q => q.status !== "ready").map(q => qPlan(q, false)).join("");
+  document.getElementById("lready").innerHTML = lld.filter(q => q.status === "ready").map(q => qCard(q, true)).join("");
+  document.getElementById("lplanned").innerHTML = lld.filter(q => q.status !== "ready").map(q => qPlan(q, true)).join("");
   const nQ = qs.filter(q => q.status === "ready").length;
   document.getElementById("count").textContent += ` · ${nQ} design question${nQ === 1 ? "" : "s"}`;
   document.getElementById("nConcepts").textContent = ready.length;

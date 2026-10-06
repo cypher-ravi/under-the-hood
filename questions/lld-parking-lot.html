@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a Parking Lot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #uml { width: 100%; height: auto; display: block; }
+  .diagram-wrap.zoomed #uml { min-width: 680px; }
+  .zoom-row { display: none; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+  .zoom-row button { white-space: nowrap; flex: none; }
+  @media (max-width: 700px) { .zoom-row { display: flex; } }
+  #uml .cls rect { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+  #uml .cls line { stroke: var(--line); stroke-width: 1.2; }
+  #uml .nm { font: 700 13px var(--display); fill: var(--ink); }
+  #uml .nm.ab { font-style: italic; }
+  #uml .st { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .st2 { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .mb { font: 500 11px var(--mono); fill: var(--ink); }
+  #uml .mult { font: 600 11px var(--mono); fill: var(--accent); }
+  #uml .rel { fill: none; stroke: var(--ink); stroke-width: 1.3; }
+  #uml .rel.dash { stroke-dasharray: 5 4; }
+  .legend-uml { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .legend-uml span { display: flex; gap: 8px; align-items: center; }
+  .legend-uml svg { flex: none; }
+  .pats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .pat { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; background: var(--paper); align-content: start; }
+  .pat h3 { font-size: 15px; }
+  .pat p { font-size: 14px; }
+  .pat .no { color: var(--muted); }
+  .pat .no b { color: var(--bad); }
+  .sim { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(250px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+  .simbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .simbar label.field { flex: 1 1 150px; }
+  .simbar select { font: 500 13px/1.3 var(--body); padding: 8px 9px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .simbar .grp { display: flex; flex-wrap: wrap; gap: 6px; }
+  #lotsvg { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: var(--ink); color: var(--paper); border-radius: var(--radius); padding: 10px; }
+  .board div { display: grid; gap: 2px; text-align: center; }
+  .board b { font: 600 1.5rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .board b.full { color: var(--bad); }
+  .board span { font: 600 10px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+  .board-cap { font: 500 11px/1.3 var(--mono); color: var(--muted); }
+  .trace { margin: 0; padding: 0 0 0 1.4em; display: grid; gap: 4px; font: 500 12.5px/1.5 var(--mono); }
+  .trace li::marker { color: var(--muted); }
+  .trace .hl { color: var(--accent); font-weight: 600; }
+  .trace .bad { color: var(--bad); font-weight: 600; }
+  .trace .ok { color: var(--ok); font-weight: 600; }
+  pre.log { margin: 0; font: 500 12px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; max-height: 260px; overflow-y: auto; }
+  pre.log .last { color: var(--accent); font-weight: 600; }
+  .meter { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  pre.code { margin: 0; font: 500 12.5px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; max-height: 560px; overflow-y: auto; }
+  pre.code .c { color: var(--muted); }
+  .race-gates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .race-gates div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); display: grid; gap: 3px; font-size: 13px; }
+  .race-gates div.moved { border-color: var(--accent); }
+  .race-gates b { font-family: var(--mono); }
+  .race-spot { border: 2px dashed var(--line); border-radius: var(--radius); padding: 10px 12px; font: 500 13px/1.5 var(--mono); background: var(--panel); }
+  .race-spot.taken { border-style: solid; border-color: var(--ok); }
+  .race-spot.double { border-style: solid; border-color: var(--bad); color: var(--bad); }
+  .planned-link { font: 500 12px/1 var(--mono); padding: 8px 10px; border-radius: 999px; border: 1px dashed var(--line); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="lld-parking-lot" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Low-level design</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a Parking Lot</h1>
+    <p class="lede">A multi-storey car park with entry and exit gates: vehicles of three sizes arrive, get a ticket and a spot, leave, and pay by the hour, while a board at the entrance shows what's free. Nothing here is about servers or scale. The interviewer wants clean classes with one job each, the right relationships between them, a few patterns used for a reason, and code that stays correct when two gates hand out the last spot at the same moment.</p>
+    <p class="sources">The interview flow is adapted from Hello Interview's delivery framework for a 45-minute round. The breakdown, diagram and code on this page are our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Ask until the scope fits in 45 minutes. Payments by card, reservations, licence-plate cameras and many lots across a city are follow-ups, not the core.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the lot should</h3>
+        <ul>
+          <li>Have several floors, each with spots of three sizes: <b>small</b>, <b>compact</b> and <b>large</b>.</li>
+          <li>Accept three vehicle types: <b>bike</b>, <b>car</b>, <b>truck</b>. A vehicle fits its own size or any bigger spot.</li>
+          <li>Issue a ticket at an entry gate (vehicle, spot, entry time), or turn the vehicle away when nothing fits.</li>
+          <li>At an exit gate, free the spot and charge per started hour, with a rate per vehicle size.</li>
+          <li>Show free spots per size on a display board, updated on every change.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the code should</h3>
+        <ul>
+          <li>Be <b>thread-safe</b>: several gates run at once and never hand the same spot to two vehicles.</li>
+          <li>Be <b>extensible</b>: a new vehicle type, spot type or pricing rule means adding a class, not editing the lot.</li>
+          <li>Find a spot in <b>O(1)-ish</b> time: no scan over thousands of spots on every arrival.</li>
+          <li>Keep the domain testable without threads, clocks or hardware (time is passed in).</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> say out loud what you are <i>not</i> building. An LLD round rewards a small, correct core with clear seams for later, more than a sprawling model with twenty half-designed classes.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="3m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities and their responsibilities</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Pull the nouns out of the requirements, then give each one a single job. If a class's job needs the word "and", it may be two classes.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>ParkingLot</h3><code>owns floors and the free-spot
+index; parks and releases
+vehicles atomically; tells
+observers what changed</code></div>
+      <div class="entity"><h3>Floor</h3><code>a numbered level that
+holds its spots</code></div>
+      <div class="entity"><h3>Spot</h3><code>floor, number, size;
+"0-2" is floor 0, spot 2</code></div>
+      <div class="entity"><h3>Vehicle</h3><code>plate and size;
+Bike, Car, Truck
+are subclasses</code></div>
+      <div class="entity"><h3>Ticket</h3><code>id, vehicle, spot,
+entry time; the proof
+of what was parked where</code></div>
+      <div class="entity"><h3>Gate</h3><code>an entry or exit point;
+turns a request into a
+call on the lot</code></div>
+      <div class="entity"><h3>AssignmentStrategy</h3><code>chooses which free spot
+a vehicle gets</code></div>
+      <div class="entity"><h3>PricingStrategy</h3><code>turns size and minutes
+parked into a fee</code></div>
+      <div class="entity"><h3>Display</h3><code>the "spaces free" board;
+listens for changes</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="classes" data-nav="Class diagram" data-num="3" data-time="6m">
+    <div class="step-head"><span class="step-num">3</span><h2>Class diagram</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">The lot <i>owns</i> its floors and floors own their spots: if the lot goes away, so do they (composition, filled diamond). Vehicles are not owned; a ticket only points at one (association). The two strategies and the observer are interfaces, so the lot depends on what they promise, not on which class keeps it.</p>
+    <div class="zoom-row"><button id="zoomUml" aria-pressed="false">Zoom in</button><span id="zoomHint">The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.</span></div>
+    <div class="diagram-wrap" id="umlWrap"><svg id="uml" viewBox="0 0 761 725" role="img" aria-label="Class diagram of the parking lot"><defs>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></marker>
+<marker id="dia" viewBox="0 0 18 12" refX="1" refY="6" markerWidth="18" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,6 L9,1 L17,6 L9,11 z" fill="var(--ink)"/></marker>
+<marker id="arr" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="var(--ink)" stroke-width="1.3"/></marker>
+</defs><g class="cls"><rect x="16" y="16" width="205" height="102" rx="3"/><text class="nm" x="118.5" y="34" text-anchor="middle">Gate</text><line x1="16" y1="42" x2="221" y2="42"/><text class="mb" x="24" y="58">name: str</text><text class="mb" x="24" y="73">lot: ParkingLot</text><line x1="16" y1="80" x2="221" y2="80"/><text class="mb" x="24" y="96">enter(kind, plate, t)</text><text class="mb" x="24" y="111">exit(ticket, t): int</text></g><g class="cls"><rect x="275" y="16" width="222" height="147" rx="3"/><text class="nm" x="386.0" y="34" text-anchor="middle">ParkingLot</text><line x1="275" y1="42" x2="497" y2="42"/><text class="mb" x="283" y="58">floors: list[Floor]</text><text class="mb" x="283" y="73">free: {Size: heap}</text><text class="mb" x="283" y="88">tickets: {id: Ticket}</text><text class="mb" x="283" y="103">lock: Lock</text><line x1="275" y1="110" x2="497" y2="110"/><text class="mb" x="283" y="126">park(vehicle, t): Ticket?</text><text class="mb" x="283" y="141">leave(ticket_id, t): int</text><text class="mb" x="283" y="156">subscribe(observer)</text></g><g class="cls"><rect x="545" y="16" width="200" height="61" rx="3"/><text class="st" x="645.0" y="32" text-anchor="middle">«interface»</text><text class="nm ab" x="645.0" y="46" text-anchor="middle">LotObserver</text><line x1="545" y1="54" x2="745" y2="54"/><text class="mb" x="553" y="70">update(free_counts)</text></g><g class="cls"><rect x="545" y="118" width="200" height="72" rx="3"/><text class="nm" x="645.0" y="136" text-anchor="middle">Display</text><line x1="545" y1="144" x2="745" y2="144"/><text class="mb" x="553" y="160">text: str</text><line x1="545" y1="167" x2="745" y2="167"/><text class="mb" x="553" y="183">update(free_counts)</text></g><g class="cls"><rect x="16" y="190" width="205" height="72" rx="3"/><text class="nm" x="118.5" y="208" text-anchor="middle">VehicleFactory</text><line x1="16" y1="216" x2="221" y2="216"/><text class="mb" x="24" y="232">kinds: {str: type}</text><line x1="16" y1="239" x2="221" y2="239"/><text class="mb" x="24" y="255">create(kind, plate): Vehicle</text></g><g class="cls"><rect x="16" y="318" width="205" height="76" rx="3"/><text class="st" x="118.5" y="334" text-anchor="middle">«abstract»</text><text class="nm ab" x="118.5" y="348" text-anchor="middle">Vehicle</text><line x1="16" y1="356" x2="221" y2="356"/><text class="mb" x="24" y="372">plate: str</text><text class="mb" x="24" y="387">size: Size</text></g><g class="cls"><rect x="275" y="218" width="150" height="64" rx="3"/><text class="nm" x="350.0" y="236" text-anchor="middle">Floor</text><line x1="275" y1="244" x2="425" y2="244"/><text class="mb" x="283" y="260">number: int</text><text class="mb" x="283" y="275">spots: list[Spot]</text></g><g class="cls"><rect x="275" y="338" width="150" height="79" rx="3"/><text class="nm" x="350.0" y="356" text-anchor="middle">Spot</text><line x1="275" y1="364" x2="425" y2="364"/><text class="mb" x="283" y="380">id: str</text><text class="mb" x="283" y="395">floor, number: int</text><text class="mb" x="283" y="410">size: Size</text></g><g class="cls"><rect x="275" y="486" width="222" height="64" rx="3"/><text class="nm" x="386.0" y="504" text-anchor="middle">Ticket</text><line x1="275" y1="512" x2="497" y2="512"/><text class="mb" x="283" y="528">id: str</text><text class="mb" x="283" y="543">entered: int (minutes)</text></g><g class="cls"><rect x="545" y="236" width="200" height="61" rx="3"/><text class="st" x="645.0" y="252" text-anchor="middle">«interface»</text><text class="nm ab" x="645.0" y="266" text-anchor="middle">AssignmentStrategy</text><line x1="545" y1="274" x2="745" y2="274"/><text class="mb" x="553" y="290">pick(free, size): Spot?</text></g><g class="cls"><rect x="545" y="470" width="200" height="61" rx="3"/><text class="st" x="645.0" y="486" text-anchor="middle">«interface»</text><text class="nm ab" x="645.0" y="500" text-anchor="middle">PricingStrategy</text><line x1="545" y1="508" x2="745" y2="508"/><text class="mb" x="553" y="524">fee(size, minutes): int</text></g><g class="cls"><rect x="16" y="468" width="63" height="41" rx="3"/><text class="nm" x="47.5" y="486" text-anchor="middle">Bike</text><text class="mb" x="47.5" y="504" text-anchor="middle">SMALL</text></g><g class="cls"><rect x="87" y="468" width="63" height="41" rx="3"/><text class="nm" x="118.5" y="486" text-anchor="middle">Car</text><text class="mb" x="118.5" y="504" text-anchor="middle">COMPACT</text></g><g class="cls"><rect x="158" y="468" width="63" height="41" rx="3"/><text class="nm" x="189.5" y="486" text-anchor="middle">Truck</text><text class="mb" x="189.5" y="504" text-anchor="middle">LARGE</text></g><g class="cls"><rect x="545" y="350" width="96" height="41" rx="3"/><text class="nm" x="593.0" y="368" text-anchor="middle">NearestFirst</text><text class="mb" x="593.0" y="386" text-anchor="middle">lowest floor</text></g><g class="cls"><rect x="649" y="350" width="96" height="41" rx="3"/><text class="nm" x="697.0" y="368" text-anchor="middle">BestFit</text><text class="mb" x="697.0" y="386" text-anchor="middle">smallest fit</text></g><g class="cls"><rect x="545" y="570" width="200" height="72" rx="3"/><text class="nm" x="645.0" y="588" text-anchor="middle">Hourly</text><line x1="545" y1="596" x2="745" y2="596"/><text class="mb" x="553" y="612">rates: {Size: int}</text><line x1="545" y1="619" x2="745" y2="619"/><text class="mb" x="553" y="635">fee(size, minutes): int</text></g><g class="cls"><rect x="585" y="670" width="160" height="41" rx="3"/><text class="nm" x="665.0" y="688" text-anchor="middle">FirstHourFree</text><text class="mb" x="665.0" y="706" text-anchor="middle">overrides fee()</text></g><path class="rel " d="M221,52 L275,52" marker-end="url(#arr)"/><text class="mult" x="270" y="46" text-anchor="end">1</text><text class="mult" x="226" y="46" text-anchor="start">1..*</text><path class="rel " d="M497,46 L545,46" marker-end="url(#arr)"/><text class="mult" x="540" y="40" text-anchor="end">0..*</text><path class="rel dash" d="M645.0,118 L645.0,77" marker-end="url(#tri)"/><path class="rel dash" d="M118.5,118 L118.5,190" marker-end="url(#arr)"/><text class="st2" x="126.5" y="158.0" text-anchor="start">«uses»</text><path class="rel dash" d="M118.5,262 L118.5,318" marker-end="url(#arr)"/><text class="st2" x="126.5" y="294.0" text-anchor="start">«creates»</text><path class="rel " d="M118.5,448 L118.5,394" marker-end="url(#tri)"/><path class="rel " d="M47.5,448 L189.5,448"/><path class="rel " d="M47.5,468 L47.5,448"/><path class="rel " d="M118.5,468 L118.5,448"/><path class="rel " d="M189.5,468 L189.5,448"/><path class="rel " d="M350.0,163 L350.0,218" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="356.0" y="212" text-anchor="start">1..*</text><path class="rel " d="M350.0,282 L350.0,338" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="356.0" y="332" text-anchor="start">1..*</text><path class="rel " d="M470,163 L470,486" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="464" y="480" text-anchor="end">0..*</text><text class="st2" x="464" y="195" text-anchor="end">active</text><path class="rel " d="M350.0,486 L350.0,417" marker-end="url(#arr)"/><text class="mult" x="356.0" y="431" text-anchor="start">1</text><path class="rel " d="M275,516 L248,516 L248,368 L221,368" marker-end="url(#arr)"/><text class="mult" x="226" y="362" text-anchor="start">1</text><path class="rel " d="M497,120 L512,120 L512,266 L545,266" marker-end="url(#arr)"/><text class="mult" x="540" y="260" text-anchor="end">1</text><path class="rel " d="M497,140 L526,140 L526,500 L545,500" marker-end="url(#arr)"/><text class="mult" x="540" y="494" text-anchor="end">1</text><path class="rel dash" d="M645.0,336 L645.0,297" marker-end="url(#tri)"/><path class="rel dash" d="M593.0,336 L697.0,336"/><path class="rel dash" d="M593.0,350 L593.0,336"/><path class="rel dash" d="M697.0,350 L697.0,336"/><path class="rel dash" d="M645.0,570 L645.0,531" marker-end="url(#tri)"/><path class="rel " d="M665.0,670 L665.0,642" marker-end="url(#tri)"/></svg></div>
+    <div class="legend-uml" aria-label="Notation">
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>inherits from (is a)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>implements an interface</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M1,7 L9,2 L17,7 L9,12 z" fill="var(--ink)"/><path d="M17,7 H42" stroke="var(--ink)" stroke-width="1.3"/></svg>composition (owns, same lifetime)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>association (knows about)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>dependency (uses, creates)</span>
+      <span><b class="mono" style="color:var(--accent)">1..*</b>multiplicity: how many at that end</span>
+    </div>
+    <div class="aside"><p><b>Reading it:</b> "ParkingLot ◆— 1..* Floor" says one lot is made of one or more floors. "ParkingLot ◆— 0..* Ticket" says the lot holds zero or more active tickets. "1" next to an interface says the lot uses exactly one strategy at a time. Italic names are abstract: you never create a plain <span class="mono">Vehicle</span>.</p></div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="Interfaces" data-num="4" data-time="5m">
+    <div class="step-head"><span class="step-num">4</span><h2>Interfaces of the main classes</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Write the signatures before any bodies. They are the contract the rest of the interview builds on, and they show where the seams are.</p>
+<pre class="api"><span class="verb">class</span> ParkingLot:
+    __init__(floors: list[list[Size]], strategy: AssignmentStrategy,
+             pricing: PricingStrategy)
+    park(vehicle: Vehicle, now: int) -> Ticket | None   <span class="c"># None = nothing fits</span>
+    leave(ticket_id: str, now: int) -> int              <span class="c"># the fee</span>
+    subscribe(observer: LotObserver) -> None
+
+<span class="verb">class</span> Gate:
+    enter(kind: str, plate: str, now: int) -> Ticket | None
+    exit(ticket: Ticket, now: int) -> int
+
+<span class="verb">interface</span> AssignmentStrategy:
+    pick(free: dict[Size, heap], size: Size) -> Spot | None
+<span class="verb">interface</span> PricingStrategy:
+    fee(size: Size, minutes: int) -> int
+<span class="verb">interface</span> LotObserver:
+    update(free_counts: dict[Size, int]) -> None
+
+<span class="verb">class</span> VehicleFactory:
+    create(kind: str, plate: str) -> Vehicle             <span class="c"># "car" -> Car</span>
+
+<span class="c"># time is minutes since midnight, passed in: tests never sleep or mock a clock</span></pre>
+    <div class="aside"><p><b>Why <span class="mono">park</span> returns <span class="mono">None</span> instead of raising:</b> a full lot is a normal outcome at 9 am, not an error. Keep exceptions for bugs, like a ticket id that was never issued.</p></div>
+  </section>
+
+  <section class="panel article" id="patterns" data-nav="Design patterns" data-num="5" data-time="5m">
+    <div class="step-head"><span class="step-num">5</span><h2>Design patterns, and why</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Name a pattern only when it solves a problem you can point at in the requirements. Each card says where it earns its place and where it would be ceremony.</p>
+    <div class="pats">
+      <div class="pat">
+        <h3>Strategy: spot assignment and pricing</h3>
+        <p>Both are rules the business will change without touching the lot: "nearest first" today, "save large spots for trucks" tomorrow; hourly on weekdays, first hour free at weekends. Each rule is one small class behind one method, chosen when the lot is built.</p>
+        <p class="no"><b>Not worth it</b> when there is truly one rule and no hint of a second. A plain function is fine; extract the interface the day a second rule arrives.</p>
+      </div>
+      <div class="pat">
+        <h3>Observer: display boards</h3>
+        <p>The lot shouldn't know how many boards exist, or that one is an LED sign and another a mobile app. It keeps a list of <span class="mono">LotObserver</span>s and calls <span class="mono">update</span> after each change. New listeners (analytics, an "almost full" alert) subscribe without editing the lot.</p>
+        <p class="no"><b>Watch out:</b> call observers <i>outside</i> the lock, or a slow board stalls every gate. With one listener and no plans for more, a direct call is simpler.</p>
+      </div>
+      <div class="pat">
+        <h3>Factory: vehicles (and tickets)</h3>
+        <p>Gates receive a string from the barrier hardware ("car") and need the right subclass. One registry maps kinds to classes, so adding a van is one entry. Ticket ids also come from one place (a counter inside the lot), so two gates can't mint the same id.</p>
+        <p class="no"><b>Not worth it</b> as a class hierarchy of factories. A dictionary of constructors is the whole pattern here; an <span class="mono">AbstractVehicleFactoryFactory</span> is a red flag.</p>
+      </div>
+      <div class="pat">
+        <h3>Singleton: the lot (usually a smell)</h3>
+        <p>"There is only one lot" tempts a <span class="mono">ParkingLot.get_instance()</span>. That hides a global: every class reaches for it, tests can't build a small two-spot lot, and a second site means a rewrite.</p>
+        <p class="no"><b>Better:</b> create one lot at startup and <i>pass it in</i> (dependency injection), as <span class="mono">Gate(name, lot)</span> does. You still have one instance, without the global. Mention Singleton to show you know it, then explain why you didn't use it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="walkthrough" data-nav="Walkthrough" data-num="6" data-time="5m">
+    <div class="step-head"><span class="step-num">6</span><h2>Walkthrough: the objects at work</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">A two-floor lot with five spots runs the same classes as the Python below. <b>Step</b> plays the demo's morning one event at a time; the trace shows each method call with the values it saw. Switch the strategy and the same morning replays: with <b>NearestFirst</b> a car grabs the large spot on floor 0 and a truck is turned away at 08:40; <b>BestFit</b> keeps that spot free. Add your own vehicles at any time.</p>
+    <div class="simbar">
+      <label class="field" for="selStrat"><span>Spot assignment</span><select id="selStrat"><option value="NearestFirst">NearestFirst</option><option value="BestFit">BestFit</option></select></label>
+      <label class="field" for="selPrice"><span>Pricing</span><select id="selPrice"><option value="Hourly">Hourly ($1 / $3 / $5)</option><option value="FirstHourFree">FirstHourFree</option></select></label>
+      <div class="grp">
+        <button id="bReset">Reset</button>
+        <button class="primary" id="bStep">Step ▶</button>
+        <button id="bPlay">Play</button>
+      </div>
+    </div>
+    <div class="simbar">
+      <div class="grp">
+        <button id="aBike">+ Bike</button>
+        <button id="aCar">+ Car</button>
+        <button id="aTruck">+ Truck</button>
+        <button id="aLeave">Oldest leaves</button>
+        <button id="aHour">Clock +1 h</button>
+      </div>
+      <span class="meter" id="clock"></span>
+    </div>
+    <div class="sim">
+      <div style="display:grid;gap:10px">
+        <svg id="lotsvg" viewBox="0 0 366 176" role="img" aria-label="Parking lot floors and spots"></svg>
+        <div>
+          <div class="board" id="board" aria-live="polite"></div>
+          <p class="board-cap" id="boardCap"></p>
+        </div>
+      </div>
+      <div style="display:grid;gap:8px">
+        <h3 style="font-size:14px" id="traceTitle">What ran</h3>
+        <ol class="trace" id="trace"></ol>
+        <p class="meter" id="money"></p>
+      </div>
+    </div>
+    <h3 style="font-size:14px">Log (same format as the Python demo's output)</h3>
+    <pre class="log" id="log" aria-live="polite"></pre>
+  </section>
+
+  <section class="panel article" id="code" data-nav="Code" data-num="7" data-time="7m">
+    <div class="step-head"><span class="step-num">7</span><h2>Code</h2><span class="step-time">about 7 minutes</span></div>
+    <p class="kicker">Runnable Python 3, standard library only. The core classes come first, then a short demo that replays the walkthrough's morning under both strategies and races two threads for one spot. In an interview you'd write <span class="mono">ParkingLot.park</span>, <span class="mono">leave</span> and one strategy in full, and sketch the rest.</p>
+<pre class="code" tabindex="0" aria-label="Python code">import heapq, itertools, math, threading
+from abc import ABC, abstractmethod
+from collections import namedtuple
+from enum import IntEnum
+
+Size = IntEnum("Size", "SMALL COMPACT LARGE")   <span class="c"># bigger spots fit smaller vehicles</span>
+
+class Vehicle:
+    size: Size                      <span class="c"># each subclass fixes its size</span>
+    def __init__(self, plate): self.plate = plate
+class Bike(Vehicle): size = Size.SMALL
+class Car(Vehicle): size = Size.COMPACT
+class Truck(Vehicle): size = Size.LARGE
+
+class VehicleFactory:
+    kinds = {"bike": Bike, "car": Car, "truck": Truck}   <span class="c"># new type = one new entry</span>
+    @classmethod
+    def create(cls, kind, plate): return cls.kinds[kind](plate)
+
+class Spot:
+    def __init__(self, floor, number, size):
+        self.floor, self.number, self.size = floor, number, size
+        self.id = f"{floor}-{number}"
+
+class Floor:
+    def __init__(self, number, sizes):
+        self.number = number
+        self.spots = [Spot(number, n, size) for n, size in enumerate(sizes)]
+
+Ticket = namedtuple("Ticket", "id vehicle spot entered")
+
+class AssignmentStrategy(ABC):      <span class="c"># free[size]: min-heap of (floor, number, spot)</span>
+    @abstractmethod
+    def pick(self, free, size): ...
+class NearestFirst(AssignmentStrategy):
+    def pick(self, free, size):     <span class="c"># lowest floor/number among spots that fit</span>
+        heads = [free[s][0] for s in Size if s &gt;= size and free[s]]
+        return min(heads, key=lambda h: h[:2])[-1] if heads else None
+class BestFit(AssignmentStrategy):
+    def pick(self, free, size):     <span class="c"># smallest size that fits; saves large spots</span>
+        return next((free[s][0][-1] for s in Size if s &gt;= size and free[s]), None)
+
+class PricingStrategy(ABC):
+    @abstractmethod
+    def fee(self, size, minutes): ...
+class Hourly(PricingStrategy):
+    def __init__(self, rates): self.rates = rates
+    def fee(self, size, minutes):   <span class="c"># every started hour is billed, at least one</span>
+        return max(1, math.ceil(minutes / 60)) * self.rates[size]
+class FirstHourFree(Hourly):
+    def fee(self, size, minutes):
+        return max(0, math.ceil(minutes / 60) - 1) * self.rates[size]
+
+class LotObserver(ABC):
+    @abstractmethod
+    def update(self, free_counts): ...
+class Display(LotObserver):         <span class="c"># the "spaces free" board at the entrance</span>
+    def __init__(self): self.text = ""
+    def update(self, free_counts):
+        self.text = " ".join(f"{s.name[0]}{n}" for s, n in free_counts.items())
+
+class ParkingLot:
+    def __init__(self, floors, strategy, pricing):
+        self.strategy, self.pricing = strategy, pricing
+        self.floors = [Floor(f, sizes) for f, sizes in enumerate(floors)]
+        self.free = {s: [] for s in Size}
+        for spot in (sp for fl in self.floors for sp in fl.spots):
+            heapq.heappush(self.free[spot.size], (spot.floor, spot.number, spot))
+        self.tickets, self.observers = {}, []
+        self.ids = itertools.count(1)
+        self.lock = threading.Lock()
+    def subscribe(self, observer):
+        self.observers.append(observer)
+        observer.update(self.counts())
+    def counts(self):
+        return {s: len(heap) for s, heap in self.free.items()}
+    def park(self, vehicle, now):
+        with self.lock:             <span class="c"># find and take a spot as one atomic step</span>
+            spot = self.strategy.pick(self.free, vehicle.size)
+            if spot is None:
+                return None
+            heapq.heappop(self.free[spot.size])   <span class="c"># strategies only pick heap heads</span>
+            ticket = Ticket(f"T{next(self.ids)}", vehicle, spot, now)
+            self.tickets[ticket.id] = ticket
+            counts = self.counts()
+        for o in self.observers: o.update(counts)   <span class="c"># notify outside the lock</span>
+        return ticket
+    def leave(self, ticket_id, now):
+        with self.lock:
+            t = self.tickets.pop(ticket_id)
+            s = t.spot
+            heapq.heappush(self.free[s.size], (s.floor, s.number, s))
+            counts = self.counts()
+        for o in self.observers: o.update(counts)
+        return self.pricing.fee(t.vehicle.size, now - t.entered)
+
+class Gate:
+    def __init__(self, name, lot): self.name, self.lot = name, lot
+    def enter(self, kind, plate, now):
+        return self.lot.park(VehicleFactory.create(kind, plate), now)
+    def exit(self, ticket, now): return self.lot.leave(ticket.id, now)
+
+<span class="c"># ---------------- demo ----------------</span>
+RATES = {Size.SMALL: 1, Size.COMPACT: 3, Size.LARGE: 5}
+FLOORS = [[Size.SMALL, Size.COMPACT, Size.LARGE], [Size.COMPACT, Size.LARGE]]
+EVENTS = [("08:00", "E1", "car", "KA-01"), ("08:05", "E2", "car", "KA-02"),
+          ("08:10", "E1", "truck", "TR-07"), ("08:20", "E2", "bike", "BK-11"),
+          ("08:40", "E1", "truck", "TR-08"), ("09:35", "X1", "out", "KA-01"),
+          ("10:30", "X1", "out", "TR-07"), ("10:45", "E2", "truck", "TR-09"),
+          ("11:50", "X1", "out", "BK-11")]
+minutes = lambda hhmm: int(hhmm[:2]) * 60 + int(hhmm[3:])
+
+def run(strategy):
+    lot, board = ParkingLot(FLOORS, strategy, Hourly(RATES)), Display()
+    lot.subscribe(board)
+    gates = {g: Gate(g, lot) for g in ("E1", "E2", "X1")}
+    print(f"== {type(strategy).__name__} + Hourly ==")
+    held = {}                       <span class="c"># plate -&gt; ticket (the stub the driver keeps)</span>
+    for at, gate, kind, plate in EVENTS:
+        now = minutes(at)
+        if kind == "out":
+            t = held.pop(plate)
+            fee = gates[gate].exit(t, now)
+            what = f"{plate} leaves {t.spot.id}, {now - t.entered} min, ${fee}"
+        else:
+            t = gates[gate].enter(kind, plate, now)
+            if t: held[plate] = t
+            what = f"{kind} {plate} -&gt; {f'{t.id} at {t.spot.id}' if t else 'FULL'}"
+        print(f"{at} {gate}  {what:&lt;31} board {board.text}")
+
+run(NearestFirst())
+run(BestFit())
+
+<span class="c"># two gates race for the last spot</span>
+tiny, results = ParkingLot([[Size.COMPACT]], NearestFirst(), Hourly(RATES)), []
+start = threading.Barrier(2)
+def arrive(gate):
+    start.wait()                    <span class="c"># both gates press "issue ticket" together</span>
+    results.append(Gate(gate, tiny).enter("car", gate + "-car", 0))
+threads = [threading.Thread(target=arrive, args=(g,)) for g in ("E1", "E2")]
+for th in threads: th.start()
+for th in threads: th.join()
+won = sum(r is not None for r in results)
+print(f"race for 1 spot: {won} parked, {len(results) - won} turned away")</pre>
+    <h3>Output</h3>
+<pre class="log" style="max-height:none" aria-label="Program output">== NearestFirst + Hourly ==
+08:00 E1  car KA-01 -&gt; T1 at 0-1          board S1 C1 L2
+08:05 E2  car KA-02 -&gt; T2 at 0-2          board S1 C1 L1
+08:10 E1  truck TR-07 -&gt; T3 at 1-1        board S1 C1 L0
+08:20 E2  bike BK-11 -&gt; T4 at 0-0         board S0 C1 L0
+08:40 E1  truck TR-08 -&gt; FULL             board S0 C1 L0
+09:35 X1  KA-01 leaves 0-1, 95 min, $6    board S0 C2 L0
+10:30 X1  TR-07 leaves 1-1, 140 min, $15  board S0 C2 L1
+10:45 E2  truck TR-09 -&gt; T5 at 1-1        board S0 C2 L0
+11:50 X1  BK-11 leaves 0-0, 210 min, $4   board S1 C2 L0
+== BestFit + Hourly ==
+08:00 E1  car KA-01 -&gt; T1 at 0-1          board S1 C1 L2
+08:05 E2  car KA-02 -&gt; T2 at 1-0          board S1 C0 L2
+08:10 E1  truck TR-07 -&gt; T3 at 0-2        board S1 C0 L1
+08:20 E2  bike BK-11 -&gt; T4 at 0-0         board S0 C0 L1
+08:40 E1  truck TR-08 -&gt; T5 at 1-1        board S0 C0 L0
+09:35 X1  KA-01 leaves 0-1, 95 min, $6    board S0 C1 L0
+10:30 X1  TR-07 leaves 0-2, 140 min, $15  board S0 C1 L1
+10:45 E2  truck TR-09 -&gt; T6 at 0-2        board S0 C1 L0
+11:50 X1  BK-11 leaves 0-0, 210 min, $4   board S1 C1 L0
+race for 1 spot: 1 parked, 1 turned away</pre>
+    <div class="aside"><p><b>Why heaps:</b> <span class="mono">free[size]</span> is a min-heap ordered by (floor, number), one per size. A strategy only looks at the top of at most three heaps, and taking or returning a spot is O(log n). With thousands of spots that is a handful of comparisons, not a scan. The board's counts are just the heap lengths.</p></div>
+  </section>
+
+  <section class="panel article" id="concurrency" data-nav="Deep dive: concurrency" data-num="8a" data-time="4m">
+    <div class="step-head"><span class="step-num">8a</span><h2>Deep dive: two gates, one last spot</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Parking is check-then-act: look for a free spot, then take it. If two gates both look before either takes, both see the same spot. Below, gates A and B run <span class="mono">park</span> for one remaining spot, <span class="mono">1-1</span>. The schedule says which gate runs its next line; turn the lock off and on.</p>
+    <div id="raceViz"></div>
+    <h3>Three ways to make it safe</h3>
+    <ul>
+      <li><b>One lock around the lot</b> (what the code does). Simplest, and plenty: a gate holds it for microseconds while a car takes seconds to pass the barrier. Ten gates never queue in practice.</li>
+      <li><b>Finer locks, per floor or per size.</b> More parallelism, more risk. NearestFirst may compare heads across sizes, so it would need several locks at once; always take them in the same order (small, compact, large) or two gates can deadlock waiting on each other.</li>
+      <li><b>Compare-and-set on the spot.</b> No lock held while choosing: pick a candidate, then atomically flip it from free to taken only if it is still free; if that fails, pick again. This is what a database does with <span class="mono">UPDATE spots SET ticket = ? WHERE id = ? AND ticket IS NULL</span> and a check that one row changed. It scales across processes, which a <span class="mono">threading.Lock</span> cannot.</li>
+    </ul>
+    <div class="aside"><p><b>Keep the critical section small:</b> only the pick and the take go inside the lock. Computing the fee and notifying observers happen after it is released, so a slow display board never blocks a gate.</p></div>
+  </section>
+
+  <section class="panel article" id="extend" data-nav="Deep dive: extensibility" data-num="8b" data-time="3m">
+    <div class="step-head"><span class="step-num">8b</span><h2>Deep dive: what changes when requirements land</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">The test of the design is how many existing lines a new requirement edits. Open/closed: open to new classes, closed to edits of the ones that work.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>New requirement</th><th>Add</th><th>Edit</th></tr></thead>
+      <tbody>
+        <tr><td>Vans (compact or large?)</td><td class="mono">class Van(Vehicle)</td><td class="mono okc">one factory entry</td></tr>
+        <tr><td>Weekend flat rate</td><td class="mono">class WeekendFlat(PricingStrategy)</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Peak-hour surcharge on any rule</td><td class="mono">class Surcharge(PricingStrategy)</td><td class="mono okc">nothing (it wraps another)</td></tr>
+        <tr><td>Disabled-badge spots near the lift</td><td class="mono">a strategy that prefers them</td><td class="mono warn">Spot gains a feature</td></tr>
+        <tr><td>EV charging spots</td><td class="mono">ElectricCar, EVFirst, ChargingFee</td><td class="mono warn">free index keyed by (size, feature)</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>EV charging is the honest stress test.</b> A charger is a <i>feature</i> of a spot, not a fourth size: an EV can still park in a plain compact spot, and a petrol car <i>could</i> take a charging spot (you'd rather it didn't). So <span class="mono">Spot</span> gets a set of features, the free index is keyed by <span class="mono">(size, feature)</span>, a new <span class="mono">EVFirst</span> strategy tries charging spots before plain ones, and a <span class="mono">ChargingFee</span> pricing wrapper adds energy used on top of the hourly fee. The lot's <span class="mono">park</span> and <span class="mono">leave</span> stay as they are. Admit the one edit: the index shape changes, because we chose to key it by size alone.</p>
+  </section>
+
+  <section class="panel article" id="solid" data-nav="Deep dive: SOLID" data-num="8c" data-time="2m">
+    <div class="step-head"><span class="step-num">8c</span><h2>Deep dive: SOLID, and where to stop</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="qa">
+      <div><span class="q">Single responsibility</span><p>Pricing, choosing spots and drawing boards each live in their own class. The lot still does two things: allocating spots and keeping tickets. Splitting out a <span class="mono">TicketService</span> is reasonable once tickets gain payments and lost-ticket handling; before that it adds a class with nothing in it.</p></div>
+      <div><span class="q">Open/closed</span><p>New rules arrive as new strategy classes (see 8b). The cost: a reader must look in several files to see the full behavior.</p></div>
+      <div><span class="q">Liskov</span><p><span class="mono">FirstHourFree</span> extends <span class="mono">Hourly</span> and keeps its contract: same inputs, a fee that is never negative. A subclass that raised on short stays would break callers that trusted the parent.</p></div>
+      <div><span class="q">Interface segregation</span><p>Observers get one method, <span class="mono">update</span>. A board never sees <span class="mono">park</span> or the lock.</p></div>
+      <div><span class="q">Dependency inversion</span><p>The lot depends on <span class="mono">AssignmentStrategy</span> and <span class="mono">PricingStrategy</span>, not on <span class="mono">BestFit</span> or <span class="mono">Hourly</span>. That is what lets the walkthrough swap them with a dropdown.</p></div>
+      <div><span class="q">Where to stop</span><p>No interface for <span class="mono">Spot</span>, <span class="mono">Floor</span> or <span class="mono">Ticket</span>: they are plain data with no second implementation in sight. Abstractions cost reading time; spend them where change is likely.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One morning, traced by hand</h2>
+    <p class="kicker">NearestFirst and Hourly ($1 small, $3 compact, $5 large), on the two-floor lot: floor 0 has spots 0-0 small, 0-1 compact, 0-2 large; floor 1 has 1-0 compact, 1-1 large. These are the first lines of the Python output and the walkthrough's default run.</p>
+    <ol class="steps">
+      <li><div><h3>08:00, car KA-01 at E1</h3><p>The factory makes a <span class="mono">Car</span> (compact). Heaps that fit: compact (head 0-1) and large (head 0-2). NearestFirst takes the lowest (floor, number): <b>0-1</b>. Ticket T1. Board: S1 C1 L2.</p></div></li>
+      <li><div><h3>08:05, car KA-02 at E2</h3><p>Heads now: compact 1-0, large 0-2. Floor 0 wins, so the car takes the <b>large spot 0-2</b>. Nothing is wrong yet, but a truck-sized spot just went to a car. Board: S1 C1 L1.</p></div></li>
+      <li><div><h3>08:10 and 08:20</h3><p>Truck TR-07 takes the last large spot, 1-1 (T3); bike BK-11 takes 0-0 (T4). Board: S0 C1 L0.</p></div></li>
+      <li><div><h3>08:40, truck TR-08: turned away</h3><p>Only heaps of size large or bigger can hold a truck, and the large heap is empty. <span class="mono">pick</span> returns None, <span class="mono">park</span> returns None, and compact spot 1-0 sits empty. Under BestFit, KA-02 would have taken 1-0 at 08:05 and TR-08 would park in 1-1.</p></div></li>
+      <li><div><h3>Leaving and paying</h3><p>KA-01 leaves at 09:35 after 95 minutes: ⌈95 / 60⌉ = 2 started hours × $3 = <b>$6</b>. TR-07 leaves at 10:30 after 140 minutes: 3 × $5 = <b>$15</b>. BK-11 leaves at 11:50 after 210 minutes: 4 × $1 = <b>$4</b>. Each exit pushes the spot back onto its heap, so TR-09 at 10:45 gets 1-1 (T5). With FirstHourFree the same three stays cost $3, $10 and $3.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A pool of typed resources (spots), handed out to typed requests (vehicles) by a replaceable rule, returned later with a bill computed by another replaceable rule.</p></div>
+      <div><span class="q">Why it's hard</span><p>Not the algorithms. It's choosing boundaries that survive change, and making "find a free one and take it" a single atomic step.</p></div>
+      <div><span class="q">Key insight</span><p>Keep a ready index of free spots instead of scanning, and put the two rules that change most (where to park, what to charge) behind interfaces.</p></div>
+      <div><span class="q">Same shape elsewhere</span><p>Seats in a cinema, rooms in a hotel, desks in an office, connections in a pool: allocate from typed inventory, release, charge or log.</p></div>
+    </div>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Lost ticket:</b> look up the active ticket by plate (keep a plate → ticket map), and charge a daily maximum if no entry time can be proven.</li>
+        <li><b>Payment methods:</b> cash, card or app at the exit, or pay at a kiosk before walking back. A <span class="mono">Payment</span> with a status, and the exit gate opens only for a paid ticket.</li>
+        <li><b>Reservations:</b> a spot can be held for a time window, so "free" becomes "free between 10:00 and 12:00". The free index now has to answer time-range questions.</li>
+        <li><b>A bus that needs five large spots in a row:</b> the strategy must find a run of adjacent free spots on one floor, which a per-size heap can't answer; keep a per-floor bitmap of free spots for that.</li>
+        <li><b>A board per floor:</b> pass floor-level counts to observers, and let each board filter for its floor.</li>
+        <li><b>The process crashes:</b> in-memory state is gone. Persist tickets (and which spots they hold) before opening the barrier, and rebuild the heaps from the open tickets at startup.</li>
+        <li><b>Many lots across a city:</b> that's a high-level design question: a service per site, a central booking API, and the compare-and-set from 8a moved into the database.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Related on this site</h2>
+      <p>Same race, at system scale: two buyers grabbing one seat, two riders grabbing one driver.</p>
+      <div class="concepts">
+        <a href="ticketmaster.html">Design Ticketmaster</a>
+        <a href="uber.html">Design Uber</a>
+        <span class="planned-link" title="Planned">Contention and Distributed Locks (coming)</span>
+      </div>
+      <p class="sources" style="margin-top:10px">No high-level parking lot page yet. Interview flow adapted from <a href="https://www.hellointerview.com/">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ================= the model: a line-for-line mirror of the Python classes =================
+  const SIZES = [1, 2, 3], SIZE_NAME = { 1: "SMALL", 2: "COMPACT", 3: "LARGE" };
+  const KINDS = { bike: { cls: "Bike", size: 1 }, car: { cls: "Car", size: 2 }, truck: { cls: "Truck", size: 3 } };
+  const VehicleFactory = { create: (kind, plate) => ({ kind, cls: KINDS[kind].cls, size: KINDS[kind].size, plate }) };
+  const byPos = (a, b) => a.floor - b.floor || a.number - b.number;   // the heap order (floor, number)
+
+  const strategies = {
+    NearestFirst: {
+      pick(free, size, why) {
+        const heads = SIZES.filter(s => s >= size && free[s].length).map(s => free[s][0]);
+        why.push(`heads that fit: ${heads.length ? heads.map(h => `${SIZE_NAME[h.size].toLowerCase()} ${h.id}`).join(", ") : "none"}`);
+        return heads.length ? heads.slice().sort(byPos)[0] : null;
+      }
+    },
+    BestFit: {
+      pick(free, size, why) {
+        const s = SIZES.find(s => s >= size && free[s].length);
+        why.push(s ? `smallest size ≥ ${SIZE_NAME[size]} with a free spot: ${SIZE_NAME[s]}` : `no size ≥ ${SIZE_NAME[size]} has a free spot`);
+        return s ? free[s][0] : null;
+      }
+    }
+  };
+  const RATES = { 1: 1, 2: 3, 3: 5 };
+  const pricings = {
+    Hourly: { fee: (size, min) => Math.max(1, Math.ceil(min / 60)) * RATES[size],
+              explain: (size, min) => `max(1, ⌈${min}/60⌉) = ${Math.max(1, Math.ceil(min / 60))} h × $${RATES[size]}` },
+    FirstHourFree: { fee: (size, min) => Math.max(0, Math.ceil(min / 60) - 1) * RATES[size],
+              explain: (size, min) => `max(0, ⌈${min}/60⌉ − 1) = ${Math.max(0, Math.ceil(min / 60) - 1)} h × $${RATES[size]}` }
+  };
+
+  const FLOORS = [[1, 2, 3], [2, 3]];
+  class Lot {
+    constructor(floors, strategyName, pricingName) {
+      this.strategyName = strategyName; this.strategy = strategies[strategyName];
+      this.pricingName = pricingName; this.pricing = pricings[pricingName];
+      this.spots = [];
+      this.free = { 1: [], 2: [], 3: [] };
+      floors.forEach((sizes, f) => sizes.forEach((size, n) => {
+        const sp = { floor: f, number: n, size, id: `${f}-${n}` };
+        this.spots.push(sp); this.free[size].push(sp);
+      }));
+      SIZES.forEach(s => this.free[s].sort(byPos));
+      this.tickets = new Map(); this.observers = []; this.nextId = 1;
+    }
+    counts() { return Object.fromEntries(SIZES.map(s => [s, this.free[s].length])); }
+    subscribe(o) { this.observers.push(o); o.update(this.counts()); }
+    park(vehicle, now, trace) {
+      trace.push(`<span class="hl">lock acquired</span>`);
+      const why = [];
+      const spot = this.strategy.pick(this.free, vehicle.size, why);
+      trace.push(`${this.strategyName}.pick(size=${SIZE_NAME[vehicle.size]}): ${why.join("; ")} → ${spot ? `<span class="ok">${spot.id}</span>` : `<span class="bad">None</span>`}`);
+      if (!spot) { trace.push(`lock released; park returns None: <span class="bad">turned away</span>`); return null; }
+      this.free[spot.size].splice(this.free[spot.size].indexOf(spot), 1);   // always index 0: a heap pop
+      const ticket = { id: `T${this.nextId++}`, vehicle, spot, entered: now };
+      this.tickets.set(ticket.id, ticket);
+      trace.push(`pop ${spot.id} from free[${SIZE_NAME[spot.size]}]; issue <span class="ok">${ticket.id}</span>; lock released`);
+      this.notify(trace);
+      return ticket;
+    }
+    leave(ticketId, now, trace) {
+      trace.push(`<span class="hl">lock acquired</span>`);
+      const t = this.tickets.get(ticketId); this.tickets.delete(ticketId);
+      this.free[t.spot.size].push(t.spot); this.free[t.spot.size].sort(byPos);  // heap push
+      trace.push(`${t.id} removed; push ${t.spot.id} back onto free[${SIZE_NAME[t.spot.size]}]; lock released`);
+      this.notify(trace);
+      const min = now - t.entered, fee = this.pricing.fee(t.vehicle.size, min);
+      trace.push(`${this.pricingName}.fee(${SIZE_NAME[t.vehicle.size]}, ${min} min): ${this.pricing.explain(t.vehicle.size, min)} = <span class="ok">$${fee}</span>`);
+      return fee;
+    }
+    notify(trace) {
+      const c = this.counts();
+      trace.push(`notify ${this.observers.length} observer${this.observers.length === 1 ? "" : "s"} (outside the lock) → Display.update(${SIZES.map(s => SIZE_NAME[s][0] + c[s]).join(" ")})`);
+      this.observers.forEach(o => o.update(c));
+    }
+  }
+
+  // the Display observer: the only code that touches the board
+  class Display {
+    constructor(el) { this.el = el; this.text = ""; }
+    update(free) {
+      this.text = SIZES.map(s => SIZE_NAME[s][0] + free[s]).join(" ");
+      this.el.innerHTML = SIZES.map(s => `<div><b class="${free[s] ? "" : "full"}">${free[s] ? free[s] : "FULL"}</b><span>${SIZE_NAME[s].toLowerCase()} free</span></div>`).join("");
+    }
+  }
+
+  // ================= the demo's morning (same EVENTS as the Python) =================
+  const EVENTS = [["08:00", "E1", "car", "KA-01"], ["08:05", "E2", "car", "KA-02"],
+                  ["08:10", "E1", "truck", "TR-07"], ["08:20", "E2", "bike", "BK-11"],
+                  ["08:40", "E1", "truck", "TR-08"], ["09:35", "X1", "out", "KA-01"],
+                  ["10:30", "X1", "out", "TR-07"], ["10:45", "E2", "truck", "TR-09"],
+                  ["11:50", "X1", "out", "BK-11"]];
+  const minutes = hhmm => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3);
+  const clock = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+  let S;   // simulation state
+  function reset(replay = 0) {
+    stopPlay();
+    const lot = new Lot(FLOORS, $("selStrat").value, $("selPrice").value);
+    const board = new Display($("board"));
+    lot.subscribe(board);
+    S = { lot, board, held: new Map(), cursor: 0, now: minutes("08:00") - 0, log: [], trace: [], title: "Ready", changed: null, revenue: 0, manual: 0, gateFlip: 0 };
+    S.title = `New lot: ${lot.spots.length} spots on ${FLOORS.length} floors, ${lot.strategyName} + ${lot.pricingName}`;
+    S.trace = [`ParkingLot(FLOORS, ${lot.strategyName}(), ${lot.pricingName}(RATES))`, `lot.subscribe(Display) → Display.update(${board.text})`];
+    for (let k = 0; k < replay; k++) stepEvent(true);
+    render();
+  }
+  function enter(at, gate, kind, plate) {
+    const now = minutes(at), trace = [];
+    const v = VehicleFactory.create(kind, plate);
+    trace.push(`Gate ${gate}.enter("${kind}", "${plate}", ${at})`);
+    trace.push(`VehicleFactory.create("${kind}") → ${v.cls} (size ${SIZE_NAME[v.size]})`);
+    const t = S.lot.park(v, now, trace);
+    if (t) S.held.set(plate, t);
+    const what = `${kind} ${plate} -> ${t ? `${t.id} at ${t.spot.id}` : "FULL"}`;
+    finish(at, gate, what, trace, t ? t.spot.id : null);
+  }
+  function exit(at, gate, plate) {
+    const now = minutes(at), trace = [], t = S.held.get(plate);
+    S.held.delete(plate);
+    trace.push(`Gate ${gate}.exit(${t.id}, ${at})`);
+    const fee = S.lot.leave(t.id, now, trace);
+    S.revenue += fee;
+    finish(at, gate, `${plate} leaves ${t.spot.id}, ${now - t.entered} min, $${fee}`, trace, t.spot.id);
+  }
+  function finish(at, gate, what, trace, changed) {
+    S.now = minutes(at);
+    S.log.push(`${at} ${gate}  ${what.padEnd(31)} board ${S.board.text}`);
+    S.trace = trace; S.title = `What ran at ${at}`; S.changed = changed;
+  }
+  function stepEvent(silent) {
+    if (S.cursor >= EVENTS.length) return;
+    const [planned, gate, kind, plate] = EVENTS[S.cursor++];
+    const at = clock(Math.max(minutes(planned), S.now));   // only differs after your own extra events
+    if (kind === "out") {
+      if (S.held.has(plate)) exit(at, gate, plate);
+      else { S.trace = [`${plate} never parked (your extra vehicles filled the lot), so there is nothing to release`]; S.title = `Skipped at ${at}`; S.changed = null; }
+    }
+    else enter(at, gate, kind, plate);
+    if (!silent) render();
+  }
+  function manualArrive(kind) {
+    S.now += 10;
+    const plate = `${{ bike: "BK", car: "KA", truck: "TR" }[kind]}-${String(50 + ++S.manual).padStart(2, "0")}`;
+    enter(clock(S.now), S.gateFlip++ % 2 ? "E2" : "E1", kind, plate);
+    render();
+  }
+  function manualLeave() {
+    if (!S.held.size) return;
+    const oldest = [...S.held.values()].sort((a, b) => a.entered - b.entered)[0];
+    S.now = Math.max(S.now + 10, oldest.entered + 1);
+    exit(clock(S.now), "X1", oldest.vehicle.plate);
+    render();
+  }
+
+  // ---------- drawing (reads state only) ----------
+  const W = { 1: 70, 2: 92, 3: 120 };
+  function drawLot() {
+    let s = "";
+    const occ = new Map([...S.lot.tickets.values()].map(t => [t.spot.id, t]));
+    FLOORS.forEach((sizes, f) => {
+      const y = 14 + f * 82;
+      s += `<text x="8" y="${y + 36}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--muted)">Floor ${f}</text>`;
+      let x = 60;
+      sizes.forEach((size, n) => {
+        const id = `${f}-${n}`, t = occ.get(id), hot = S.changed === id, w = W[size];
+        s += `<rect x="${x}" y="${y}" width="${w}" height="64" rx="5" fill="${t ? "var(--accent-soft)" : "var(--panel)"}" stroke="${hot ? "var(--amber)" : t ? "var(--accent)" : "var(--line)"}" stroke-width="${hot ? 3 : 1.4}" ${t ? "" : 'stroke-dasharray="4 3"'}/>`;
+        s += `<text x="${x + 6}" y="${y + 13}" font-family="var(--mono)" font-size="9.5" fill="var(--muted)">${id} ${SIZE_NAME[size].toLowerCase()}</text>`;
+        if (t) {
+          s += `<text x="${x + w / 2}" y="${y + 36}" text-anchor="middle" font-family="var(--mono)" font-size="13" font-weight="600" fill="var(--ink)">${t.vehicle.plate}</text>`;
+          s += `<text x="${x + w / 2}" y="${y + 53}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${t.id} · ${clock(t.entered)}</text>`;
+        } else s += `<text x="${x + w / 2}" y="${y + 40}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">free</text>`;
+        x += w + 8;
+      });
+    });
+    $("lotsvg").innerHTML = s;
+  }
+  function render() {
+    drawLot();
+    $("boardCap").textContent = `Entrance board, redrawn only by Display.update: "${S.board.text}"`;
+    $("traceTitle").textContent = S.title;
+    $("trace").innerHTML = S.trace.map(x => `<li>${x}</li>`).join("");
+    $("log").innerHTML = S.log.length ? S.log.map((l, k) => `<span${k === S.log.length - 1 ? ' class="last"' : ""}>${esc(l)}</span>`).join("\n") : "(press Step to start the morning)";
+    $("log").scrollTop = $("log").scrollHeight;
+    $("clock").textContent = `clock ${clock(S.now)} · event ${S.cursor}/${EVENTS.length} of the demo`;
+    $("money").textContent = `Active tickets: ${S.lot.tickets.size} · collected so far: $${S.revenue}`;
+    $("bStep").disabled = S.cursor >= EVENTS.length;
+    $("aLeave").disabled = !S.held.size;
+  }
+  let timer = null;
+  function stopPlay() { clearInterval(timer); timer = null; $("bPlay").textContent = "Play"; }
+  $("bPlay").addEventListener("click", () => {
+    if (timer) return stopPlay();
+    if (S.cursor >= EVENTS.length) reset();
+    $("bPlay").textContent = "Pause";
+    timer = setInterval(() => { stepEvent(); if (S.cursor >= EVENTS.length) stopPlay(); }, 1100);
+  });
+  $("bStep").addEventListener("click", () => { stopPlay(); stepEvent(); });
+  $("bReset").addEventListener("click", () => reset());
+  $("selStrat").addEventListener("change", () => reset(S.cursor));
+  $("selPrice").addEventListener("change", () => reset(S.cursor));
+  $("aBike").addEventListener("click", () => manualArrive("bike"));
+  $("aCar").addEventListener("click", () => manualArrive("car"));
+  $("aTruck").addEventListener("click", () => manualArrive("truck"));
+  $("aLeave").addEventListener("click", manualLeave);
+  $("aHour").addEventListener("click", () => { S.now += 60; render(); });
+  reset();
+
+  $("zoomUml").addEventListener("click", e => {
+    const on = $("umlWrap").classList.toggle("zoomed");
+    e.target.setAttribute("aria-pressed", on); e.target.textContent = on ? "Fit to screen" : "Zoom in";
+    $("zoomHint").textContent = on ? "Scroll the diagram sideways to see the strategies on the right." : "The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.";
+  });
+
+  // ================= Deep dive: two gates race for the last spot =================
+  const RACE_CODE = [
+    "def park(gate):",
+    "    lock.acquire()               # skipped when the lock is off",
+    "    spot = strategy.pick(free)   # look",
+    "    if spot is None: return None # (a with-block also releases)",
+    "    free.take(spot)              # act: mark taken, write ticket",
+    "    lock.release()               # skipped when the lock is off",
+    "    return Ticket(gate, spot)"
+  ];
+  Stepper($("raceViz"), {
+    code: RACE_CODE,
+    inputs: [
+      { key: "s", label: "Schedule (which gate runs its next line)", value: "A B A B A B" },
+      { key: "lock", label: "Lock (on / off)", value: "off" }
+    ],
+    presets: [
+      { label: "No lock, interleaved", values: { s: "A B A B A B", lock: "off" } },
+      { label: "No lock, A first", values: { s: "A A A A B B B", lock: "off" } },
+      { label: "Lock, interleaved", values: { s: "A B A B A B A B", lock: "on" } },
+      { label: "Lock, B arrives first", values: { s: "B A B A B A B A", lock: "on" } }
+    ],
+    build({ s, lock }) {
+      const toks = s.toUpperCase().split(/[\s,]+/).filter(Boolean);
+      if (!toks.length || toks.some(t => t !== "A" && t !== "B")) return { error: "The schedule is a list of A and B, for example: A B A B." };
+      if (toks.length > 20) return { error: "Use at most 20 steps." };
+      const L = lock.trim().toLowerCase();
+      if (L !== "on" && L !== "off") return { error: "Lock must be on or off." };
+      const useLock = L === "on";
+      const free = ["1-1"], takers = [];
+      let holder = null;
+      const g = { A: { pc: useLock ? 1 : 2, spot: "–", done: false, out: "running" }, B: { pc: useLock ? 1 : 2, spot: "–", done: false, out: "running" } };
+      const frames = [];
+      const snap = (line, msg, moved) => frames.push({ line, msg, moved, gates: JSON.parse(JSON.stringify(g)), free: [...free], takers: [...takers],
+        vars: { lock: useLock ? (holder || "free") : "off", "free spots": free.length ? free.join(", ") : "none", "A.spot": g.A.spot, "B.spot": g.B.spot } });
+      snap(0, `One spot left, <b>1-1</b>. Gates A and B both call <span class="mono">park</span>. Lock is <b>${useLock ? "on" : "off"}</b>.`, null);
+      function run(n) {
+        const me = g[n], other = n === "A" ? "B" : "A";
+        if (me.done) return false;
+        const line = me.pc;
+        if (line === 1) {
+          if (holder && holder !== n) { snap(1, `${n} tries the lock, but ${holder} holds it. ${n} <b>waits</b>.`, n); return true; }
+          holder = n; me.pc = 2; snap(1, `${n} acquires the lock.`, n); return true;
+        }
+        if (line === 2) {
+          me.spot = free.length ? free[0] : "None"; me.pc = 3;
+          snap(2, `${n} looks: pick returns <b>${me.spot}</b>.${!useLock && g[other].spot === "1-1" && me.spot === "1-1" ? ` ${other} saw the same spot and hasn't taken it yet.` : ""}`, n); return true;
+        }
+        if (line === 3) {
+          if (me.spot === "None") { me.done = true; me.out = "turned away"; if (holder === n) holder = null; snap(3, `${n} sees nothing free and returns None: <b class="ok">turned away</b>${useLock ? " (leaving the with-block releases the lock)" : ""}.`, n); return true; }
+          me.pc = 4; snap(3, `${n} has a spot, carries on.`, n); return true;
+        }
+        if (line === 4) {
+          const i = free.indexOf(me.spot); if (i >= 0) free.splice(i, 1);
+          takers.push(n); me.pc = useLock ? 5 : 6;
+          snap(4, takers.length > 1 ? `${n} takes 1-1 too, though ${takers[0]} already did: <b class="bad">double-booked</b>.` : `${n} takes 1-1.`, n); return true;
+        }
+        if (line === 5) { holder = null; me.pc = 6; snap(5, `${n} releases the lock.`, n); return true; }
+        if (line === 6) { me.done = true; me.out = "ticket for 1-1"; snap(6, `${n} returns a ticket for 1-1.`, n); return true; }
+      }
+      toks.forEach(run);
+      let guard = 0, turn = "A";
+      while ((!g.A.done || !g.B.done) && guard++ < 40) { if (!g[turn].done) run(turn); turn = turn === "A" ? "B" : "A"; }
+      const last = frames[frames.length - 1];
+      last.msg += takers.length > 1 ? ` Result: <b class="bad">two tickets for one spot</b>. The look and the take were not one atomic step.`
+        : ` Result: <b class="ok">one ticket, one car turned away</b>. ${useLock ? "The lock made look-and-take atomic." : "Lucky timing: A finished before B looked. Try the interleaved preset."}`;
+      return { frames };
+    },
+    draw(f) {
+      const spotCls = f.takers.length > 1 ? "double" : f.takers.length ? "taken" : "";
+      const gate = n => `<div class="${f.moved === n ? "moved" : ""}"><b>Gate ${n}</b><span>${f.gates[n].done ? "finished" : "next: line " + (f.gates[n].pc + 1)}</span><span>spot: ${f.gates[n].spot}</span><span>${f.gates[n].out}</span></div>`;
+      return `<div class="race-gates">${gate("A")}${gate("B")}</div>
+        <div class="race-spot ${spotCls}">spot 1-1: ${f.takers.length ? "taken by " + f.takers.join(" and ") : "free"}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

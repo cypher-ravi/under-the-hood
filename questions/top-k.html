@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design YouTube Top K</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #arch { width: 100%; min-width: 500px; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .board { display: grid; gap: 6px; margin-top: 10px; }
+  .vid { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; justify-content: space-between; gap: 10px; }
+  .vid .t { font: 500 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap; }
+  .vid.first { border-color: var(--ok); }
+  .vid.off { border-color: var(--bad); }
+  .vid.off .t { color: var(--bad); }
+  .shardline { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .wctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 24px; align-items: end; }
+  .wctl .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  #wchart { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .wcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .wcard { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 6px; background: var(--panel); align-content: start; }
+  .wcard h3 { font-size: 14px; }
+  .wcard .span { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .wcard ol { margin: 0; padding-left: 1.3em; display: grid; gap: 2px; font-size: 14px; }
+  .wcard ol b { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .wcard.slide { border-color: var(--accent); }
+  .wcard.tumble { border-color: var(--amber); }
+  .keys { display: flex; flex-wrap: wrap; gap: 14px; font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .keys i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .concepts span.soon { font: 500 12px/1 var(--mono); padding: 8px 10px; border-radius: 999px; border: 1px dashed var(--line); color: var(--muted); }
+  table.data td.y { color: var(--ok); font-weight: 600; }
+  table.data td.n { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="top-k" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design YouTube Top K</h1>
+    <p class="lede">Show the K most-viewed videos for the last hour, the last day, the last month and all time, and keep the lists fresh. Each view is a tiny event, but there are billions a day, and the answer must come back in milliseconds. The design question is where the counting happens: inside a database at query time, or in a stream of events before anyone asks.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope it to views. Likes, per-country lists and personalised trending are follow-ups that reuse the same pipeline with a different key.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Get the top K most-viewed videos (K up to about 1,000).</li>
+          <li>Choose the window: last hour, last day, last month, or all time.</li>
+          <li>See counts next to each video.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Answer a top-K request in tens of milliseconds.</li>
+          <li>Reflect a view in the lists within about a minute.</li>
+          <li>Ingest views at peak without dropping any (tens of billions a day).</li>
+          <li>Be close to exact for the published list; small errors deep in the tail are fine.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> reads are tiny (one short list per window) and repeated by everyone, while writes are enormous and each one changes a single counter. So do the counting continuously as views arrive, and make reading a list a lookup, not a computation.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>View event</h3><code>video_id, user_id
+ts, region
+(immutable, in a log)</code></div>
+      <div class="entity"><h3>Video</h3><code>video_id, title
+channel, thumbnail</code></div>
+      <div class="entity"><h3>Window count</h3><code>video_id, bucket_start
+count
+(minute, hour, day buckets)</code></div>
+      <div class="entity"><h3>Top-K list</h3><code>window, computed_at
+[(video_id, count), ...]
+(derived, rebuildable)</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+<pre class="api"><span class="verb">POST</span> /views                 { video_id }              <span class="c">// sent by the player</span>
+<span class="verb">GET</span>  /views/top?window=hour&amp;k=100  → { computed_at, videos: [{ video_id, count }] }
+
+<span class="c">// window ∈ hour | day | month | all; user comes from the auth token</span></pre>
+    <div class="aside"><p><b>Why return <span class="mono">computed_at</span>?</b> The list is a snapshot refreshed every few seconds, not a live query. Saying when it was computed is honest, and lets clients and CDNs cache it until the next refresh. In practice the view event usually rides on the player's existing analytics stream rather than its own request.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="15m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker">A toy catalog of 12 videos with a long tail: video 1 is the most popular, and each later one is watched less. Send views (one, a burst of 100, or a sudden viral wave on the least popular video), read the top 3, and compare what each stage costs.</p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button id="one">Send 1 view</button>
+          <button class="primary" id="burst">Send 100 views</button>
+          <button id="viral">A video goes viral</button>
+          <button id="read">Read top 3</button>
+        </div>
+        <div class="diagram-wrap"><svg id="arch" viewBox="0 0 640 400" role="img" aria-label="Architecture diagram with animated view events"></svg></div>
+        <div class="cost" id="cost"></div>
+        <div class="board" id="board" aria-live="polite"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="windows" data-nav="Deep dive: windows" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: sliding vs tumbling windows</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Aggregators count into small time buckets, one counter per video per minute. A window is a sum of buckets. A <b>tumbling</b> window is a fixed block (9:00–10:00) that is published once it closes. A <b>sliding</b> window is "the last 60 minutes, now": each minute it adds the newest bucket and subtracts the one that fell off the back. Below, four hours of simulated views for six videos; move the clock and watch the lists diverge.</p>
+    <div class="wctl">
+      <label class="field" for="now"><span class="row"><span>Now (minutes since start)</span><b class="mono num" id="nowOut"></b></span><input type="range" id="now" min="1" max="240" step="1" value="95"></label>
+      <label class="field" for="wlen"><span class="row"><span>Window length</span><b class="mono num" id="wlenOut"></b></span><input type="range" id="wlen" min="10" max="120" step="5" value="60"></label>
+      <div class="btns"><button class="primary" id="wplay">Play</button><button id="wstep">+1 minute</button></div>
+    </div>
+    <svg id="wchart" viewBox="0 0 720 210" role="img" aria-label="Views per minute with the sliding and tumbling windows shaded"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>sliding window</span><span><i style="background:var(--amber)"></i>last closed tumbling window</span><span><i style="background:var(--line)"></i>other minutes</span></div>
+    <div class="wcards" id="wcards" aria-live="polite"></div>
+    <ul id="wnotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+    <h3 style="margin-top:6px">Serving an hour, a day, a month and all time</h3>
+    <p id="rollup"></p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Window</th><th>Built from</th><th>Refresh</th><th>Exact?</th></tr></thead>
+      <tbody id="rollupTable"></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: shards and sketches" data-num="5b" data-time="5m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: sharding the counts, and when a sketch beats a hash map</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Partition the view log by <span class="mono">hash(video_id)</span>, so every view of a video lands on the same aggregator. Each aggregator's top K is then exact for its own videos, and the global top K must be among the union of the shard lists. What is left to decide is how many shards, and whether each shard keeps an exact count per video or a fixed-size Count-Min Sketch.</p>
+    <div class="calc">
+      <label class="field" for="vpd"><span class="row"><span>Views per day</span><b class="mono num" id="vpdOut"></b></span><input type="range" id="vpd" min="8" max="11" step="0.1" value="10"></label>
+      <label class="field" for="peak"><span class="row"><span>Peak ÷ average rate</span><b class="mono num" id="peakOut"></b></span><input type="range" id="peak" min="1" max="6" step="0.5" value="2"></label>
+      <label class="field" for="distinct"><span class="row"><span>Distinct videos viewed per day</span><b class="mono num" id="distinctOut"></b></span><input type="range" id="distinct" min="6" max="9.5" step="0.1" value="8.5"></label>
+      <label class="field" for="node"><span class="row"><span>Events per second one aggregator handles</span><b class="mono num" id="nodeOut"></b></span><input type="range" id="node" min="4" max="6" step="0.1" value="5"></label>
+      <label class="field" for="eps"><span class="row"><span>Sketch error, as a share of the day's views</span><b class="mono num" id="epsOut"></b></span><input type="range" id="eps" min="-6" max="-2" step="0.25" value="-5"></label>
+      <label class="field" for="kk"><span class="row"><span>K (list length)</span><b class="mono num" id="kkOut"></b></span><input type="range" id="kk" min="10" max="1000" step="10" value="100"></label>
+    </div>
+    <div class="results" id="scaleResults"></div>
+    <ul id="scaleNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+
+    <h3 style="margin-top:6px">Try a real sketch</h3>
+    <p>A fixed stream: <span id="cmsStream"></span> The sketch has <i>depth</i> rows of <i>width</i> counters. Each view adds 1 to one counter per row (chosen by that row's hash); a video's estimate is the smallest of its counters, so it can only be too high. A heap keeps the 10 videos with the highest estimates seen so far.</p>
+    <div class="calc">
+      <label class="field" for="cw"><span class="row"><span>Width (counters per row)</span><b class="mono num" id="cwOut"></b></span><input type="range" id="cw" min="4" max="12" step="1" value="7"></label>
+      <label class="field" for="cd"><span class="row"><span>Depth (rows, one hash each)</span><b class="mono num" id="cdOut"></b></span><input type="range" id="cd" min="1" max="6" step="1" value="3"></label>
+    </div>
+    <div class="results" id="cmsResults"></div>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>True rank</th><th>Video</th><th>True views</th><th>Sketch estimate</th><th>Over by</th><th>In sketch top 10?</th></tr></thead>
+      <tbody id="cmsTable"></tbody>
+    </table></div>
+    <p id="cmsNote"></p>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>A trailer drops at 9:00</h2>
+    <p class="kicker">Using the final design: a view log partitioned by video, one aggregator per partition with minute buckets, a sketch and a heap, a merger, and a small Top-K store in front of the API.</p>
+    <ol class="steps">
+      <li><div><h3>The view</h3><p>Someone in Lisbon watches the new trailer past the "counts as a view" threshold. The player sends <span class="mono">{video_id: 8812}</span> on its analytics stream. The view service checks the user hasn't just counted this video (a short-lived set of recent user and video pairs), then appends the event to the <span class="mono">views</span> topic and returns.</p></div></li>
+      <li><div><h3>Into a partition</h3><p>The producer picks the partition from <span class="mono">hash(8812)</span>, so every view of the trailer, from anywhere, lands in the same partition and in order. The log keeps events for days, which makes the whole pipeline replayable.</p></div></li>
+      <li><div><h3>Counting</h3><p>The aggregator that owns that partition adds 1 to the trailer's 9:00 minute bucket and to its sketch counters, then checks the shard's heap: the estimate now beats the smallest entry, so the trailer replaces it. Every few seconds the aggregator commits its consumer offset along with a snapshot of its state, so a restart resumes where it left off.</p></div></li>
+      <li><div><h3>Merging</h3><p>Every 5 seconds each aggregator publishes its top K for the hour, day and month windows. The merger takes the union of those short lists, sorts by count, cuts to K, and writes one list per window to the Top-K store.</p></div></li>
+      <li><div><h3>Reading</h3><p><span class="mono">GET /views/top?window=hour</span> reads one small list from the Top-K store, attaches titles and thumbnails, and is cached at the edge until the next refresh. By 9:01 the trailer is on the hourly list; it reaches the all-time list only if it keeps going for weeks.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A running count per video per time bucket, and a continuously maintained shortlist of the largest sums for a few windows.</p></div>
+      <div><span class="q">Why it's hard</span><p>The write rate is huge and skewed (a viral video takes a big share of all views), the number of distinct videos is huge, and a window keeps moving, so old views must be subtracted as well as new ones added.</p></div>
+      <div><span class="q">Key insight</span><p>Count where the events flow, not where they rest. Partitioning by video makes every shard's top K exact for its videos, so the global answer is a merge of a few short lists.</p></div>
+      <div><span class="q">Where it bends</span><p>Memory per distinct video. A sketch trades exactness for a fixed size: counts may be too high by a bounded amount, never too low, and the bound shrinks as the sketch widens.</p></div>
+      <div><span class="q">What's derived</span><p>Everything except the view log. Buckets, sketches, heaps and published lists can all be rebuilt by replaying the log from an offset.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>Counting what you can't afford to store</h2>
+    <p>Finding the most frequent items in a stream, with less memory than there are distinct items, is an old problem. In 1982 Jayadev Misra and David Gries published "Finding repeated elements", which keeps a small set of counters and decrements them all when a new item finds no free slot. Anything frequent enough is guaranteed to survive.</p>
+    <p>In 2004 Graham Cormode and S. Muthukrishnan presented the Count-Min Sketch at the LATIN conference, with the journal version ("An improved data stream summary: the count-min sketch and its applications") following in the Journal of Algorithms in 2005. It is a small grid of counters with one hash function per row; an item's estimate is the minimum of its counters. The width sets the error and the depth sets how likely you are to exceed it. In 2005 Ahmed Metwally, Divyakant Agrawal and Amr El Abbadi published Space-Saving at ICDT, a counter-based method built specifically for frequent and top-k elements: when a new item arrives and the counters are full, it takes over the smallest counter.</p>
+    <p>The architecture argument came later. Nathan Marz, who created Storm, described the "lambda architecture" in 2011: a batch layer recomputes exact answers from the full log, while a speed layer gives fast approximate ones, and queries combine the two. On 2 July 2014 Jay Kreps, one of Kafka's creators, published "Questioning the Lambda Architecture" on O'Reilly Radar. Keeping two code paths in sync was painful, he argued; instead, keep the log, run one streaming job, and to recompute, replay the log through a new version of that job. He suggested calling it the Kappa architecture. The final design on this page is that idea.</p>
+    <ol class="timeline">
+      <li><span class="year">1982</span><p>Misra and Gries: frequent items with a fixed number of counters.</p></li>
+      <li><span class="year">2004</span><p>Cormode and Muthukrishnan present the Count-Min Sketch at LATIN; the journal version appears in 2005.</p></li>
+      <li><span class="year">2005</span><p>Metwally, Agrawal and El Abbadi publish Space-Saving at ICDT for frequent and top-k elements.</p></li>
+      <li><span class="year">2011</span><p>Nathan Marz describes the lambda architecture: batch layer plus speed layer.</p></li>
+      <li><span class="year">2014</span><p>Jay Kreps' "Questioning the Lambda Architecture" proposes Kappa: one streaming path and a replayable log.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Late and out-of-order events:</b> a phone reconnects and sends views from 10 minutes ago. Bucket by event time, keep recent buckets open for a grace period (a watermark), and correct the published list when a late bucket changes it.</li>
+        <li><b>Fake views:</b> count only views that pass checks (watch time, rate per user and IP). Filtering happens before the log or in a first stream stage, and a slower batch audit can remove views later.</li>
+        <li><b>Exactly the right counts:</b> sketch counts overestimate. Use the sketch to choose candidates, then count the few hundred candidates exactly, or reconcile with a nightly batch job over the log.</li>
+        <li><b>One mega-viral video:</b> all its views hit one partition. Split that key into a few sub-keys (video + random 0..3) and add the parts back when merging.</li>
+        <li><b>Per country or category:</b> make the key <span class="mono">(region, video_id)</span>. Same pipeline, more lists, each still short.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/kafka.html">Kafka Partitions</a>
+        <span class="soon">Count-Min Sketch (coming soon)</span>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+        <a href="../topics/bloom-filter.html">Bloom Filter</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/top-k">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+  const bytes = b => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : b >= 1e3 ? (b / 1e3).toFixed(1) + " KB" : Math.round(b) + " B";
+  // seeded random numbers so the simulations are repeatable
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  // 32-bit mixer used as the hash function for partitions and sketch rows
+  function mix(x) { x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B); x = Math.imul(x ^ (x >>> 13), 0xC2B2AE35); return (x ^ (x >>> 16)) >>> 0; }
+  const hashRow = (id, row, w) => mix(id * 0x9E3779B1 + (row + 1) * 0x7F4A7C15) % w;
+
+  // assumptions used in the stage notes (same defaults as the calculator in 5b)
+  const ASSUME = { viewsDay: 1e10, peak: 2, distinct: Math.round(Math.pow(10, 8.5)), node: 1e5, entryB: 48 };
+  const avgRate = ASSUME.viewsDay / 86400, peakRate = avgRate * ASSUME.peak;
+
+  // ================= Live design simulation =================
+  const TITLES = ["Trailer", "Cat piano", "Goal of the week", "Lofi beats", "Speedrun", "Recipe", "Unboxing", "Lecture 1", "Drone shot", "Card trick", "Indie song", "Chess blunder"];
+  const NV = TITLES.length, K = 3, SHARDS = 3, CW = 8, CD = 3, VIRAL = NV - 1, VIRAL_N = 60;
+  const WEIGHTS = TITLES.map((_, i) => 1 / (i + 1)), WSUM = WEIGHTS.reduce((a, b) => a + b, 0);
+  const shardOf = v => mix(v + 1) % SHARDS;
+  const N = {
+    viewer: { x: 70, y: 70, label: "Viewers", sub: "play events" },
+    api: { x: 225, y: 70, label: "View service", sub: "validates views" },
+    db: { x: 420, y: 190, label: "Views DB", sub: "" },
+    kafka: { x: 420, y: 70, label: "Kafka topic", sub: "" },
+    agg: { x: 420, y: 190, label: "Aggregator", sub: "" },
+    agg0: { x: 272, y: 190, label: "Aggregator P0", sub: "" },
+    agg1: { x: 420, y: 190, label: "Aggregator P1", sub: "" },
+    agg2: { x: 568, y: 190, label: "Aggregator P2", sub: "" },
+    merge: { x: 568, y: 315, label: "Merger", sub: "union, cut to K" },
+    topk: { x: 420, y: 315, label: "Top-K store", sub: "" },
+    qapi: { x: 225, y: 315, label: "Top-K service", sub: "GET /views/top" },
+    reader: { x: 70, y: 315, label: "Trending page", sub: "asks for top 3" }
+  };
+  const ROUND = { db: 1, kafka: 1, topk: 1 };
+  const STAGES = [
+    {
+      name: "1 · Count in SQL",
+      nodes: ["viewer", "api", "db", "qapi", "reader"],
+      edges: [["viewer", "api"], ["api", "db"], ["reader", "qapi"], ["qapi", "db"]],
+      adds: "Every view inserts a row <span class=\"mono\">(video_id, user_id, ts)</span>. The trending page runs <span class=\"mono\">GROUP BY video_id</span> over the rows in the window, sorts by count and keeps the top 3.",
+      why: "It's obviously correct, and any window or filter is just a different WHERE clause. A fine first answer for a small site.",
+      breaks: () => `The query reads every view in the window. Assuming ${fmt(ASSUME.viewsDay)} views a day, one hour is ${fmt(ASSUME.viewsDay / 24)} rows, scanned again on every refresh, while the table grows by ${fmt(avgRate)} rows a second.`
+    },
+    {
+      name: "2 · Counter table",
+      nodes: ["viewer", "api", "db", "qapi", "reader"],
+      edges: [["viewer", "api"], ["api", "db"], ["reader", "qapi"], ["qapi", "db"]],
+      adds: "Keep one counter row per video and window: each view runs <span class=\"mono\">UPDATE counts SET n = n + 1</span>. The top 3 is <span class=\"mono\">ORDER BY n DESC LIMIT 3</span> over the counter rows.",
+      why: "Aggregate when writing, so the read cost depends on the number of videos instead of the number of views.",
+      breaks: () => `Every view is still a database write: ${fmt(peakRate)} a second at peak. Press <b>A video goes viral</b>: all its increments queue on one row's lock. And the sort still reads ${fmt(ASSUME.distinct)} counter rows a day per window.`
+    },
+    {
+      name: "3 · Stream + heap",
+      nodes: ["viewer", "api", "kafka", "agg", "topk", "qapi", "reader"],
+      edges: [["viewer", "api"], ["api", "kafka"], ["kafka", "agg"], ["agg", "topk"], ["reader", "qapi"], ["qapi", "topk"]],
+      adds: "Views are appended to a Kafka topic. An aggregator consumes it, keeps an exact count per video in memory, and a min-heap of the K largest. Every few seconds it writes the list to a small Top-K store, which is all the read path touches.",
+      why: "Counting moves to memory, off the request path. The log is durable and replayable, so a crashed aggregator rebuilds its counts from its last committed offset. A read is K entries.",
+      breaks: () => `One aggregator must absorb ${fmt(peakRate)} events a second at peak, about ${Math.ceil(peakRate / ASSUME.node)}× what one node handles, and hold an exact count for ${fmt(ASSUME.distinct)} videos (${bytes(ASSUME.distinct * ASSUME.entryB)}) for each window.`
+    },
+    {
+      name: "4 · Shards + sketch",
+      nodes: ["viewer", "api", "kafka", "agg0", "agg1", "agg2", "merge", "topk", "qapi", "reader"],
+      edges: [["viewer", "api"], ["api", "kafka"], ["kafka", "agg0"], ["kafka", "agg1"], ["kafka", "agg2"], ["agg0", "merge"], ["agg1", "merge"], ["agg2", "merge"], ["merge", "topk"], ["reader", "qapi"], ["qapi", "topk"]],
+      adds: `The topic has ${SHARDS} partitions keyed by <span class="mono">hash(video_id)</span>, with one aggregator each. An aggregator keeps a Count-Min Sketch (${CD} rows × ${CW} counters here) plus a heap of its top ${K} candidates. A merger unions the ${SHARDS} short lists and cuts to ${K}.`,
+      why: "A video always lands on the same partition, so its full count lives on one shard and the global top K must appear in some shard's list. The sketch's size is fixed however many videos exist; its estimates can be too high, never too low.",
+      breaks: () => "Nothing major. Late events, one mega-viral key overloading a partition, and recounting the final candidates exactly are the usual follow-ups."
+    }
+  ];
+
+  let stage = 0, dots = [], cost = null, truth, shards, heap3, shown, lastViral, rnd = rng(7);
+  function resetSim() {
+    dots = []; cost = null; shown = null; lastViral = false;
+    truth = new Array(NV).fill(0);
+    heap3 = [];
+    shards = Array.from({ length: SHARDS }, () => ({ events: 0, cms: Array.from({ length: CD }, () => new Array(CW).fill(0)), cand: new Map() }));
+  }
+  const total = () => truth.reduce((a, b) => a + b, 0);
+  const distinct = () => truth.filter(x => x > 0).length;
+  function pickVideo() { let r = rnd() * WSUM; for (let i = 0; i < NV; i++) { r -= WEIGHTS[i]; if (r <= 0) return i; } return NV - 1; }
+  // min-heap of size K on exact counts (stage 3): counts only grow, so this stays exact
+  function heapAdd(v) {
+    if (heap3.includes(v)) return;
+    if (heap3.length < K) { heap3.push(v); return; }
+    const min = heap3.reduce((m, x) => truth[x] < truth[m] ? x : m, heap3[0]);
+    if (truth[v] > truth[min]) heap3[heap3.indexOf(min)] = v;
+  }
+  const estimate = (s, v) => Math.min(...s.cms.map((row, r) => row[hashRow(v + 1, r, CW)]));
+  function shardAdd(v) {
+    const s = shards[shardOf(v)];
+    s.events++;
+    s.cms.forEach((row, r) => { row[hashRow(v + 1, r, CW)]++; });
+    const est = estimate(s, v);
+    if (s.cand.has(v) || s.cand.size < K) { s.cand.set(v, est); return; }
+    let minV = null; s.cand.forEach((e, x) => { if (minV === null || e < s.cand.get(minV)) minV = x; });
+    if (est > s.cand.get(minV)) { s.cand.delete(minV); s.cand.set(v, est); }
+  }
+  function ingest(v) { truth[v]++; heapAdd(v); shardAdd(v); }
+  function travel(path, kind, done, delay = 0) { dots.push({ path, seg: 0, f: 0, x: N[path[0]].x, y: N[path[0]].y, kind, done, wait: delay }); }
+  function viewPath(v) {
+    if (stage <= 1) return ["viewer", "api", "db"];
+    if (stage === 2) return ["viewer", "api", "kafka", "agg"];
+    return ["viewer", "api", "kafka", "agg" + shardOf(v)];
+  }
+  function flush() {
+    if (stage === 2) travel(["agg", "topk"], "flush", null, 0.6);
+    if (stage === 3) [0, 1, 2].forEach(i => travel(["agg" + i, "merge", "topk"], "flush", null, 0.6 + i * 0.1));
+  }
+
+  function send(n, viral) {
+    const vids = [];
+    for (let i = 0; i < n; i++) { const v = viral ? VIRAL : pickVideo(); ingest(v); vids.push(v); }
+    lastViral = !!viral;
+    const animate = Math.min(n, 10);
+    for (let i = 0; i < animate; i++) travel(viewPath(vids[i]), viral ? "viral" : "view", null, i * 0.08);
+    flush();
+    const what = viral ? `${n} views of ${TITLES[VIRAL]}` : n === 1 ? `1 view (${TITLES[vids[0]]})` : `${n} views`;
+    const perShard = [0, 0, 0]; vids.forEach(v => perShard[shardOf(v)]++);
+    if (stage === 0) cost = { action: what, writes: n, reads: 0, note: `${n} row insert${n > 1 ? "s" : ""}. The views table now holds ${fmt(total())} rows; nothing is counted yet.` };
+    else if (stage === 1) cost = { action: what, writes: n, reads: 0, note: viral ? `<b style="color:var(--bad)">${n} increments on the same row.</b> Each waits for the previous one's row lock; the other videos' rows sit idle.` : `${n} counter update${n > 1 ? "s" : ""} across ${new Set(vids).size} row${new Set(vids).size > 1 ? "s" : ""}. Each is a durable database write.` };
+    else if (stage === 2) cost = { action: what, writes: n, reads: 0, note: `${n} log append${n > 1 ? "s" : ""} (the only durable writes) and ${n} in-memory increment${n > 1 ? "s" : ""}. All of them go through the one aggregator.` };
+    else cost = { action: what, writes: n, reads: 0, note: `${n} log append${n > 1 ? "s" : ""}, split by partition as ${perShard.join(" / ")}. Each event bumps ${CD} sketch counters (${n * CD} in all) on its shard.` + (viral ? ` <b style="color:var(--amber)">Every one of them hit P${shardOf(VIRAL)}: one key, one partition.</b>` : "") };
+    render();
+  }
+
+  function exactTop() { return [...truth.keys()].filter(v => truth[v] > 0).sort((a, b) => truth[b] - truth[a] || a - b).slice(0, K); }
+  function readTop() {
+    let list, reads, note;
+    const ex = exactTop();
+    if (stage === 0) { list = ex.map(v => ({ v, n: truth[v] })); reads = total(); note = `Scanned ${fmt(reads)} view rows, grouped them into ${distinct()} videos, sorted, kept ${K}. The work grows with every view ever sent.`; }
+    else if (stage === 1) { list = ex.map(v => ({ v, n: truth[v] })); reads = distinct(); note = `Sorted ${reads} counter rows. Better, but it still grows with the number of videos.`; }
+    else if (stage === 2) { list = heap3.slice().sort((a, b) => truth[b] - truth[a] || a - b).map(v => ({ v, n: truth[v] })); reads = list.length; note = `Read ${reads} entries from the Top-K store. The aggregator's heap already did the work.`; }
+    else {
+      const all = []; shards.forEach(s => s.cand.forEach((e, v) => all.push({ v, n: e })));
+      list = all.sort((a, b) => b.n - a.n || a.v - b.v).slice(0, K); reads = list.length;
+      note = `Read ${reads} entries. In the background the merger read ${all.length} candidates (${SHARDS} shards × up to ${K}) and kept ${K}. Counts are sketch estimates; true counts in brackets.`;
+    }
+    shown = list.map(x => ({ ...x, real: truth[x.v], ok: ex.includes(x.v) }));
+    const path = stage <= 1 ? ["reader", "qapi", "db", "qapi", "reader"] : ["reader", "qapi", "topk", "qapi", "reader"];
+    travel(path, "read", () => render());
+    cost = { action: `Read top ${K}`, writes: 0, reads, note };
+    render();
+  }
+
+  function step(dt) {
+    const SPEED = 600;
+    dots.forEach(d => {
+      if (d.wait > 0) { d.wait -= dt; return; }
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = N[d.path[d.seg]], b = N[d.path[d.seg + 1]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = N[d.path[d.seg]], b2 = N[d.path[Math.min(d.seg + 1, d.path.length - 1)]];
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+      if (d.seg >= d.path.length - 1 && !d.finished) { d.finished = true; if (d.done) d.done(); }
+    });
+    dots = dots.filter(d => !d.finished);
+  }
+  function nodeSub(k) {
+    if (k === "db") return stage === 0 ? `${fmt(total())} view rows` : `${distinct()} counter rows`;
+    if (k === "kafka") return stage === 3 ? `${SHARDS} partitions, by video` : "1 partition";
+    if (k === "agg") return `${distinct()} exact counts · heap ${K}`;
+    if (k.startsWith("agg")) { const s = shards[+k.slice(3)]; return `${s.events} ev · ${CD}×${CW} sketch`; }
+    if (k === "topk") return `top ${K}, refreshed`;
+    return N[k].sub;
+  }
+  function draw() {
+    const st = STAGES[stage];
+    let s = "";
+    st.edges.forEach(([a, b]) => { const p = N[a], q = N[b]; s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"/>`; });
+    const colors = { view: "var(--accent)", viral: "var(--bad)", read: "var(--ok)", flush: "var(--amber)" };
+    dots.forEach(d => { if (d.wait > 0) return; s += `<circle cx="${d.x}" cy="${d.y}" r="${d.kind === "read" ? 7 : 5}" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    st.nodes.forEach(k => {
+      const n = N[k], w = 128, h = 46, round = ROUND[k];
+      let sub = nodeSub(k), hot = false;
+      let label = n.label;
+      if (k === "db" && stage === 1) label = "Counters DB";
+      if (k === "db" && stage === 1 && lastViral) { sub = `hot row: ${TITLES[VIRAL]}`; hot = true; }
+      if (stage === 3 && lastViral && k === "agg" + shardOf(VIRAL)) hot = true;
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${round ? 14 : 6}" fill="var(--panel)" stroke="${hot ? "var(--bad)" : round ? "var(--accent)" : "var(--ink)"}" stroke-width="${hot ? 2.4 : 1.6}"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="13.5" font-weight="700" fill="var(--ink)">${label}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 13}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${hot ? "var(--bad)" : "var(--muted)"}">${sub}</text>`;
+    });
+    s += `<text x="12" y="392" font-family="var(--mono)" font-size="11" fill="var(--muted)">blue view · red viral view · amber list refresh · green read</text>`;
+    $("arch").innerHTML = s;
+  }
+  function render() {
+    $("cost").innerHTML = cost ? `
+      <div><span>Last action</span><b style="font-size:.9rem">${cost.action}</b></div>
+      <div><span>Durable writes</span><b>${fmt(cost.writes)}</b></div>
+      <div><span>Rows / entries read</span><b>${fmt(cost.reads)}</b></div>
+      <div style="grid-column:1/-1"><span>${cost.note}</span></div>` : `<div style="grid-column:1/-1"><span>Press a button to see what one action costs in this stage.</span></div>`;
+    const ex = exactTop();
+    let html = `<span class="stage-label">Top ${K}, as last read · ${fmt(total())} views sent</span>`;
+    if (shown === null) html += `<p style="font-size:13px;color:var(--muted)">Not read yet. Send some views, then press <b>Read top ${K}</b>.</p>`;
+    else if (!shown.length) html += `<p style="font-size:13px;color:var(--muted)">Empty: no views have been sent in this stage.</p>`;
+    else html += shown.map((x, i) => `<div class="vid ${x.ok ? (i === 0 ? "first" : "") : "off"}"><span><b>${i + 1}. ${TITLES[x.v]}</b></span><span class="t">${stage === 3 ? `${x.n} est (${x.real} true)` : `${x.n} views`}${x.ok ? "" : " · not in exact top"}</span></div>`).join("");
+    if (stage === 3) html += `<span class="stage-label" style="margin-top:6px">Each shard's heap, live (estimates)</span>` + shards.map((s, i) => `<div class="shardline">P${i}: ${[...s.cand].sort((a, b) => b[1] - a[1]).map(([v, e]) => `${TITLES[v]} ${e}`).join(" · ") || "empty"}</div>`).join("");
+    html += `<div class="shardline" style="margin-top:4px">Exact top ${K} right now: ${ex.map(v => `${TITLES[v]} ${truth[v]}`).join(" · ") || "none yet"}</div>`;
+    $("board").innerHTML = html;
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks()}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; rnd = rng(7); resetSim(); renderExplain(); render(); };
+  $("one").onclick = () => send(1);
+  $("burst").onclick = () => send(100);
+  $("viral").onclick = () => send(VIRAL_N, true);
+  $("read").onclick = readTop;
+
+  // ================= 5a: window buckets =================
+  const WVIDS = [
+    { name: "Lofi beats", base: 20, peak: 0, at: 0, width: 1 },
+    { name: "Recipe", base: 3, peak: 38, at: 60, width: 22 },
+    { name: "Match highlights", base: 2, peak: 50, at: 175, width: 22 },
+    { name: "Trailer", base: 8, peak: 22, at: 120, width: 45 },
+    { name: "Speedrun", base: 11, peak: 6, at: 210, width: 30 },
+    { name: "Cat piano", base: 14, peak: 0, at: 0, width: 1 }
+  ];
+  const T = 240;
+  const wr = rng(42);
+  function poisson(lam) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= wr(); } while (p > L); return k - 1; }
+  const BUCKET = WVIDS.map(v => Array.from({ length: T }, (_, m) => poisson(v.base + v.peak * Math.exp(-Math.pow((m - v.at) / v.width, 2)))));
+  const sumRange = (a, b) => WVIDS.map((_, i) => { let s = 0; for (let m = Math.max(0, a); m < b; m++) s += BUCKET[i][m]; return s; });
+  const top3 = sums => sums.map((n, i) => ({ i, n })).sort((a, b) => b.n - a.n || a.i - b.i).slice(0, 3);
+  const clock = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+  let wTimer = null;
+  function renderWindows() {
+    const t = +$("now").value, W = +$("wlen").value;
+    $("nowOut").textContent = clock(t); $("wlenOut").textContent = W + " min";
+    const sA = Math.max(0, t - W), sB = t;
+    const tEnd = Math.floor(t / W) * W, tStart = tEnd - W;
+    const totals = Array.from({ length: T }, (_, m) => WVIDS.reduce((a, _, i) => a + BUCKET[i][m], 0));
+    const max = Math.max(...totals);
+    const X = m => m * 3, H = 160, base = 180;
+    let s = "";
+    if (tStart >= 0) s += `<rect x="${X(tStart)}" y="12" width="${W * 3}" height="${base - 12}" fill="var(--amber-soft)"/>`;
+    totals.forEach((v, m) => {
+      const h = v / max * H, inS = m >= sA && m < sB, inT = tStart >= 0 && m >= tStart && m < tEnd;
+      const fill = m >= t ? "var(--grid)" : inS ? "var(--accent)" : inT ? "var(--amber)" : "var(--line)";
+      s += `<rect x="${X(m) + 0.3}" y="${base - h}" width="2.4" height="${h}" fill="${fill}"/>`;
+    });
+    s += `<line x1="${X(t)}" y1="6" x2="${X(t)}" y2="${base}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    s += `<text x="${Math.min(X(t) + 4, 680)}" y="16" font-family="var(--mono)" font-size="11" fill="var(--ink)">now ${clock(t)}</text>`;
+    for (let m = 0; m <= T; m += 60) s += `<text x="${Math.min(X(m), 700)}" y="200" text-anchor="${m === 0 ? "start" : m === T ? "end" : "middle"}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${clock(m)}</text>`;
+    s += `<line x1="0" y1="${base}" x2="720" y2="${base}" stroke="var(--line)"/>`;
+    $("wchart").innerHTML = s;
+
+    const slide = top3(sumRange(sA, sB)), tumble = tStart >= 0 ? top3(sumRange(tStart, tEnd)) : null, all = top3(sumRange(0, t));
+    const list = arr => `<ol>${arr.map(x => `<li>${WVIDS[x.i].name} <b>${x.n}</b></li>`).join("")}</ol>`;
+    $("wcards").innerHTML = `
+      <div class="wcard slide"><h3>Sliding: last ${W} min</h3><span class="span">${clock(sA)}–${clock(sB)} · at most 1 bucket stale</span>${list(slide)}</div>
+      <div class="wcard tumble"><h3>Tumbling: last closed ${W} min block</h3>${tumble ? `<span class="span">${clock(tStart)}–${clock(tEnd)} · ${t - tEnd} min since it closed</span>${list(tumble)}` : `<span class="span">No block has closed yet: the first one ends at ${clock(W)}.</span>`}</div>
+      <div class="wcard"><h3>All time</h3><span class="span">${clock(0)}–${clock(t)} · one running total</span>${list(all)}</div>`;
+
+    const added = t - 1, dropped = t - 1 - W;
+    const addN = WVIDS.reduce((a, _, i) => a + BUCKET[i][added], 0);
+    const dropN = dropped >= 0 ? WVIDS.reduce((a, _, i) => a + BUCKET[i][dropped], 0) : 0;
+    const notes = [
+      `Last step, the sliding window added minute ${clock(added)} (${addN} views) ${dropped >= 0 ? `and subtracted minute ${clock(dropped)} (${dropN} views)` : "and had nothing old to subtract yet"}: ${WVIDS.length * (dropped >= 0 ? 2 : 1)} counter updates for ${WVIDS.length} videos, however long the window is.`,
+      tumble ? (slide.map(x => x.i).join() === tumble.map(x => x.i).join() ? `Right now the sliding and tumbling lists rank the same videos. Move the clock until they differ: the tumbling list only changes when a block closes.` : `The two lists disagree: the tumbling list still describes ${clock(tStart)}–${clock(tEnd)}, which is ${t - tEnd} minute${t - tEnd === 1 ? "" : "s"} old and misses whatever happened since.`) : `Before the first block closes, a tumbling window has nothing to show, while the sliding window already covers ${t} minute${t === 1 ? "" : "s"}.`,
+      `${WVIDS[1].name} peaks around ${clock(WVIDS[1].at)}. In the all-time list it holds ${sumRange(0, t)[1]} views and never falls away; in the sliding window it has ${sumRange(sA, sB)[1]}. Move the clock past ${clock(WVIDS[1].at + W)} to watch it drop.`
+    ];
+    $("wnotes").innerHTML = notes.map(x => `<li>${x}</li>`).join("");
+  }
+  // bucket hierarchy for the real windows
+  const ROLL = [
+    { win: "Last hour", from: "60 minute buckets", n: 60, refresh: "every few seconds", exact: "yes, to the minute" },
+    { win: "Last day", from: "24 hour buckets", n: 24, refresh: "every minute", exact: "edge blurred by up to an hour" },
+    { win: "Last month", from: "30 day buckets", n: 30, refresh: "every hour", exact: "edge blurred by up to a day" },
+    { win: "All time", from: "1 running total", n: 1, refresh: "every few minutes", exact: "yes" }
+  ];
+  const rollTotal = ROLL.reduce((a, r) => a + r.n, 0), naiveMinutes = 30 * 24 * 60;
+  $("rollup").innerHTML = `Keeping minute buckets for a whole month would mean ${naiveMinutes.toLocaleString("en-US")} counters per video. Instead, roll minutes up into hours and hours into days, and give each window the coarsest buckets it can use: ${ROLL.map(r => r.n).join(" + ")} = <b>${rollTotal}</b> counters per active video, ${Math.round(naiveMinutes / rollTotal)}× fewer. The price is that a day or month window moves in steps of a bucket.`;
+  $("rollupTable").innerHTML = ROLL.map(r => `<tr><td><b>${r.win}</b></td><td>${r.from}</td><td>${r.refresh}</td><td>${r.exact}</td></tr>`).join("");
+  $("now").oninput = renderWindows; $("wlen").oninput = renderWindows;
+  $("wstep").onclick = () => { $("now").value = Math.min(T, +$("now").value + 1); renderWindows(); };
+  $("wplay").onclick = () => {
+    if (wTimer) { clearInterval(wTimer); wTimer = null; $("wplay").textContent = "Play"; return; }
+    if (+$("now").value >= T) $("now").value = 1;
+    $("wplay").textContent = "Pause";
+    wTimer = setInterval(() => { const v = +$("now").value; if (v >= T) { clearInterval(wTimer); wTimer = null; $("wplay").textContent = "Play"; return; } $("now").value = v + 1; renderWindows(); }, 120);
+  };
+
+  // ================= 5b: sizing =================
+  function renderScale() {
+    const vpd = Math.pow(10, +$("vpd").value), peak = +$("peak").value, dist = Math.pow(10, +$("distinct").value), node = Math.pow(10, +$("node").value), eps = Math.pow(10, +$("eps").value), k = +$("kk").value;
+    const avg = vpd / 86400, pk = avg * peak, shardsN = Math.ceil(pk / node);
+    const exactMem = dist * ASSUME.entryB, exactPer = exactMem / shardsN;
+    const w = Math.ceil(Math.E / eps), d = Math.ceil(Math.log(1 / 0.001)), cmsMem = w * d * 8 + k * ASSUME.entryB;
+    const errViews = eps * vpd, mergeReads = shardsN * k;
+    $("vpdOut").textContent = fmt(vpd); $("peakOut").textContent = peak + "×"; $("distinctOut").textContent = fmt(dist); $("nodeOut").textContent = fmt(node);
+    $("epsOut").textContent = (eps * 100).toPrecision(2).replace(/\.?0+$/, "") + "%"; $("kkOut").textContent = k;
+    $("scaleResults").innerHTML = `
+      <div><span>Views per second, average</span><b>${fmt(avg)}</b></div>
+      <div><span>Views per second, peak</span><b style="color:var(--bad)">${fmt(pk)}</b></div>
+      <div><span>Partitions / aggregators</span><b style="color:var(--ok)">${shardsN}</b></div>
+      <div><span>Exact counts, one day window (48 B each)</span><b>${bytes(exactMem)}</b></div>
+      <div><span>Sketch ${fmt(w)} × ${d} + heap, per shard</span><b>${bytes(cmsMem)}</b></div>
+      <div><span>Sketch overcount bound</span><b>${fmt(errViews)} views</b></div>
+      <div><span>Entries the merger reads per refresh</span><b>${fmt(mergeReads)}</b></div>`;
+    $("scaleNotes").innerHTML = [
+      `${fmt(pk)} views a second at peak, at ${fmt(node)} per aggregator, needs ${shardsN} partition${shardsN === 1 ? "" : "s"}. Plan for more than that: a partition count is hard to change later, and one viral video's views all land on a single partition.`,
+      `Exact counts for ${fmt(dist)} videos take ${bytes(exactMem)} for the day window, ${bytes(exactPer)} per shard, and more again for each hour and month bucket. A sketch with width ⌈e/ε⌉ = ${fmt(w)} and depth ⌈ln(1/δ)⌉ = ${d} (δ = 0.1%) takes ${bytes(cmsMem)} per shard whatever the number of videos.`,
+      `The sketch's promise: an estimate is never low, and with probability ${(100 - 0.1).toFixed(1)}% it is at most ε × ${fmt(vpd)} = ${fmt(errViews)} views too high. That matters only for videos near the cut-off; recount the final ${k} exactly if the list must be exact.`,
+      `Merging is cheap: ${shardsN} shard${shardsN === 1 ? "" : "s"} × ${k} = ${fmt(mergeReads)} entries per refresh. It's correct because partitioning by video puts each video's whole count on one shard. Split one video across shards and a video ranked 11th everywhere could be 1st overall, and no shard list would contain it.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["vpd", "peak", "distinct", "node", "eps", "kk"].forEach(id => $(id).oninput = renderScale);
+
+  // ---- real Count-Min Sketch run ----
+  const SV = 5000, SN = 50000, SK = 10, ZS = 1.05;
+  const zr = rng(2024), zc = []; { let c = 0; for (let i = 1; i <= SV; i++) { c += 1 / Math.pow(i, ZS); zc.push(c); } }
+  const STREAM = new Int32Array(SN);
+  for (let j = 0; j < SN; j++) { const r = zr() * zc[SV - 1]; let lo = 0, hi = SV - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (zc[mid] < r) lo = mid + 1; else hi = mid; } STREAM[j] = lo; }
+  const EXACT = new Map(); for (const v of STREAM) EXACT.set(v, (EXACT.get(v) || 0) + 1);
+  const TRUE10 = [...EXACT].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, SK);
+  $("cmsStream").textContent = `${SN.toLocaleString("en-US")} views spread over ${SV.toLocaleString("en-US")} videos with a long tail (${EXACT.size.toLocaleString("en-US")} of them get at least one view; the most popular gets ${TRUE10[0][1].toLocaleString("en-US")}).`;
+  function runSketch() {
+    const w = 1 << +$("cw").value, d = +$("cd").value;
+    $("cwOut").textContent = w; $("cdOut").textContent = d;
+    const grid = Array.from({ length: d }, () => new Int32Array(w));
+    const cols = Array.from({ length: SV }, (_, v) => Array.from({ length: d }, (_, r) => hashRow(v + 1, r, w)));
+    const est = v => { let m = Infinity; for (let r = 0; r < d; r++) m = Math.min(m, grid[r][cols[v][r]]); return m; };
+    const cand = new Map();
+    for (const v of STREAM) {
+      for (let r = 0; r < d; r++) grid[r][cols[v][r]]++;
+      const e = est(v);
+      if (cand.has(v) || cand.size < SK) { cand.set(v, e); continue; }
+      let minV = -1, minE = Infinity; cand.forEach((x, k) => { if (x < minE) { minE = x; minV = k; } });
+      if (e > minE) { cand.delete(minV); cand.set(v, e); }
+    }
+    const sketchTop = new Set([...cand.keys()]);
+    const rows = TRUE10.map(([v, n], i) => { const e = est(v); return { i, v, n, e, over: e - n, inTop: sketchTop.has(v) }; });
+    const hits = rows.filter(r => r.inTop).length;
+    const meanOver = rows.reduce((a, r) => a + r.over, 0) / rows.length, maxOver = Math.max(...rows.map(r => r.over));
+    let tailOver = 0; EXACT.forEach((n, v) => { tailOver = Math.max(tailOver, est(v) - n); });
+    const sketchB = w * d * 4, exactB = EXACT.size * ASSUME.entryB, bound = Math.E / w * SN;
+    $("cmsResults").innerHTML = `
+      <div><span>True top 10 found</span><b style="color:${hits === SK ? "var(--ok)" : "var(--bad)"}">${hits} / ${SK}</b></div>
+      <div><span>Mean overcount, top 10</span><b>${meanOver.toFixed(1)}</b></div>
+      <div><span>Worst overcount, any video</span><b>${fmt(tailOver)}</b></div>
+      <div><span>Per-video bound e/width × views (${(100 * (1 - Math.exp(-d))).toFixed(0)}% sure)</span><b>${fmt(bound)}</b></div>
+      <div><span>Sketch memory (4 B counters)</span><b>${bytes(sketchB)}</b></div>
+      <div><span>Exact map memory (48 B each)</span><b>${bytes(exactB)}</b></div>`;
+    $("cmsTable").innerHTML = rows.map(r => `<tr><td class="mono">${r.i + 1}</td><td class="mono">video ${r.v + 1}</td><td class="mono">${r.n.toLocaleString("en-US")}</td><td class="mono">${r.e.toLocaleString("en-US")}</td><td class="mono">${r.over ? "+" + r.over.toLocaleString("en-US") : "0"}</td><td class="${r.inTop ? "y" : "n"}">${r.inTop ? "yes" : "no"}</td></tr>`).join("");
+    $("cmsNote").innerHTML = hits === SK
+      ? `With ${w} × ${d} counters (${bytes(sketchB)}, ${sketchB < exactB ? `${(exactB / sketchB).toFixed(1)}× smaller than` : `no smaller than`} the exact map), the sketch finds every one of the true top 10. Shrink the width until hash collisions start pushing tail videos into the list.`
+      : `<b style="color:var(--bad)">${SK - hits} of the true top 10 ${SK - hits === 1 ? "is" : "are"} missing.</b> At width ${w}, each counter is shared by about ${fmt(EXACT.size / w)} videos, so tail videos borrow the popular ones' counts and outrank real contenders. Widen the sketch or add rows.`;
+  }
+  $("cw").oninput = runSketch; $("cd").oninput = runSketch;
+
+  // ================= boot =================
+  resetSim(); renderExplain(); render(); renderWindows(); renderScale(); runSketch();
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  setTimeout(() => send(100), 400);
+</script>
+</body>
+</html>

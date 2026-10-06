@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 05 · Derivatives and slopes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.best { background: var(--accent-soft); font-weight: 600; }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab .controls { align-items: center; gap: .8rem 1.2rem; margin-top: .6rem; }
+  .lab .controls label { font: 500 .85rem/1.4 var(--mono); }
+  input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); min-width: 0; }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* added for lessons 02–04 */
+  figure svg { min-width: 520px; }
+  figure svg.sq { min-width: 0; max-width: 380px; margin: 0 auto; }
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  td.lbl, th.lbl { border-left: 2px solid var(--accent); }
+  .lab select, .lab textarea { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; max-width: 100%; }
+  .lab textarea { width: 100%; min-height: 7.5rem; resize: vertical; line-height: 1.5; display: block; }
+  .lab input[type=checkbox] { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  .lab button:disabled { opacity: .45; cursor: not-allowed; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 1rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-x: auto; white-space: nowrap; }
+  .fn b { color: var(--accent); }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  .lab .tbl table { font-family: var(--mono); font-size: .82rem; }
+
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; }
+  .lab .controls label span { display: flex; justify-content: space-between; gap: .5rem; }
+  .lab .controls label b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .lab .controls select { width: 100%; }
+  .lab input[type=range] { width: 100%; }
+
+  /* added for lesson 05 */
+  .lab svg#plot { max-width: 520px; margin: .4rem auto 0; }
+  .lab .controls label.hh b { color: var(--amber); }
+  .lab .controls label.hh input { accent-color: var(--amber); }
+  .lab .controls select { font: 500 .88rem/1.4 var(--mono); }
+  #secfn { white-space: normal; overflow-wrap: anywhere; }
+  .key { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin-top: .5rem; }
+  .key i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: .35rem; border-top: 3px solid var(--accent); }
+  .key i.sec { border-top-color: var(--amber); }
+  .key i.dot { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--ink); }
+  .key i.q { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--amber); }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 05 of 60</span><span>~18 min read</span></div>
+  <h1><span class="num">05</span> · Derivatives and slopes, intuitively</h1>
+  <p class="lede">A derivative answers one question: if I nudge this input a tiny bit, how much does the output move, and in which direction? For a model, the input is a knob and the output is its error, so the answer tells you which way to turn every knob without trying them all.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>From trying everything to feeling the slope</h2>
+<p>In Lesson 03 we fitted a line to five flats by brute force: 24,381 knob settings, each scored, best one kept. Lesson 04 packed the predictions into one line, <code>ŷ = Xw + b</code>. What we still lack is a smart way to <em>choose</em> <code>w</code> and <code>b</code>. Today's tool is the derivative: from where you stand, it tells you which way is downhill and how steep it is, using only nearby information.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Every training step is a pile of slopes</h2>
+<p>Grid search dies quickly. Ten values for each of a million knobs is 10<sup>1,000,000</sup> settings, more than any computer could ever try. Real models don't search at all. On every training step they compute, for <em>each</em> parameter, the slope of the error with respect to that parameter, then nudge every parameter a little in the downhill direction. When a PyTorch script calls <code>loss.backward()</code>, that is what happens: one slope is computed and stored for every weight in the model. A model with billions of parameters gets billions of slopes per step. This lesson is about what one of those numbers means.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>Walking down a hill in thick fog</h2>
+<p>You are on a hillside in fog so dense you can see only your own boots. You want to reach the bottom of the valley. You can't see the valley, but you can feel the ground: if it tilts down to your left, go left. If it is steep, you are probably far from the bottom. If it is perfectly flat, you might be there.</p>
+<ul>
+  <li>Your position is the <mark>knob</mark> (a weight like <code>w</code>).</li>
+  <li>Your height is the <mark>error</mark> the model makes at that knob setting.</li>
+  <li>The tilt under your feet is the <mark>derivative</mark>: how much height changes per step, and which way.</li>
+</ul>
+<p>A car's speedometer is the same idea in another costume. Average speed is total distance over total time: 120 km in 2 hours is 60 km/h. But the speedometer shows speed <em>right now</em>, which is the distance covered in a tiny slice of time divided by that tiny slice. "Rate of change at one instant" is exactly what a derivative is.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Six steps, from a straight line to two knobs</h2>
+
+<h3>1. The slope of a straight line</h3>
+<p>Slope is <strong>rise over run</strong>: how much the output goes up when the input goes up by 1. Lesson 03's fitted line was <code>ŷ = 2.15x + 5.6</code>. Its slope is 2.15: every extra 100 sq ft (<code>x</code> up by 1) adds ₹2,150 of rent (<code>ŷ</code> up by 2.15). On a straight line the slope is the same everywhere, so one number describes the whole line.</p>
+
+<h3>2. Curves: the average slope between two points</h3>
+<p>On a curve the steepness keeps changing. Take <code>f(x) = x²</code>. Between <code>x = 3</code> and <code>x = 4</code> the output goes from 9 to 16: a rise of 7 over a run of 1, so an average slope of 7. Write the gap between the two inputs as <code>h</code>:</p>
+<div class="eq">average slope = (f(x + h) − f(x)) / h</div>
+<dl class="defn">
+  <dt>Average rate of change</dt>
+  <dd>The rise <code>f(x + h) − f(x)</code> divided by the run <code>h</code>. It is the slope of the straight line through the two points on the curve.</dd>
+  <dt>Secant line</dt>
+  <dd>The name for that straight line through two points of a curve. It is an honest summary of the stretch between them, but it blurs over any bends in between.</dd>
+</dl>
+
+<h3>3. Shrink the gap</h3>
+<p>To know the steepness <em>at</em> <code>x = 3</code>, and not over a stretch, make the stretch smaller and smaller:</p>
+<div class="tbl"><table style="max-width:30rem">
+<thead><tr><th>gap h</th><th>f(3 + h)</th><th>rise</th><th>slope = rise / h</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>16</td><td>7</td><td>7</td></tr>
+<tr><td>0.1</td><td>9.61</td><td>0.61</td><td>6.1</td></tr>
+<tr><td>0.01</td><td>9.0601</td><td>0.0601</td><td>6.01</td></tr>
+<tr><td>0.001</td><td>9.006001</td><td>0.006001</td><td>6.001</td></tr>
+</tbody></table></div>
+<p>The slopes close in on 6. Algebra shows why. <code>(x + h)²</code> expands to <code>x² + 2xh + h²</code>, so the rise is <code>2xh + h²</code>, and dividing by <code>h</code> leaves</p>
+<div class="eq">slope over a gap h = 2x + h</div>
+<p>The <code>+ h</code> is the error from using a gap at all. As <code>h</code> shrinks it vanishes, leaving <code>2x</code>. At <code>x = 3</code> that is 6. The number the slopes settle on is the <mark>instantaneous slope</mark>, and the straight line that just touches the curve at that point with that slope is the <mark>tangent line</mark>.</p>
+
+<h3>4. The derivative, named</h3>
+<div class="eq">f′(x) = the value of (f(x + h) − f(x)) / h as h shrinks toward 0</div>
+<dl class="defn">
+  <dt>Derivative</dt>
+  <dd>The instantaneous slope of <code>f</code> at the point <code>x</code>. Books write the "as h shrinks toward 0" part as <code>lim<sub>h→0</sub></code>, read "the limit as h goes to zero": the value the expression heads toward as <code>h</code> gets as small as you like, without ever being exactly 0 (dividing by 0 is meaningless).</dd>
+  <dt>f′(x), read "f prime of x"</dt>
+  <dd>One way to write the derivative. Note it is itself a function: for <code>f(x) = x²</code>, <code>f′(x) = 2x</code>, a different slope at every point.</dd>
+  <dt>df/dx, read "d f by d x"</dt>
+  <dd>The same thing in a different notation. Read <code>d</code> as "a tiny change in", so <code>df/dx</code> means "tiny change in f divided by the tiny change in x that caused it". It is handy because it names which input you nudged. You'll see <code>dL/dw</code> a lot: how the loss <code>L</code> responds to the weight <code>w</code>.</dd>
+</dl>
+<p>Reading a derivative needs only its sign and size. <strong>Positive</strong>: the output rises as the input increases, so to go down, decrease the input. <strong>Negative</strong>: the output falls as the input increases, so increase it. <strong>Zero</strong>: the ground is flat right here, as at the bottom of a valley. <strong>Large in size</strong>: steep, a small nudge moves the output a lot.</p>
+
+<h3>5. Four rules that save you from shrinking gaps by hand</h3>
+<p>Every rule below can be checked with the shrinking-gap table, but once you trust them, derivatives become quick.</p>
+<div class="tbl"><table>
+<thead><tr><th>Rule</th><th>In symbols</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>Constant</td><td>a fixed number <code>c</code> has slope 0</td><td><code>484</code> → <code>0</code> (it never moves)</td></tr>
+<tr><td>Power</td><td><code>xⁿ</code> → <code>n·xⁿ⁻¹</code></td><td><code>x²</code> → <code>2x</code>, <code>x³</code> → <code>3x²</code>, <code>x</code> → <code>1</code></td></tr>
+<tr><td>Constant multiple</td><td><code>c·f(x)</code> → <code>c·f′(x)</code></td><td><code>64w²</code> → <code>64 × 2w = 128w</code></td></tr>
+<tr><td>Sum</td><td><code>f(x) + g(x)</code> → <code>f′(x) + g′(x)</code></td><td><code>x² + 5x</code> → <code>2x + 5</code></td></tr>
+</tbody></table></div>
+
+<h3>6. A real loss with one knob</h3>
+<p>Take flat C from Lesson 03: 800 sq ft (<code>x = 8</code>) renting for ₹22,000 (<code>y = 22</code>). Keep the model as simple as possible, <code>ŷ = w·x</code>, one knob, no bias. The <strong>loss</strong> is the number we want small; here, the squared miss:</p>
+<div class="eq">L(w) = (w·x − y)² = (8w − 22)²</div>
+<dl class="defn">
+  <dt>Symbols</dt>
+  <dd><code>w</code> is the knob (₹ thousands per 100 sq ft). <code>x = 8</code> and <code>y = 22</code> are fixed facts about the flat. <code>w·x</code> is the guess, <code>w·x − y</code> is the miss, and <code>L(w)</code> is the miss squared. Lesson 07 covers why we square it.</dd>
+</dl>
+<p><strong>Numeric version first.</strong> At <code>w = 2</code> the guess is 16, the miss is −6, and <code>L = 36</code>. Nudge to <code>w = 2.001</code>: the guess is 16.008, the miss −5.992, and <code>L = 35.904064</code>. The loss changed by −0.095936 over a nudge of 0.001, so the slope is about <strong>−95.936</strong>.</p>
+<p><strong>Now with the rules.</strong> Multiply out the square: <code>(8w − 22)² = 64w² − 352w + 484</code>. Rule by rule: <code>64w²</code> → <code>128w</code>, <code>−352w</code> → <code>−352</code>, <code>484</code> → <code>0</code>. So</p>
+<div class="eq">L′(w) = 128w − 352, and L′(2) = 256 − 352 = −96</div>
+<p>The numeric guess, −95.936, was off only by a little bit of leftover gap, just like the <code>+ h</code> earlier. The sign is negative, so increasing <code>w</code> lowers the loss. The slope is zero where <code>128w = 352</code>, that is <code>w = 2.75</code>, which is exactly <code>22 / 8</code>: the knob at which the guess equals the real rent. We found the bottom of the valley without searching.</p>
+
+<h3>7. Two knobs: partial derivatives</h3>
+<p>Put the bias back: <code>L(w, b) = (w·x + b − y)²</code>. Now there are two knobs, and the trick is simple: <mark>nudge one knob, hold the other still</mark>. The slope you get is called a <strong>partial derivative</strong>, written with a curly d: <code>∂L/∂w</code> ("partial L by partial w") and <code>∂L/∂b</code>.</p>
+<p>Stand at <code>w = 2</code>, <code>b = 4</code>. The guess is <code>16 + 4 = 20</code>, the miss −2, and <code>L = 4</code>.</p>
+<ul>
+  <li><strong>Nudge w, hold b at 4:</strong> <code>L(2.001, 4) = (−1.992)² = 3.968064</code>, a change of −0.031936 over 0.001, so <code>∂L/∂w ≈ −31.936</code>. Exactly: with <code>b = 4</code> fixed the loss is <code>(8w − 18)² = 64w² − 288w + 324</code>, whose derivative <code>128w − 288</code> is <strong>−32</strong> at <code>w = 2</code>.</li>
+  <li><strong>Nudge b, hold w at 2:</strong> <code>L(2, 4.001) = (−1.999)² = 3.996001</code>, so <code>∂L/∂b ≈ −3.999</code>. Exactly: with <code>w = 2</code> fixed the loss is <code>(b − 6)² = b² − 12b + 36</code>, whose derivative <code>2b − 12</code> is <strong>−4</strong> at <code>b = 4</code>.</li>
+</ul>
+<p>Both are negative, so both knobs should go up, and the loss is eight times more sensitive to <code>w</code> than to <code>b</code> right here. Collect the partials into a list, <code>[−32, −4]</code>, and you have a vector (Lesson 04) called the <strong>gradient</strong>. It points uphill; its opposite points downhill. That is the whole idea behind gradient descent in Lesson 08.</p>
+<p>Compare the cost. Brute force scored 24,381 settings. The nudging method needs one extra loss evaluation per knob, and the exact slopes need only a formula. Training libraries use a smarter bookkeeping method (backpropagation, later in the course) that gets every partial derivative at once for roughly the cost of a couple of passes through the model, whether it has two knobs or two billion.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>A secant shrinking into a tangent</h2>
+
+<figure>
+<svg viewBox="0 0 620 310" role="img" aria-label="Curve y equals x squared. From the point (1, 1), three secant lines go to points at x = 3, 2 and 1.5 with slopes 4, 3 and 2.5. As the second point moves closer, the secants close in on the tangent line with slope 2.">
+  <defs><clipPath id="fclip"><rect x="20" y="10" width="440" height="285"/></clipPath></defs>
+  <g stroke="var(--line)">
+    <line x1="180" y1="20" x2="180" y2="290"/><line x1="300" y1="20" x2="300" y2="290"/><line x1="420" y1="20" x2="420" y2="290"/>
+    <line x1="24" y1="220" x2="456" y2="220"/><line x1="24" y1="170" x2="456" y2="170"/><line x1="24" y1="120" x2="456" y2="120"/><line x1="24" y1="70" x2="456" y2="70"/><line x1="24" y1="20" x2="456" y2="20"/>
+  </g>
+  <g stroke="var(--muted)"><line x1="24" y1="270" x2="456" y2="270"/><line x1="60" y1="20" x2="60" y2="295"/></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle"><text x="180" y="286">1</text><text x="300" y="286">2</text><text x="420" y="286">3</text></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end"><text x="54" y="224">2</text><text x="54" y="174">4</text><text x="54" y="124">6</text><text x="54" y="74">8</text><text x="54" y="24">10</text></g>
+  <g clip-path="url(#fclip)">
+    <polyline fill="none" stroke="currentColor" stroke-width="2.5" points="24.0,267.8 36.0,269.0 48.0,269.8 60.0,270.0 72.0,269.8 84.0,269.0 96.0,267.8 108.0,266.0 120.0,263.8 132.0,261.0 144.0,257.8 156.0,254.0 168.0,249.8 180.0,245.0 192.0,239.8 204.0,234.0 216.0,227.8 228.0,221.0 240.0,213.8 252.0,206.0 264.0,197.8 276.0,189.0 288.0,179.8 300.0,170.0 312.0,159.8 324.0,149.0 336.0,137.8 348.0,126.0 360.0,113.8 372.0,101.0 384.0,87.7 396.0,74.0 408.0,59.8 420.0,45.0 432.0,29.7 444.0,14.0"/>
+    <line x1="126" y1="290" x2="450" y2="20" stroke="var(--amber)" stroke-width="1.5" stroke-opacity=".45"/>
+    <line x1="126" y1="278.8" x2="330" y2="151.2" stroke="var(--amber)" stroke-width="1.5" stroke-opacity=".7"/>
+    <line x1="126" y1="273.1" x2="270" y2="198.1" stroke="var(--amber)" stroke-width="2"/>
+    <line x1="72" y1="290" x2="444" y2="135" stroke="var(--accent)" stroke-width="2.5"/>
+  </g>
+  <circle cx="420" cy="45" r="4.5" fill="var(--amber)" fill-opacity=".45"/>
+  <circle cx="300" cy="170" r="4.5" fill="var(--amber)" fill-opacity=".7"/>
+  <circle cx="240" cy="213.8" r="4.5" fill="var(--amber)"/>
+  <circle cx="180" cy="245" r="5.5" fill="currentColor"/>
+  <text x="168" y="230" font-size="12" text-anchor="end" fill="currentColor" font-weight="600">P (1, 1)</text>
+  <text x="395" y="30" font-size="12" text-anchor="end" fill="var(--muted)">y = x²</text>
+  <g font-size="12">
+    <text x="478" y="40" fill="var(--muted)" letter-spacing="1" font-size="11">GAP h → SLOPE</text>
+    <line x1="478" y1="66" x2="500" y2="66" stroke="var(--amber)" stroke-width="2" stroke-opacity=".45"/><text x="508" y="70" fill="currentColor">h = 2 → 4</text>
+    <line x1="478" y1="92" x2="500" y2="92" stroke="var(--amber)" stroke-width="2" stroke-opacity=".7"/><text x="508" y="96" fill="currentColor">h = 1 → 3</text>
+    <line x1="478" y1="118" x2="500" y2="118" stroke="var(--amber)" stroke-width="2"/><text x="508" y="122" fill="currentColor">h = 0.5 → 2.5</text>
+    <line x1="478" y1="150" x2="500" y2="150" stroke="var(--accent)" stroke-width="3"/><text x="508" y="154" fill="var(--accent)" font-weight="600">h → 0 → 2</text>
+    <text x="478" y="186" fill="var(--muted)" font-size="11">slope = 2x + h</text>
+    <text x="478" y="204" fill="var(--muted)" font-size="11">at x = 1: 2 + h</text>
+  </g>
+</svg>
+<figcaption>Each secant (amber) joins P to a second point on the curve. As the second point slides toward P, the secant's slope falls 4 → 3 → 2.5 and the line settles onto the tangent (blue), whose slope 2 is the derivative at x = 1.</figcaption>
+</figure>
+
+<div class="lab" id="lab">
+  <h3>Slope lab</h3>
+  <p style="margin-top:0">Pick a point and a gap. The amber line is the secant through the two points; the blue line is the tangent from the rules. Shrink the gap and watch the two slopes agree. Then let the slope walk you downhill.</p>
+  <div class="controls">
+    <label for="fsel"><span>function</span><select id="fsel">
+      <option value="sq">f(x) = x²</option>
+      <option value="loss">L(w) = (8w − 22)², loss for flat C</option>
+    </select></label>
+    <label for="xs"><span><span><span id="xname">x</span> (where you stand)</span> <b id="xv">1.00</b></span><input type="range" id="xs" min="-3" max="3" step="0.05" value="1"></label>
+    <label for="hs" class="hh"><span>gap h <b id="hv">1</b></span><input type="range" id="hs" min="0" max="7" step="1" value="1"></label>
+  </div>
+  <svg id="plot" viewBox="0 0 480 300" role="img" aria-label="Plot of the chosen curve with the current point, the second point a gap h away, the secant line through both, and the tangent line at the current point."></svg>
+  <div class="key"><span><i class="dot"></i>where you stand</span><span><i class="q"></i>point h further on</span><span><i class="sec"></i>secant</span><span><i></i>tangent</span></div>
+  <div class="fn" id="secfn"></div>
+  <div class="readout">
+    <span>secant slope <span class="big" id="sec">3</span></span>
+    <span>derivative (rules) <span class="big" id="der">2</span></span>
+    <span>gap error <span class="big" id="gap">1</span></span>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="btns">
+    <button id="shrink">Shrink h</button>
+    <button id="step" class="ghost">Take a step downhill</button>
+    <button id="reset" class="ghost">Reset</button>
+  </div>
+</div>
+<p>Three things to try. With <code>f(x) = x²</code>, set the gap to 0.001 anywhere: the secant slope is always the rule's <code>2x</code> plus the gap. Move to a negative <code>x</code>: the slope goes negative, so "downhill" means moving right. Then switch to the flat-C loss, start at <code>w = 2</code> and press "Take a step downhill" a few times: the steps shrink by themselves as the ground flattens, and <code>w</code> settles at 2.75.</p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>The loss for flat C</strong>, <code>L(w) = (8w − 22)²</code>, at <code>w = 2</code>:</p>
+<ul>
+  <li><code>L(2) = (16 − 22)² = (−6)² = 36</code></li>
+  <li><code>L(2.001) = (16.008 − 22)² = (−5.992)² = 35.904064</code></li>
+  <li>Numeric slope: <code>(35.904064 − 36) / 0.001 = −95.936</code></li>
+  <li>Exact slope from the rules: <code>L′(w) = 128w − 352</code>, so <code>L′(2) = −96</code></li>
+</ul>
+<p><strong>Following the slope.</strong> The slope says "go up, steeply". A sensible rule is to move against the slope, scaled down by a small number called the <strong>step size</strong> (here 0.005; Lesson 08 is about choosing it): <code>w ← w − 0.005 × L′(w)</code>. The first step is <code>2 − 0.005 × (−96) = 2.48</code>.</p>
+<div class="tbl"><table style="max-width:28rem">
+<thead><tr><th>step</th><th>w</th><th>L′(w) before the step</th><th>L(w) after</th></tr></thead>
+<tbody>
+<tr><td>start</td><td>2</td><td></td><td>36</td></tr>
+<tr><td>1</td><td>2.48</td><td>−96</td><td>4.6656</td></tr>
+<tr><td>2</td><td>2.6528</td><td>−34.56</td><td>0.6047</td></tr>
+<tr><td>3</td><td>2.715</td><td>−12.44</td><td>0.0784</td></tr>
+<tr><td>4</td><td>2.7374</td><td>−4.48</td><td>0.0102</td></tr>
+<tr><td>5</td><td>2.7455</td><td>−1.61</td><td>0.0013</td></tr>
+</tbody></table></div>
+<p>Five slope calculations brought the loss from 36 to about 0.001, closing in on <code>w = 2.75</code>. The same code, in plain Python:</p>
+<pre><code><span class="c"># one flat (flat C from Lesson 03): 800 sq ft -> x = 8, rent 22k -> y = 22</span>
+x, y = 8, 22
+
+def loss(w, b=0):
+    <span class="c">"""squared miss for this one flat"""</span>
+    return (w * x + b - y) ** 2
+
+def slope(f, a, h):
+    <span class="c">"""average rate of change of f between a and a + h"""</span>
+    return (f(a + h) - f(a)) / h
+
+<span class="c"># 1. shrink the gap on f(x) = x^2 at x = 3 (exact answer 2x = 6)</span>
+sq = lambda t: t ** 2
+for h in [1, 0.1, 0.01, 0.001]:
+    print(h, round(slope(sq, 3, h), 6))
+<span class="c"># 1 7.0
+# 0.1 6.1
+# 0.01 6.01
+# 0.001 6.001</span>
+
+<span class="c"># 2. the loss for one knob, L(w) = (8w - 22)^2, at w = 2</span>
+print(loss(2))                                <span class="c"># 36</span>
+print(round(slope(loss, 2, 0.001), 3))        <span class="c"># -95.936   numeric slope</span>
+print(128 * 2 - 352)                          <span class="c"># -96       exact: L'(w) = 128w - 352</span>
+
+<span class="c"># 3. two knobs, w = 2 and b = 4: nudge one, hold the other</span>
+w, b, h = 2, 4, 0.001
+print(loss(w, b))                                       <span class="c"># 4</span>
+print(round((loss(w + h, b) - loss(w, b)) / h, 3))      <span class="c"># -31.936   dL/dw, numeric</span>
+print(round((loss(w, b + h) - loss(w, b)) / h, 3))      <span class="c"># -3.999    dL/db, numeric</span>
+print(128 * w - 288, 2 * b - 12)                        <span class="c"># -32 -4    exact, from the rules</span>
+
+<span class="c"># 4. follow the slope downhill: w &lt;- w - 0.005 * slope</span>
+w = 2
+for step in range(5):
+    w = w - 0.005 * (128 * w - 352)
+    print(step + 1, round(w, 4), round(loss(w), 4))
+<span class="c"># 1 2.48 4.6656
+# 2 2.6528 0.6047
+# 3 2.715 0.0784
+# 4 2.7374 0.0102
+# 5 2.7455 0.0013</span></code></pre>
+<p>The numeric slopes are always a hair off the exact ones, by an amount that shrinks with <code>h</code>. In practice libraries use exact derivatives (worked out automatically), and engineers use the nudge method as a sanity check, called a <strong>gradient check</strong>, when they suspect a bug.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"The derivative of a function is one number."</span>It is a new function: one slope for every point. For <code>x²</code> it is <code>2x</code>, which is −4 at <code>x = −2</code>, 0 at <code>x = 0</code> and 6 at <code>x = 3</code>. "The derivative is −96" is shorthand for "at this particular <code>w</code>".</div>
+  <div><span class="wrong">"The slope tells you how far away the bottom is."</span>It tells you direction and local steepness only. At <code>w = 2</code> the slope is −96, yet the bottom is just 0.75 away. Step by the full −96 and you would fly far past it. That is why we multiply by a small step size and recompute the slope after every step.</div>
+  <div><span class="wrong">"Slope zero means you found the best setting."</span>It means the ground is flat <em>here</em>. That could be the bottom of a valley, but also a hilltop or a flat shelf. Our one-flat loss is a simple bowl, so its only flat point is the bottom. Neural network losses are bumpier, which Lesson 08 and later lessons deal with.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. Use the power rule to find the derivative of <code>f(x) = x³</code> at <code>x = 2</code>. Then check it numerically with <code>h = 0.01</code>.</p><summary>Show answer</summary><p class="a"><code>f′(x) = 3x²</code>, so <code>f′(2) = 12</code>. Numerically: <code>2.01³ = 8.120601</code>, so <code>(8.120601 − 8) / 0.01 = 12.0601</code>, close to 12, off by a little leftover gap.</p></details>
+<details><p class="q">2. A flat has <code>x = 4</code>, <code>y = 12</code>, so <code>L(w) = (4w − 12)² = 16w² − 96w + 144</code>. What is <code>L′(1)</code>, which way should <code>w</code> move, and where is the slope zero?</p><summary>Show answer</summary><p class="a"><code>L′(w) = 32w − 96</code>, so <code>L′(1) = −64</code>. Negative means increasing <code>w</code> lowers the loss, so move <code>w</code> up. The slope is zero at <code>w = 3</code>, where the guess <code>4 × 3 = 12</code> matches the rent exactly.</p></details>
+<details><p class="q">3. At some setting, <code>∂L/∂w = 10</code> and <code>∂L/∂b = −2</code>. Which way should each knob move, and which one matters more right now?</p><summary>Show answer</summary><p class="a">Move against each slope: <code>w</code> down (its slope is positive), <code>b</code> up (its slope is negative). The loss is five times more sensitive to <code>w</code> here, so a nudge to <code>w</code> changes it more. The gradient is <code>[10, −2]</code>; downhill is <code>[−10, 2]</code>.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">A derivative is the slope at a single point: how much the output moves per tiny nudge of the input, and its sign tells you which way is downhill.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 06 · Probability basics for ML</h2>
+<p>We can now turn knobs to shrink a loss, but real models often output chances ("93% spam") rather than plain numbers, and the losses that train them are built from probabilities, so we need the basic language of chance before Lesson 07 defines loss properly.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://www.3blue1brown.com/lessons/essence-of-calculus" target="_blank" rel="noopener">3Blue1Brown: The Essence of Calculus</a>, a visual video series. Chapters 2 and 3 (the paradox of the derivative, derivative formulas through geometry) match this lesson.</li>
+  <li><a href="https://www.khanacademy.org/math/calculus-1/cs1-derivatives-definition-and-basic-rules" target="_blank" rel="noopener">Khan Academy: Derivatives, definition and basic rules</a>, short videos and practice exercises on secant lines, the limit definition and the basic rules.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="04-vectors-matrices.html">← Lesson 04 · Vectors and matrices</a>
+  <span class="muted">Next: Lesson 06 · Probability basics for ML (coming soon)</span>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const ns="http://www.w3.org/2000/svg";
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+  const HS=[2,1,0.5,0.1,0.05,0.01,0.001,0.0001];
+  /* each function: the curve, its derivative from the rules, the view window and a step size */
+  const FN={
+    sq:{name:'x', f:x=>x*x, d:x=>2*x, rule:'f′(x) = 2x', x0:-3.5,x1:3.5,y0:-1,y1:10, smin:-3,smax:3, init:1, eta:0.25,
+        yt:[0,2,4,6,8,10], xt:[-3,-2,-1,0,1,2,3]},
+    loss:{name:'w', f:w=>(8*w-22)**2, d:w=>128*w-352, rule:'L′(w) = 128w − 352', x0:1,x1:4.5,y0:-15,y1:200, smin:1.25,smax:4.25, init:2, eta:0.005,
+        yt:[0,50,100,150,200], xt:[1.5,2,2.5,3,3.5,4]}
+  };
+  const svg=$('plot'), W=480, H=300, L=48, R=470, T=12, B=268;
+  const fsel=$('fsel'), xs=$('xs'), hs=$('hs');
+  let cur=FN.sq, xv=1, steps=0;
+  const num=(v,d=4)=>{const s=(+v.toFixed(d)).toString();return s.replace('-','−');};
+  const px=x=>L+(x-cur.x0)/(cur.x1-cur.x0)*(R-L), py=y=>B-(y-cur.y0)/(cur.y1-cur.y0)*(B-T);
+  function draw(){
+    const h=HS[+hs.value], fx=cur.f(xv), fxh=cur.f(xv+h);
+    const sec=(fxh-fx)/h, der=cur.d(xv);
+    $('xv').textContent=steps?num(xv,4):xv.toFixed(2); $('hv').textContent=h; $('xname').textContent=cur.name;
+    svg.innerHTML='';
+    const defs=el(svg,'defs',{}); const cp=el(defs,'clipPath',{id:'pclip'}); el(cp,'rect',{x:L,y:T,width:R-L,height:B-T});
+    el(svg,'rect',{x:L,y:T,width:R-L,height:B-T,fill:'var(--paper)',stroke:'var(--line)'});
+    cur.xt.forEach(t=>{el(svg,'line',{x1:px(t),y1:T,x2:px(t),y2:B,stroke:'var(--line)'});el(svg,'text',{x:px(t),y:B+18,'font-size':14,'text-anchor':'middle',fill:'var(--muted)'},num(t));});
+    cur.yt.forEach(t=>{el(svg,'line',{x1:L,y1:py(t),x2:R,y2:py(t),stroke:'var(--line)'});el(svg,'text',{x:L-6,y:py(t)+4,'font-size':14,'text-anchor':'end',fill:'var(--muted)'},num(t));});
+    el(svg,'line',{x1:L,y1:py(0),x2:R,y2:py(0),stroke:'var(--muted)'});
+    if(cur.x0<0&&cur.x1>0) el(svg,'line',{x1:px(0),y1:T,x2:px(0),y2:B,stroke:'var(--muted)'});
+    el(svg,'text',{x:R-4,y:B-6,'font-size':12,'text-anchor':'end',fill:'var(--muted)'},cur.name);
+    const g=el(svg,'g',{'clip-path':'url(#pclip)'});
+    let pts=[]; for(let i=0;i<=160;i++){const x=cur.x0+(cur.x1-cur.x0)*i/160;pts.push(px(x).toFixed(1)+','+py(cur.f(x)).toFixed(1));}
+    el(g,'polyline',{points:pts.join(' '),fill:'none',stroke:'var(--ink)','stroke-width':2.5});
+    const line=(m,col,wd)=>el(g,'line',{x1:px(cur.x0),y1:py(fx+m*(cur.x0-xv)),x2:px(cur.x1),y2:py(fx+m*(cur.x1-xv)),stroke:col,'stroke-width':wd});
+    line(sec,'var(--amber)',2); line(der,'var(--accent)',2.5);
+    el(g,'circle',{cx:px(xv+h),cy:py(fxh),r:5.5,fill:'var(--amber)'});
+    el(g,'circle',{cx:px(xv),cy:py(fx),r:6,fill:'var(--ink)',stroke:'var(--paper)','stroke-width':2});
+    const n=cur.name;
+    $('secfn').innerHTML=`(f(${n}+h) − f(${n})) / h = (<b>${num(fxh,6)}</b> − <b>${num(fx,6)}</b>) / ${h} = <b>${num(sec,4)}</b>`;
+    $('sec').textContent=num(sec,4); $('der').textContent=num(der,4); $('gap').textContent=num(sec-der,4);
+    const off=(xv+h>cur.x1)?' The second point is off the right edge of the plot; shrink h to bring it back.':'';
+    let dir = Math.abs(der)<1e-9 ? 'The slope is 0: the ground is flat here, the bottom of this bowl.'
+      : der<0 ? `The slope is negative: increasing ${n} lowers the output, so downhill is to the right.`
+      : `The slope is positive: increasing ${n} raises the output, so downhill is to the left.`;
+    if(steps>0) dir=`After ${steps} step${steps===1?'':'s'} of ${n} ← ${n} − ${cur.eta} × slope: ${n} = ${num(xv,4)}, output = ${num(fx,4)}. `+dir;
+    $('msg').textContent=dir+off+'  Exact rule: '+cur.rule+'.';
+  }
+  function setX(v){xv=Math.max(cur.smin,Math.min(cur.smax,v));xs.value=xv;}
+  function load(key){cur=FN[key];xs.min=cur.smin;xs.max=cur.smax;steps=0;setX(cur.init);hs.value=1;draw();}
+  fsel.addEventListener('change',()=>load(fsel.value));
+  xs.addEventListener('input',()=>{xv=+xs.value;steps=0;draw();});
+  hs.addEventListener('input',draw);
+  $('shrink').addEventListener('click',()=>{hs.value=Math.min(+hs.max,+hs.value+1);draw();});
+  $('step').addEventListener('click',()=>{setX(xv-cur.eta*cur.d(xv));steps++;draw();});
+  $('reset').addEventListener('click',()=>{fsel.value='sq';load('sq');});
+  load('sq');
+})();
+</script>
+</body>
+</html>

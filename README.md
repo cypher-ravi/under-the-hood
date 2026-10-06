@@ -13,6 +13,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Quorum Replication and CAP](topics/quorum.html) | Databases | Tune N, R and W, split the network into two sides, choose CP or AP, and measure stale reads against the formula |
 | [LSM Tree](topics/lsm-tree.html) | Scaling writes | Put, get and delete keys through a memtable, flush and compact sorted files, toggle Bloom filters, and track write and space amplification |
 | [B-Tree Index](topics/b-tree.html) | Database indexing | Insert keys until nodes split upward, search and range-scan the linked leaves, compare random and in-order inserts, and size a real index by page size |
+| [Kafka Partitions](topics/kafka.html) | Key technologies | Produce keyed or keyless messages into partitions, add and kill consumers to trigger rebalances, tune the commit interval, and track lag, duplicates and per-key ordering |
 
 ## Design questions
 
@@ -24,8 +25,17 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Design WhatsApp](questions/whatsapp.html) | Consistent hashing, quorum replication, rate limiting |
 | [Design a News Feed](questions/news-feed.html) | LRU cache, consistent hashing, LSM tree |
 | [Design Uber](questions/uber.html) | Geohash and quadtrees, consistent hashing, B-tree index |
+| [Design YouTube Top K](questions/top-k.html) | Kafka partitions, Count-Min Sketch, consistent hashing, LRU cache, Bloom filter |
 
 Each question page follows the same interview steps: requirements, core entities, API, high-level design (drawn live and evolved one component at a time), then deep dives with interactive estimates. The step order follows Hello Interview's delivery framework; the breakdowns are original.
+
+### Low-level design
+
+| Question | Patterns used |
+| --- | --- |
+| [Design a Parking Lot](questions/lld-parking-lot.html) | Strategy, Observer, Factory, Singleton |
+
+Low-level design pages (`questions/lld-<slug>.html`) cover requirements scoped for a 45-minute interview, core entities, a UML class diagram, the main interfaces, the design patterns used and why, an interactive walkthrough of the objects at work, short runnable Python, and deep dives on thread safety, extensibility and SOLID trade-offs.
 
 ## DSA patterns
 
@@ -37,6 +47,7 @@ Each question page follows the same interview steps: requirements, core entities
 | [Interval Merging and Overlap](dsa/intervals.html) | Merge overlapping intervals, insert an interval, meeting rooms (sweep line), fewest removals |
 | [Fast and Slow Pointers](dsa/fast-slow.html) | Middle of a linked list, cycle detection, cycle start, happy numbers |
 | [In-place Reversal](dsa/reversal.html) | Reverse a list, reverse a segment, reverse every k nodes, palindrome linked list |
+| [Monotonic Stack](dsa/monotonic-stack.html) | Next greater element, days until warmer, stock price span, largest rectangle in a histogram |
 
 Pattern pages teach the idea from first principles, how to spot it, and a template, then step through each problem's solution line by line with editable inputs. Patterns are grouped by data structure; the pattern-first structure is inspired by Codeintuition. `shared/stepper.js` is the reusable step-through engine.
 
@@ -50,6 +61,7 @@ A from-zero AI course in 60 lessons (plus deep dives), one concept per lesson, p
 | [02 · Data: examples, features, labels, datasets](lessons/02-data.html) | Foundations | Run a feature recipe on any email you type, then pick two features and see the best rule reach zero mistakes |
 | [03 · A model is a function](lessons/03-model-is-a-function.html) | Foundations | Turn a line's two knobs to fit five flats, compare a constant and a lookup table, then search every setting |
 | [04 · Vectors and matrices, intuitively](lessons/04-vectors-matrices.html) | Foundations | Drag two arrows to watch the dot product and angle change, then re-price four flats at once with ŷ = Xw + b |
+| [05 · Derivatives and slopes](lessons/05-derivatives.html) | Foundations | Shrink a secant's gap until it becomes the tangent, then let the slope walk a loss knob downhill to its best value |
 
 Each lesson has the same sections: where we are, why it matters, the intuition, how it works (every symbol defined), a diagram or widget computing real values, a worked example by hand and in Python, common misconceptions, three check-yourself questions, the one-line takeaway, what comes next, and optional further reading. The full curriculum is in `window.LESSONS` in [`topics/registry.js`](topics/registry.js).
 

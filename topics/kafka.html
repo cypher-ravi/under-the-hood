@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kafka Partitions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  #topic { width: 100%; height: auto; display: block; }
+  #topic .chip { cursor: pointer; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .pick { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+  .pick select { font: 500 13px/1.2 var(--body); padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .picks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+  .feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; max-height: 170px; overflow-y: auto; }
+  .feed li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+  .feed time { font: 500 11px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Key technologies</span>
+  </div>
+
+  <header class="intro">
+    <h1>Kafka Partitions</h1>
+    <p class="lede">A Kafka topic is not one queue. It is split into partitions, and each partition is an append-only log where every message gets the next number, its offset. Producers pick the partition by hashing the message key, so one key always lands in the same log and stays in order. Consumers in a group divide the partitions between them, and each one remembers how far it got by committing an offset. When a consumer dies, the group rebalances and someone else picks up from the last committed offset, which may mean reading a few messages twice.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="cfgLabel"></span><span class="eyebrow" id="clock"></span></div>
+      <svg id="topic" viewBox="0 0 480 400" role="img" aria-label="A topic's partitions as logs of offsets, with the consumers that own them"></svg>
+      <div class="legend">
+        <span><i style="background:var(--paper)"></i>read and committed</span>
+        <span><i style="background:var(--amber-soft)"></i>read, not yet committed</span>
+        <span><i style="background:var(--panel)"></i>not read yet (lag)</span>
+        <span>Letter = user (key) · number = offset · tap a consumer to kill it</span>
+      </div>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <button class="primary" id="pause">Pause</button>
+        <button id="one">Produce 1</button>
+        <button id="add">Add consumer</button>
+        <button id="kill">Kill a consumer</button>
+        <button id="grow">Add partition live</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="parts"><span class="row"><span>Partitions · changing resets</span><b class="mono num" id="partsOut"></b></span><input type="range" id="parts" min="1" max="8" value="4"></label>
+      <label class="field" for="rate"><span class="row"><span>Producer rate</span><b class="mono num" id="rateOut"></b></span><input type="range" id="rate" min="0" max="12" value="4"></label>
+      <label class="field" for="speed"><span class="row"><span>Each consumer handles</span><b class="mono num" id="speedOut"></b></span><input type="range" id="speed" min="1" max="8" value="3"></label>
+      <label class="field" for="commit"><span class="row"><span>Commit offsets every</span><b class="mono num" id="commitOut"></b></span><input type="range" id="commit" min="0" max="5" step="0.5" value="2"></label>
+      <div class="picks">
+        <label class="pick" for="keyMode">Partition by
+          <select id="keyMode">
+            <option value="key">user key (hash)</option>
+            <option value="rr">no key: round-robin</option>
+            <option value="sticky">no key: sticky batches</option>
+          </select>
+        </label>
+        <label class="pick" for="assignor">Assignor
+          <select id="assignor">
+            <option value="range">range</option>
+            <option value="roundrobin">round-robin</option>
+          </select>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" id="hot"> Hot key: half of all messages are from user alice</label>
+      <label class="check"><input type="checkbox" id="groupB"> Second consumer group (analytics) reads the same log</label>
+      <div class="stat-row"><span>Messages produced</span><b id="sProd"></b></div>
+      <div class="stat-row"><span>In · out msg/s (last 5 s)</span><b id="sTput"></b></div>
+      <div class="stat-row"><span>Consumers active · idle</span><b id="sCons"></b></div>
+      <div class="stat-row"><span>Rebalances</span><b id="sReb"></b></div>
+      <div class="stat-row"><span>Same user processed out of order</span><b id="sOoo"></b></div>
+      <div class="stat-row" id="rowB"><span>Analytics group lag · duplicates</span><b id="sB"></b></div>
+      <div class="compare">
+        <div><span>Consumer lag (group billing)</span><b id="lag"></b><span>log end − committed offset, all partitions</span></div>
+        <div><span>Messages read twice</span><b id="dup"></b><span>re-delivered after a rebalance</span></div>
+      </div>
+      <div>
+        <span class="eyebrow">Events</span>
+        <ul class="feed" id="feed" style="margin-top:8px" aria-live="polite"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sub">
+      <h2>Offsets per partition</h2>
+      <span class="eyebrow">group billing · lag = log end − committed</span>
+    </div>
+    <div class="table-wrap" id="table"></div>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Seven messages, a crash and one duplicate</h2>
+    <p class="kicker">A topic with 3 partitions. The group <b>billing</b> has two consumers, C1 and C2, using the range assignor, and commits offsets every 2 seconds. The partition numbers below are the real ones: the simulation uses the same murmur2 hash as Kafka's Java producer, so set it to 3 partitions and the same users land in the same places.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Hash the key, pick the partition</h3>
+        <p>For a message with a key, the producer computes <span class="mono">murmur2(key bytes)</span>, clears the sign bit, and takes the remainder by the number of partitions.</p>
+        <p class="formula">murmur2("alice") = 1951417749 → 1951417749 mod 3 = 0 → P0<br>murmur2("carol") = 271431602 → mod 3 = 2 → P2<br>murmur2("dave") = 1727131798 → mod 3 = 1 → P1</p>
+        <p>The other three users work out the same way: bob → P0, erin → P2, frank → P1. The hash knows nothing about load. It just spreads keys, and with six keys and three partitions it happens to give two each.</p>
+      </div></li>
+      <li><div>
+        <h3>Seven messages are appended</h3>
+        <p>In order: alice, carol, dave, alice, erin, carol, bob. Each goes to the end of its partition's log and gets that log's next offset. Offsets are per partition, so three different messages all have offset 0.</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Partition</th><th>Offset 0</th><th>Offset 1</th><th>Offset 2</th><th>Log end</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">P0</td><td class="mono">alice #1</td><td class="mono">alice #4</td><td class="mono">bob #7</td><td class="mono">3</td></tr>
+            <tr><td class="mono">P1</td><td class="mono">dave #3</td><td class="mono"></td><td class="mono"></td><td class="mono">1</td></tr>
+            <tr><td class="mono">P2</td><td class="mono">carol #2</td><td class="mono">erin #5</td><td class="mono">carol #6</td><td class="mono">3</td></tr>
+          </tbody>
+        </table></div>
+        <p>alice's two messages sit at P0 offsets 0 and 1, so whoever reads P0 sees #1 before #4. Nothing promises that dave #3 is read before alice #4: they are in different logs.</p>
+      </div></li>
+      <li><div>
+        <h3>Range assignment</h3>
+        <p>The range assignor sorts partitions and consumers, then hands out runs: 3 partitions ÷ 2 consumers = 1 each, with 1 left over for the first consumer. So <b>C1 gets P0 and P1</b>, <b>C2 gets P2</b>. Round-robin would deal them like cards instead: C1 gets P0 and P2, C2 gets P1.</p>
+      </div></li>
+      <li><div>
+        <h3>C2 reads, commits, reads one more, then crashes</h3>
+        <p>C2 processes P2 offsets 0 and 1, and its 2-second timer commits offset <b>2</b> for P2. A committed offset means "the next one I need", not "the last one I read". C2 then processes offset 2 (carol #6) and crashes before the next commit.</p>
+        <p class="formula">lag(P2) = log end − committed = 3 − 2 = 1</p>
+      </div></li>
+      <li><div>
+        <h3>Detection, then a rebalance</h3>
+        <p>C2 stops sending heartbeats. The group coordinator (a broker) waits out the session timeout, removes C2 and starts a rebalance. In the classic protocol every member stops, gives up its partitions (C1 commits what it has read first) and rejoins. Only C1 is left, so it now owns P0, P1 and P2.</p>
+      </div></li>
+      <li><div>
+        <h3>The duplicate</h3>
+        <p>C1 starts P2 at the committed offset, 2. That is carol #6, which C2 had already processed. It gets processed a second time. This is <b>at-least-once</b> delivery: nothing is lost, but anything between the last commit and the crash is repeated. Committing more often shrinks the window; it never closes it, because the crash can land between "process" and "commit".</p>
+      </div></li>
+      <li><div>
+        <h3>Adding a partition moves keys</h3>
+        <p>Go from 3 to 4 partitions and the remainders change: alice 0 → 1, bob 0 → 2, dave 1 → 2, erin 2 → 0, frank 1 → 3. Only carol stays put. alice's new messages go to P1 while her older ones may still be waiting in P0, so for a while her events can be read out of order. To see it, set 3 partitions, turn on the hot key so alice's partition builds a backlog, then press <b>Add partition live</b> and watch the out-of-order counter.</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>The rule to remember:</b> Kafka orders messages within a partition and nowhere else. If two events must be processed in order, give them the same key.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>A log that LinkedIn needed and everyone else wanted</h2>
+    <p>Around 2010 LinkedIn had a plumbing problem. Every page view, search and click produced activity events, and servers produced a constant stream of metrics. Some teams wanted that data within seconds, for things like news feed relevance, and others wanted all of it loaded into Hadoop overnight. The message queues of the day, such as ActiveMQ and RabbitMQ, tracked every message's delivery state on the broker and struggled at that volume. Log collectors such as Facebook's Scribe and Flume were built for shipping files to batch systems.</p>
+    <p>Jay Kreps, Neha Narkhede and Jun Rao built Kafka to do both jobs. Their design was deliberately simple: a topic is split into partitions, each partition is an append-only log on disk, and the broker does not track who has read what. Each consumer keeps its own offset. That one choice removed per-message acknowledgements and let many readers share the same data. Their 2011 paper at the NetDB workshop reported producer and consumer throughput several times higher than ActiveMQ and RabbitMQ in their tests, with LinkedIn already moving close to a billion messages a day through it.</p>
+    <p>Kreps named it after Franz Kafka. He has said that a system optimized for writing should be named after a writer, and that he had liked Kafka's books in college.</p>
+    <p>LinkedIn open-sourced Kafka in early 2011, and it graduated from the Apache Incubator in October 2012. In 2014 the three creators left to found Confluent, a company built around it. For most of its life Kafka relied on ZooKeeper to store cluster metadata and, originally, consumer offsets. Offsets later moved into an internal Kafka topic, and the KRaft project replaced ZooKeeper with a Raft-based controller quorum inside Kafka itself. KRaft was declared production-ready for new clusters in Kafka 3.3 (2022), and Kafka 4.0 (2025) removed ZooKeeper entirely.</p>
+    <blockquote class="pull">Don't track who has read each message. Keep the log, and let each reader remember a number.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">2010</span><p>Kreps, Narkhede and Rao build Kafka at LinkedIn for activity and metrics data.</p></li>
+      <li><span class="year">2011</span><p>LinkedIn open-sources Kafka (January). The NetDB paper "Kafka: a Distributed Messaging System for Log Processing" follows.</p></li>
+      <li><span class="year">2012</span><p>Kafka graduates from the Apache Incubator to a top-level project (October).</p></li>
+      <li><span class="year">2014</span><p>The three creators found Confluent.</p></li>
+      <li><span class="year">2022</span><p>Kafka 3.3 marks KRaft (Raft-based metadata, no ZooKeeper) production-ready for new clusters.</p></li>
+      <li><span class="year">2025</span><p>Kafka 4.0 removes ZooKeeper support; KRaft is the only mode.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A topic split into partitions. Each partition is an append-only log with numbered offsets. Consumer groups split the partitions among their members, and each group stores its own committed offset per partition.</p></div>
+      <div><span class="q">Why</span><p>One log on one machine has a ceiling on throughput and a single reader. Partitions spread the log across brokers and let many consumers read in parallel, while a key-to-partition rule keeps each key's events in order.</p></div>
+      <div><span class="q">When</span><p>High-volume event streams that several systems need to read independently: activity tracking, logs and metrics, change data capture, order and payment events, feeding search indexes and caches.</p></div>
+      <div><span class="q">Where</span><p>Inside Kafka itself, and in systems built on the same model: Amazon Kinesis (shards), Apache Pulsar, Redpanda, Azure Event Hubs.</p></div>
+      <div><span class="q">How</span><p>partition = hash(key) mod N. Brokers append and never track readers. A group coordinator assigns partitions to live consumers and rebalances when one joins or stops heartbeating. Consumers commit "next offset to read"; after a rebalance the new owner resumes from it.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> parallelism comes from partitions, and ordering is only promised inside one.</p>
+      <p><b>The trade-off:</b> more partitions mean more parallel consumers and more throughput, but more files and leaders per broker, longer rebalances, and every key moves if you change the count. A group can never use more consumers than there are partitions; extras sit idle.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Press <b>Add consumer</b> until there are more consumers than partitions. The extras get nothing and show as idle: a partition has exactly one owner per group.</li>
+        <li>Set commits to every 5 s, then kill a busy consumer. Its partitions stall during the session timeout, every consumer pauses for the rebalance, and "messages read twice" jumps by however many it read since its last commit. Set commits to "every message" and repeat.</li>
+        <li>Switch to <b>no key: round-robin</b>. Load spreads perfectly, but the same user's events now sit in different partitions and the out-of-order counter starts climbing. With keys it stays at zero.</li>
+        <li>Turn on the <b>hot key</b>. One partition gets half the traffic and its lag grows while the others are idle. Adding consumers doesn't help, because one key can only live in one partition. Press <b>Add partition live</b> now and alice's new messages go to a new, empty partition and get read before her backlog: the out-of-order counter jumps even with keys.</li>
+        <li>Tick the <b>second consumer group</b>. It starts at offset 0 and reads the whole log at its own pace, with its own offsets (amber marks). The billing group is unaffected.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>How many partitions?</b> Work back from throughput: if one consumer handles 5,000 msg/s and you need 50,000, you need at least 10 partitions, plus headroom, because adding partitions later moves keys (the same problem <a href="consistent-hashing.html">consistent hashing</a> solves for caches). Too many cost broker memory, open files and slower failover.</p>
+        <p><b>Hot keys:</b> one celebrity or one big customer can overload a single partition. Fixes: add a suffix to spread that key over several partitions (and merge downstream), or pre-aggregate before producing.</p>
+        <p><b>Ordering:</b> only within a partition. Key by the entity whose events must stay ordered (user, order, account), and accept that there is no order across keys.</p>
+        <p><b>At-least-once vs exactly-once:</b> commit after processing and you may reprocess after a crash, so make the handler idempotent (dedupe by an event ID). Commit before processing and you may lose messages. Kafka's idempotent producer and transactions give exactly-once for read-process-write pipelines that stay inside Kafka.</p>
+        <p><b>Rebalance pauses:</b> in the classic "eager" protocol every consumer stops during a rebalance. Cooperative sticky assignment moves only the partitions that must move, static membership avoids rebalances on quick restarts, and Kafka 4.0's new consumer protocol moves assignment to the broker.</p>
+        <p><b>Durability:</b> each partition is replicated to several brokers and a write is acknowledged once the in-sync replicas have it, a cousin of <a href="quorum.html">quorum replication</a>. The log itself is sequential appends, the same reason <a href="lsm-tree.html">LSM trees</a> write fast.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const USERS = ["alice", "bob", "carol", "dave", "erin", "frank"];
+  const UCOL = ["var(--accent)", "var(--amber)", "var(--ok)", "var(--bad)", "var(--ink)", "var(--muted)"];
+  const SESSION = 3, REBAL = 1.2, STICKY_BATCH = 5, DT = 0.05;
+
+  // ---------- Kafka's default partitioner: murmur2 of the key bytes ----------
+  function murmur2(str) {
+    const b = new TextEncoder().encode(str), m = 0x5bd1e995, r = 24, len = b.length;
+    let h = 0x9747b28c ^ len; const l4 = len >> 2;
+    for (let i = 0; i < l4; i++) {
+      const j = i * 4;
+      let k = b[j] | (b[j + 1] << 8) | (b[j + 2] << 16) | (b[j + 3] << 24);
+      k = Math.imul(k, m); k ^= k >>> r; k = Math.imul(k, m);
+      h = Math.imul(h, m); h ^= k;
+    }
+    const x = l4 * 4;
+    switch (len % 4) {
+      case 3: h ^= b[x + 2] << 16;
+      case 2: h ^= b[x + 1] << 8;
+      case 1: h ^= b[x]; h = Math.imul(h, m);
+    }
+    h ^= h >>> 13; h = Math.imul(h, m); h ^= h >>> 15;
+    return h | 0;
+  }
+  const keyPartition = (key, n) => (murmur2(key) & 0x7fffffff) % n;
+
+  let t, N, logs, seq, produced, prodAcc, rrNext, sticky, groups, feed, paused = false, prodTimes, nextCid, lastSent;
+
+  function newGroup(name, nConsumers, prefix) {
+    const g = { name, prefix, consumers: [], committed: Array(N).fill(0), pos: Array(N).fill(0), maxDone: Array(N).fill(0),
+      owner: Array(N).fill(null), lastSeq: {}, dup: 0, ooo: 0, consumedTimes: [], state: "stable", until: 0, rebalances: 0, gen: 0, lastCommit: t };
+    for (let i = 0; i < nConsumers; i++) g.consumers.push(newConsumer(g));
+    assign(g);
+    return g;
+  }
+  function newConsumer(g) { return { id: g.prefix + (g.next = (g.next || 0) + 1), n: g.next, alive: true, parts: [], rot: 0, budget: 0, detectAt: 0 }; }
+  const groupA = () => groups[0];
+  const groupB = () => groups[1];
+
+  function reset() {
+    N = +$("parts").value; t = 0; seq = 0; produced = 0; prodAcc = 0; rrNext = 0; sticky = { p: 0, left: 0 }; feed = []; prodTimes = []; lastSent = null;
+    logs = Array.from({ length: N }, () => []);
+    groups = [newGroup("billing", 3, "C")];
+    if ($("groupB").checked) groups.push(newGroup("analytics", 1, "B"));
+    log(`Topic created with ${N} partition${N > 1 ? "s" : ""}. Group billing: ${groupA().consumers.map(c => c.id).join(", ")} (${$("assignor").value}).`);
+    render(true);
+  }
+  function log(text) { feed.unshift({ t, text }); feed = feed.slice(0, 40); feedDirty = true; }
+  let feedDirty = true;
+
+  // ---------- partition assignment (runs on the live members, sorted by id) ----------
+  function assign(g) {
+    const live = g.consumers.filter(c => c.alive).sort((a, b) => a.n - b.n);
+    g.consumers.forEach(c => { c.parts = []; c.rot = 0; });
+    g.owner = Array(N).fill(null);
+    if (live.length) {
+      if ($("assignor").value === "range") {
+        const per = Math.floor(N / live.length), extra = N % live.length;
+        let p = 0;
+        live.forEach((c, i) => { const cnt = per + (i < extra ? 1 : 0); for (let j = 0; j < cnt; j++) { c.parts.push(p); g.owner[p] = c; p++; } });
+      } else {
+        for (let p = 0; p < N; p++) { const c = live[p % live.length]; c.parts.push(p); g.owner[p] = c; }
+      }
+    }
+    for (let p = 0; p < N; p++) g.pos[p] = g.committed[p];   // new owners resume at the committed offset
+    g.gen++;
+  }
+  function startRebalance(g, why) {
+    // eager protocol: every live member commits what it has read, revokes its partitions, and waits
+    g.consumers.forEach(c => { if (c.alive) commit(g, c); });
+    if (g.state !== "rebalance") { g.rebalances++; log(`${g.name}: rebalance started (${why}). Every consumer in the group pauses.`); }
+    g.state = "rebalance"; g.until = t + REBAL;
+  }
+  function finishRebalance(g) {
+    g.consumers = g.consumers.filter(c => c.alive);
+    assign(g); g.state = "stable";
+    const idle = g.consumers.filter(c => !c.parts.length).map(c => c.id);
+    log(`${g.name}: generation ${g.gen}. ` + g.consumers.map(c => `${c.id} → ${c.parts.length ? c.parts.map(p => "P" + p).join(",") : "idle"}`).join(" · ") + (g.consumers.length ? "" : "no consumers left"));
+    if (idle.length) log(`${idle.join(", ")} idle: ${g.consumers.length} consumers but only ${N} partition${N > 1 ? "s" : ""}.`);
+  }
+  function commit(g, c) { c.parts.forEach(p => { g.committed[p] = g.pos[p]; }); }
+
+  // ---------- producer ----------
+  function pickUser() { return $("hot").checked && Math.random() < 0.5 ? 0 : Math.floor(Math.random() * USERS.length); }
+  function produce() {
+    const u = pickUser(), mode = $("keyMode").value;
+    let p;
+    if (mode === "key") p = keyPartition(USERS[u], N);
+    else if (mode === "rr") { p = rrNext % N; rrNext++; }
+    else {
+      if (sticky.left <= 0 || sticky.p >= N) {
+        let np = Math.floor(Math.random() * N);
+        if (N > 1 && np === sticky.p) np = (np + 1 + Math.floor(Math.random() * (N - 1))) % N;
+        sticky = { p: np, left: STICKY_BATCH };
+      }
+      p = sticky.p; sticky.left--;
+    }
+    seq++; produced++; prodTimes.push(t);
+    logs[p].push({ u, seq, at: t });
+    lastSent = { u, p, off: logs[p].length - 1, mode };
+  }
+
+  // ---------- consumers ----------
+  function processOne(g, c) {
+    const k = c.parts.length;
+    for (let i = 0; i < k; i++) {
+      const p = c.parts[(c.rot + i) % k];
+      if (g.pos[p] < logs[p].length) {
+        c.rot = (c.rot + i + 1) % k;
+        const off = g.pos[p], msg = logs[p][off];
+        if (off < g.maxDone[p]) g.dup++;                     // already processed once before a rebalance
+        else {
+          g.maxDone[p] = off + 1;
+          const last = g.lastSeq[msg.u] || 0;
+          if (msg.seq < last) g.ooo++; else g.lastSeq[msg.u] = msg.seq;
+        }
+        g.pos[p] = off + 1; g.consumedTimes.push(t);
+        if (+$("commit").value === 0) g.committed[p] = g.pos[p];
+        return true;
+      }
+    }
+    return false;
+  }
+  function stepGroup(g) {
+    // the coordinator notices a dead member once its session times out
+    g.consumers.forEach(c => { if (!c.alive && !c.detected && t >= c.detectAt) { c.detected = true; log(`${g.name}: no heartbeat from ${c.id} for ${SESSION} s. Coordinator removes it.`); startRebalance(g, `${c.id} timed out`); } });
+    if (g.state === "rebalance") { if (t >= g.until) finishRebalance(g); else return; }
+    const rate = +$("speed").value;
+    g.consumers.forEach(c => {
+      if (!c.alive) return;
+      c.budget = Math.min(c.budget + rate * DT, 2);
+      while (c.budget >= 1) { if (!processOne(g, c)) { c.budget = Math.min(c.budget, 1); break; } c.budget--; }
+    });
+    const iv = +$("commit").value;
+    if (iv > 0 && t - g.lastCommit >= iv) { g.lastCommit = t; g.consumers.forEach(c => { if (c.alive) commit(g, c); }); }
+  }
+
+  function step() {
+    t += DT;
+    prodAcc += +$("rate").value * DT;
+    while (prodAcc >= 1) { produce(); prodAcc--; }
+    groups.forEach(stepGroup);
+    const cut = t - 5;
+    while (prodTimes.length && prodTimes[0] < cut) prodTimes.shift();
+    groups.forEach(g => { while (g.consumedTimes.length && g.consumedTimes[0] < cut) g.consumedTimes.shift(); });
+  }
+
+  function kill(g, c) {
+    if (!c || !c.alive) return;
+    c.alive = false; c.detectAt = t + SESSION; c.detected = false;
+    const uncommitted = c.parts.reduce((s, p) => s + (g.pos[p] - g.committed[p]), 0);
+    log(`${c.id} crashed while owning ${c.parts.length ? c.parts.map(p => "P" + p).join(",") : "nothing"}. ${uncommitted} message${uncommitted === 1 ? "" : "s"} read since its last commit will be read again.`);
+  }
+  function addConsumer(g) {
+    if (g.consumers.filter(c => c.alive).length >= 8) { log("This demo stops at 8 consumers."); return; }
+    const c = newConsumer(g); g.consumers.push(c);
+    log(`${c.id} joins group ${g.name}.`);
+    startRebalance(g, `${c.id} joined`);
+  }
+
+  function lagOf(g) { let s = 0; for (let p = 0; p < N; p++) s += logs[p].length - g.committed[p]; return s; }
+
+  // ---------- drawing ----------
+  function render(force) {
+    const g = groupA(), narrow = ($("topic").clientWidth || 480) < 470, W = narrow ? 340 : 480, WINDOW = narrow ? 8 : 12;
+    $("partsOut").textContent = N;
+    $("rateOut").textContent = $("rate").value + " msg/s";
+    $("speedOut").textContent = $("speed").value + " msg/s";
+    $("commitOut").textContent = +$("commit").value === 0 ? "message" : $("commit").value + " s";
+    $("cfgLabel").textContent = `${N} partition${N > 1 ? "s" : ""} · ${$("assignor").value} · ${$("keyMode").value === "key" ? "keyed" : "no key"}`;
+    $("clock").textContent = `t = ${t.toFixed(1)} s${paused ? " · paused" : ""}`;
+
+    let s = "", y = 6;
+    const B = groupB();
+    // producer line
+    s += `<text x="10" y="${y + 11}" font-family="var(--mono)" font-size="10" font-weight="600" letter-spacing="1" fill="var(--muted)">PRODUCER</text>`;
+    if (lastSent) {
+      const how = lastSent.mode === "key" ? `hash("${USERS[lastSent.u]}") mod ${N} = ${lastSent.p}` : lastSent.mode === "rr" ? "next in turn" : "sticky batch";
+      s += `<text x="82" y="${y + 11}" font-family="var(--mono)" font-size="10.5" fill="var(--ink)"><tspan fill="${UCOL[lastSent.u]}" font-weight="600">${USERS[lastSent.u]}</tspan> → P${lastSent.p} @ offset ${lastSent.off}${narrow ? "" : ` <tspan fill="var(--muted)">(${how})</tspan>`}</text>`;
+      if (narrow) { y += 15; s += `<text x="82" y="${y + 11}" font-family="var(--mono)" font-size="10" fill="var(--muted)">${how}</text>`; }
+    }
+    y += 22;
+    s += `<text x="10" y="${y + 9}" font-family="var(--mono)" font-size="9" fill="var(--muted)">${narrow ? "OLDER ← LOG → NEWER" : "OLDER ←  APPEND-ONLY LOG PER PARTITION  → NEWER"}</text>`;
+    s += `<text x="${W - 10}" y="${y + 9}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--muted)">OWNER · LAG</text>`;
+    y += 16;
+    const cw = 26, x0 = 40, rowH = 36;
+    for (let p = 0; p < N; p++) {
+      const L = logs[p], end = L.length, start = Math.max(0, end - WINDOW);
+      const own = g.owner[p], stalled = own && !own.alive, reb = g.state === "rebalance";
+      s += `<text x="10" y="${y + 17}" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--ink)">P${p}</text>`;
+      for (let i = 0; i < WINDOW; i++) {
+        const off = start + i, x = x0 + i * cw;
+        if (off >= end) { s += `<rect x="${x}" y="${y}" width="${cw - 3}" height="28" rx="4" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>`; continue; }
+        const m = L[off];
+        const fill = off < g.committed[p] ? "var(--paper)" : off < g.pos[p] ? "var(--amber-soft)" : "var(--panel)";
+        const fresh = t - m.at < 0.35;
+        s += `<rect x="${x}" y="${y}" width="${cw - 3}" height="28" rx="4" fill="${fill}" stroke="${fresh ? "var(--accent)" : "var(--line)"}" stroke-width="${fresh ? 2 : 1}"/>`;
+        s += `<text x="${x + (cw - 3) / 2}" y="${y + 12}" text-anchor="middle" font-family="var(--mono)" font-size="11" font-weight="600" fill="${UCOL[m.u]}">${USERS[m.u][0].toUpperCase()}</text>`;
+        s += `<text x="${x + (cw - 3) / 2}" y="${y + 24}" text-anchor="middle" font-family="var(--mono)" font-size="8.5" fill="var(--muted)">${off}</text>`;
+      }
+      // committed offset marker for billing (line), analytics (amber triangle)
+      const mark = (o, col, top) => {
+        if (o < start) return `<text x="${x0 - 3}" y="${top ? y - 1 : y + 35}" text-anchor="end" font-family="var(--mono)" font-size="8" fill="${col}">◂${o}</text>`;
+        if (o - start > WINDOW) return "";
+        const x = x0 + (o - start) * cw - 1.5;
+        return top ? `<path d="M${x - 4} ${y - 4} L${x + 4} ${y - 4} L${x} ${y + 2} Z" fill="${col}"/>`
+                   : `<line x1="${x}" y1="${y - 2}" x2="${x}" y2="${y + 31}" stroke="${col}" stroke-width="2.4"/>`;
+      };
+      s += mark(g.committed[p], "var(--accent)", false);
+      if (B) s += mark(B.committed[p], "var(--amber)", true);
+      const lag = end - g.committed[p];
+      const ownTxt = reb ? "paused" : own ? own.id + (stalled ? " ✕" : "") : "none";
+      const ownCol = reb ? "var(--amber)" : stalled || !own ? "var(--bad)" : "var(--accent)";
+      s += `<text x="${x0 + WINDOW * cw + 8}" y="${y + 18}" font-family="var(--mono)" font-size="11" font-weight="600" fill="${ownCol}">${ownTxt}</text>`;
+      s += `<text x="${W - 10}" y="${y + 18}" text-anchor="end" font-family="var(--mono)" font-size="11" font-weight="600" fill="${lag > 6 ? "var(--bad)" : "var(--ink)"}">${lag}</text>`;
+      y += rowH;
+    }
+    // consumer groups
+    const drawGroup = (gr, label) => {
+      y += 6;
+      const st = gr.state === "rebalance" ? `rebalancing ${Math.max(0, gr.until - t).toFixed(1)} s` : `generation ${gr.gen}`;
+      s += `<text x="10" y="${y + 10}" font-family="var(--mono)" font-size="10" font-weight="600" letter-spacing="1" fill="var(--muted)">${label}</text>`;
+      s += `<text x="${W - 10}" y="${y + 10}" text-anchor="end" font-family="var(--mono)" font-size="10" fill="${gr.state === "rebalance" ? "var(--amber)" : "var(--muted)"}">${st}</text>`;
+      y += 16;
+      const per = narrow ? 3 : 4, gap = 6, w = (W - 20 - gap * (per - 1)) / per;
+      if (!gr.consumers.length) { s += `<text x="10" y="${y + 18}" font-family="var(--body)" font-size="12" fill="var(--bad)">No consumers: nothing is being read.</text>`; y += 30; return; }
+      gr.consumers.forEach((c, i) => {
+        const col = i % per; if (col === 0 && i) y += 44;
+        const x = 10 + col * (w + gap);
+        const dead = !c.alive, idle = c.alive && !c.parts.length && gr.state !== "rebalance";
+        const stroke = dead ? "var(--bad)" : gr.state === "rebalance" ? "var(--amber)" : idle ? "var(--muted)" : "var(--accent)";
+        const sub = dead ? (c.detected ? "removed" : `dead · ${Math.max(0, c.detectAt - t).toFixed(1)} s`) : gr.state === "rebalance" ? "waiting" : idle ? "idle" : c.parts.map(p => "P" + p).join(",");
+        s += `<g class="chip" data-g="${gr === groupA() ? 0 : 1}" data-id="${c.id}"><rect x="${x}" y="${y}" width="${w}" height="38" rx="6" fill="${dead ? "var(--paper)" : idle ? "var(--paper)" : "var(--accent-soft)"}" stroke="${stroke}" stroke-width="1.6" ${idle || dead ? 'stroke-dasharray="4 3"' : ""}/>`;
+        s += `<text x="${x + 8}" y="${y + 15}" font-family="var(--display)" font-size="12.5" font-weight="700" fill="${dead ? "var(--bad)" : "var(--ink)"}">${c.id}${dead ? " ✕" : ""}</text>`;
+        s += `<text x="${x + 8}" y="${y + 30}" font-family="var(--mono)" font-size="9.5" fill="${dead ? "var(--bad)" : "var(--muted)"}">${sub}</text></g>`;
+      });
+      y += 46;
+    };
+    drawGroup(g, "GROUP BILLING");
+    if (B) drawGroup(B, "GROUP ANALYTICS · AMBER MARKS");
+    $("topic").setAttribute("viewBox", `0 0 ${W} ${y + 2}`);
+    $("topic").innerHTML = s;
+
+    // verdict
+    const v = $("verdict"), dying = g.consumers.find(c => !c.alive && !c.detected);
+    if (g.state === "rebalance") { v.className = "verdict-box warn"; v.innerHTML = `<b>Rebalancing: nobody in billing is reading.</b><p>Members committed their offsets, gave up their partitions and are rejoining. ${Math.max(0, g.until - t).toFixed(1)} s left; lag grows meanwhile.</p>`; }
+    else if (dying) { const ps = g.consumers.filter(c => !c.alive && !c.detected).flatMap(c => c.parts); v.className = "verdict-box bad"; v.innerHTML = `<b>${dying.id} is dead, but the group doesn't know yet.</b><p>The coordinator waits for the session timeout (${Math.max(0, dying.detectAt - t).toFixed(1)} s left). ${ps.length ? ps.map(p => "P" + p).join(", ") + " " + (ps.length > 1 ? "are" : "is") + " not being read." : "It owned no partitions, so nothing stalls."}</p>`; }
+    else if (!g.consumers.length) { v.className = "verdict-box bad"; v.innerHTML = `<b>The group is empty.</b><p>Messages pile up in the log; lag only grows. Add a consumer.</p>`; }
+    else {
+      const lag = lagOf(g), idle = g.consumers.filter(c => !c.parts.length).length;
+      const worst = logs.map((L, p) => L.length - g.committed[p]).reduce((a, b, i, arr) => b > arr[a] ? i : a, 0);
+      const behind = lag > 4 * N;
+      v.className = "verdict-box " + (behind ? "warn" : "ok");
+      v.innerHTML = `<b>${behind ? `Falling behind: P${worst} has the most lag.` : "Stable: every partition has one owner."}</b><p>${g.consumers.length} consumer${g.consumers.length > 1 ? "s" : ""} for ${N} partition${N > 1 ? "s" : ""}${idle ? `, ${idle} idle` : ""}. Committed offsets lag the read position by up to ${$("commit").value === "0" ? "0 messages (commit after each one)" : $("commit").value + " s of work"}.</p>`;
+    }
+
+    // numbers from the model
+    const tin = prodTimes.length / Math.min(5, Math.max(t, DT)), tout = g.consumedTimes.length / Math.min(5, Math.max(t, DT));
+    $("sProd").textContent = produced;
+    $("sTput").textContent = `${tin.toFixed(1)} · ${tout.toFixed(1)}`;
+    const act = g.consumers.filter(c => c.alive && c.parts.length).length, idl = g.consumers.filter(c => c.alive && !c.parts.length).length;
+    $("sCons").textContent = `${act} · ${idl}`;
+    $("sReb").textContent = g.rebalances;
+    $("sOoo").textContent = g.ooo;
+    $("rowB").style.display = B ? "" : "none";
+    if (B) $("sB").textContent = `${lagOf(B)} · ${B.dup}`;
+    $("lag").textContent = lagOf(g);
+    $("dup").textContent = g.dup;
+    $("pause").textContent = paused ? "Resume" : "Pause";
+
+    if (feedDirty) {
+      $("feed").innerHTML = feed.map(e => `<li><time>${e.t.toFixed(1)} s</time><span>${e.text}</span></li>`).join("");
+      feedDirty = false;
+    }
+    if (force || !render.lastTable || performance.now() - render.lastTable > 250) {
+      render.lastTable = performance.now();
+      let h = `<table class="data"><thead><tr><th>Part.</th><th>Log end</th><th>Owner</th><th>Read to</th><th>Committed</th><th>Lag</th>${B ? "<th>Analytics lag</th>" : ""}</tr></thead><tbody>`;
+      for (let p = 0; p < N; p++) {
+        const own = g.owner[p], lag = logs[p].length - g.committed[p];
+        h += `<tr><td class="mono">P${p}</td><td class="mono">${logs[p].length}</td><td class="mono ${own && own.alive && g.state !== "rebalance" ? "hl" : "warn"}">${g.state === "rebalance" ? "paused" : own ? own.id + (own.alive ? "" : " (dead)") : "none"}</td><td class="mono">${g.pos[p]}</td><td class="mono">${g.committed[p]}</td><td class="mono ${lag > 6 ? "warn" : ""}">${lag}</td>${B ? `<td class="mono">${logs[p].length - B.committed[p]}</td>` : ""}</tr>`;
+      }
+      $("table").innerHTML = h + "</tbody></table>";
+    }
+  }
+
+  // ---------- loop ----------
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    const dt = Math.min(0.25, (now - last) / 1000); last = now;
+    if (!paused) { acc += dt; while (acc >= DT) { step(); acc -= DT; } }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- controls ----------
+  $("pause").onclick = () => { paused = !paused; render(true); };
+  $("one").onclick = () => { produce(); render(true); };
+  $("add").onclick = () => { addConsumer(groupA()); render(true); };
+  $("kill").onclick = () => {
+    const g = groupA(), live = g.consumers.filter(c => c.alive);
+    if (!live.length) { log("No live consumer to kill."); render(true); return; }
+    const busy = live.filter(c => c.parts.length), pool = busy.length ? busy : live;
+    kill(g, pool[Math.floor(Math.random() * pool.length)]); render(true);
+  };
+  $("topic").addEventListener("pointerdown", e => {
+    const chip = e.target.closest(".chip"); if (!chip) return;
+    const g = groups[+chip.dataset.g], c = g && g.consumers.find(x => x.id === chip.dataset.id);
+    if (c) { kill(g, c); render(true); }
+  });
+  $("grow").onclick = () => {
+    if (N >= 8) { log("This demo stops at 8 partitions."); render(true); return; }
+    const before = USERS.map(u => keyPartition(u, N));
+    N++; logs.push([]);
+    groups.forEach(g => { g.committed.push(0); g.pos.push(0); g.maxDone.push(0); g.owner.push(null); });
+    $("parts").value = N;
+    const moved = USERS.filter((u, i) => keyPartition(u, N) !== before[i]);
+    log(`Partition P${N - 1} added. With mod ${N}, ${moved.length} of ${USERS.length} users now hash elsewhere${moved.length ? ": " + moved.join(", ") : ""}.`);
+    groups.forEach(g => startRebalance(g, "partition count changed"));
+    render(true);
+  };
+  $("reset").onclick = reset;
+  $("parts").oninput = reset;
+  $("assignor").onchange = () => { groups.forEach(g => startRebalance(g, `assignor is now ${$("assignor").value}`)); render(true); };
+  $("keyMode").onchange = () => { log(`Producer now partitions by ${$("keyMode").selectedOptions[0].textContent}.`); render(true); };
+  $("hot").onchange = () => { log($("hot").checked ? "Hot key on: alice sends half of all messages." : "Hot key off."); render(true); };
+  $("groupB").onchange = () => {
+    if ($("groupB").checked && !groupB()) { groups.push(newGroup("analytics", 1, "B")); log("Group analytics joins with B1, starting from offset 0 in every partition."); }
+    else if (!$("groupB").checked && groupB()) { groups.pop(); log("Group analytics removed."); }
+    render(true);
+  };
+  ["rate", "speed", "commit"].forEach(id => $(id).oninput = () => render(true));
+
+  // open in a working state: a few seconds of traffic already flowing
+  reset();
+  for (let i = 0; i < 120; i++) step();
+  render(true);
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
