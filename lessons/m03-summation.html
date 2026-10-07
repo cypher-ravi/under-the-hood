@@ -107,6 +107,22 @@
   .rules .rn { font: 500 .78rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
   .rules .rs { font: 600 1.05rem/1.5 var(--mono); margin: .3rem 0; overflow-wrap: anywhere; }
   .rules p { margin: .3rem 0 0; }
+  /* step visuals */
+  .rules figure { margin: .7rem 0 0; padding: 0; border: 0; background: none; }
+  .mini { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 1.4rem 0; }
+  .mini svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  .mini .readout { margin-top: .5rem; }
+  .mini .btns { margin-top: .6rem; }
+  .mini button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .55rem .85rem; cursor: pointer; }
+  .mini button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .mini button:disabled, .lab button:disabled { opacity: .45; cursor: default; }
+  .mini figcaption { margin-top: .6rem; }
+  .slide { display: grid; gap: .25rem; font: 500 .85rem/1.4 var(--mono); margin-top: .6rem; }
+  .slide input { width: 100%; accent-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+  .chips button { font: 500 .78rem/1 var(--mono); padding: .45rem .6rem; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .chips button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+  .mis figure { margin: .8rem 0 0; padding: 0; border: 0; background: none; }
 </style>
 </head>
 <body>
@@ -143,11 +159,65 @@
 <h3>1. Adding a list, the long way</h3>
 <p>Lesson 03 had five flats with monthly rents (in thousands of rupees) of 14, 19, 22, 28 and 31. The total is</p>
 <div class="eq">14 + 19 + 22 + 28 + 31 = 114</div>
+<figure>
+<svg viewBox="0 0 400 240" role="img" aria-label="Five bars for the rents 14, 19, 22, 28 and 31 are stacked on top of each other into one tower. The tower's joins sit at the running totals 14, 33, 55, 83 and finally 114.">
+  <g stroke-width="1.5">
+    <rect x="14" y="191.6" width="32" height="22.4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="56" y="183.6" width="32" height="30.4" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="98" y="178.8" width="32" height="35.2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="140" y="169.2" width="32" height="44.8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="182" y="164.4" width="32" height="49.6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="262" y="191.6" width="60" height="22.4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="262" y="161.2" width="60" height="30.4" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="262" y="126" width="60" height="35.2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="262" y="81.2" width="60" height="44.8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="262" y="31.6" width="60" height="49.6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  </g>
+  <g font-size="14" text-anchor="middle" fill="currentColor" font-weight="600">
+    <text x="30" y="185">14</text><text x="72" y="177">19</text><text x="114" y="172">22</text><text x="156" y="162">28</text><text x="198" y="157">31</text>
+    <text x="292" y="207">14</text><text x="292" y="181">19</text><text x="292" y="148">22</text><text x="292" y="108">28</text><text x="292" y="61">31</text>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1"><line x1="322" y1="191.6" x2="332" y2="191.6"/><line x1="322" y1="161.2" x2="332" y2="161.2"/><line x1="322" y1="126" x2="332" y2="126"/><line x1="322" y1="81.2" x2="332" y2="81.2"/><line x1="322" y1="31.6" x2="332" y2="31.6"/></g>
+  <g font-size="14" fill="var(--muted)">
+    <text x="336" y="196">14</text><text x="336" y="166">33</text><text x="336" y="131">55</text><text x="336" y="86">83</text>
+  </g>
+  <text x="336" y="36" font-size="15" font-weight="600" fill="var(--accent)">114</text>
+  <text x="336" y="16" font-size="12" fill="var(--muted)">totals</text>
+  <line x1="222" y1="190" x2="250" y2="190" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M250 185 L258 190 L250 195 Z" fill="currentColor"/>
+  <line x1="8" y1="214" x2="220" y2="214" stroke="var(--muted)"/>
+  <line x1="256" y1="214" x2="330" y2="214" stroke="var(--muted)"/>
+  <g font-size="14" text-anchor="middle" fill="var(--muted)"><text x="114" y="233">five rents</text><text x="292" y="233">one tower</text></g>
+</svg>
+<figcaption>Adding is stacking: put the five rent bars on top of each other. Each join in the tower is a running total (14, 33, 55, 83), and the top of the tower is the sum, 114.</figcaption>
+</figure>
 <p>Fine for five numbers. For 50,000 training examples we cannot write every term, and we want one line that works for any list. That needs two small tools: names for the items, and a symbol for "add them all".</p>
 
 <h3>2. Naming the items: subscripts</h3>
 <p>Call the list <code>y</code> and number its items from 1. The small number written low after the letter is a <strong>subscript</strong>, and it just says "which one":</p>
 <div class="eq">y₁ = 14,  y₂ = 19,  y₃ = 22,  y₄ = 28,  y₅ = 31</div>
+<figure>
+<svg viewBox="0 0 400 174" role="img" aria-label="The list y drawn as five numbered slots holding 14, 19, 22, 28 and 31. Above the slots the maths names y1 to y5; below them the Python indexes y[0] to y[4]. The third slot, y3 = 22, is highlighted, and a bracket under all five says n = 5.">
+  <g font-size="16" text-anchor="middle" fill="var(--accent)" font-weight="600">
+    <text x="56" y="30">y₁</text><text x="128" y="30">y₂</text><text x="200" y="30">y₃</text><text x="272" y="30">y₄</text><text x="344" y="30">y₅</text>
+  </g>
+  <g stroke="var(--line)" stroke-width="1.5" fill="var(--panel)">
+    <rect x="24" y="40" width="64" height="44" rx="4"/><rect x="96" y="40" width="64" height="44" rx="4"/>
+    <rect x="240" y="40" width="64" height="44" rx="4"/><rect x="312" y="40" width="64" height="44" rx="4"/>
+  </g>
+  <rect x="168" y="40" width="64" height="44" rx="4" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+  <g font-size="18" text-anchor="middle" fill="currentColor" font-weight="600">
+    <text x="56" y="68">14</text><text x="128" y="68">19</text><text x="200" y="68">22</text><text x="272" y="68">28</text><text x="344" y="68">31</text>
+  </g>
+  <g font-size="13" text-anchor="middle" fill="var(--muted)">
+    <text x="56" y="104">y[0]</text><text x="128" y="104">y[1]</text><text x="200" y="104">y[2]</text><text x="272" y="104">y[3]</text><text x="344" y="104">y[4]</text>
+  </g>
+  <path d="M24 116 V124 H376 V116" fill="none" stroke="var(--muted)"/>
+  <text x="200" y="144" font-size="14" text-anchor="middle" fill="currentColor"><tspan fill="var(--accent)" font-weight="600">n = 5</tspan> items · <tspan fill="var(--amber)" font-weight="600">y₃ = 22</tspan>, "the third y"</text>
+  <text x="200" y="166" font-size="14" text-anchor="middle" fill="var(--muted)">maths from 1 (top) · Python from 0</text>
+</svg>
+<figcaption>A subscript is a slot number. The rents sit in five numbered slots; y₃ is whatever is in slot 3, here 22. Python's y[2] points at the same slot because its numbering starts at 0.</figcaption>
+</figure>
 <p>Read <code>y₃</code> as "y sub three" or "the third y". It is exactly <code>y[3]</code> in code, except that maths usually counts from 1 where Python counts from 0. When we don't want to say which item, we write <code>yᵢ</code>, "the i-th y", where <code>i</code> stands for any position. The length of the list gets its own letter, <code>n</code>; here <code>n = 5</code>.</p>
 
 <h3>3. The Σ sign: a for-loop on paper</h3>
@@ -185,6 +255,17 @@ print(total)               <span class="c"># 114</span></code></pre>
   <dt>Shortcuts you'll see</dt>
   <dd>When the range is "every item", books often drop it and write <code>Σᵢ yᵢ</code> or just <code>Σ y</code>. Read it as <code>sum(y)</code>.</dd>
 </dl>
+<figure class="mini" id="acc">
+<svg id="accSvg" viewBox="0 0 400 196" role="img" aria-label="The accumulator: five numbered slots holding the rents, an arrow from the current slot into a box called total, which starts at 0 and grows by one rent on each pass."></svg>
+<div class="readout" aria-live="polite">
+  <span>i <span class="big" id="accI">–</span></span>
+  <span>total <span class="big" id="accT">0</span></span>
+  <span class="msg" id="accMsg"></span>
+</div>
+<div class="btns"><button id="accStep">Step (i + 1)</button><button id="accReset" class="ghost">Reset</button></div>
+<figcaption>Σ from i = 1 to 5 of yᵢ, run by hand: the total box starts at 0, and each press does one pass, <code>total += y[i]</code>. Five passes later it holds 114, the top of the tower in step 1.</figcaption>
+</figure>
+<p>The anatomy of the symbol itself, part by part, is drawn in section e below.</p>
 
 <h3>4. Sums of expressions</h3>
 <p>The expression on the right can be any calculation. Each pass, you compute it for the current <code>i</code> and add the result. Two you will meet constantly:</p>
@@ -203,20 +284,98 @@ print(total)               <span class="c"># 114</span></code></pre>
 <tr><td>5</td><td>12</td><td>31</td><td>30</td><td>1</td><td>1</td></tr>
 <tr><td class="tot" colspan="5">Σ (yᵢ − ŷᵢ)²</td><td class="tot">6</td></tr>
 </tbody></table></div>
+<figure>
+<svg viewBox="0 0 400 200" role="img" aria-label="For each flat, the true rent and the guess are written in two rows, the miss below them, and the squared miss drawn as a square made of unit cells: none, 1 cell, none, a 2 by 2 square of 4 cells, and 1 cell. Moved into one pile on the right they make 6 cells, the total squared error.">
+  <g font-size="14" fill="var(--muted)">
+    <text x="6" y="22">i</text><text x="6" y="50">yᵢ</text><text x="6" y="76">ŷᵢ</text><text x="6" y="102">miss</text><text x="6" y="156">miss²</text>
+  </g>
+  <g font-size="14" text-anchor="middle" fill="var(--muted)">
+    <text x="96" y="22">1</text><text x="146" y="22">2</text><text x="196" y="22">3</text><text x="246" y="22">4</text><text x="296" y="22">5</text>
+  </g>
+  <g font-size="15" text-anchor="middle" fill="currentColor" font-weight="600">
+    <text x="96" y="50">14</text><text x="146" y="50">19</text><text x="196" y="50">22</text><text x="246" y="50">28</text><text x="296" y="50">31</text>
+    <text x="96" y="76">14</text><text x="146" y="76">18</text><text x="196" y="76">22</text><text x="246" y="76">26</text><text x="296" y="76">30</text>
+  </g>
+  <g font-size="15" text-anchor="middle" fill="var(--accent)" font-weight="600">
+    <text x="96" y="102">0</text><text x="146" y="102">1</text><text x="196" y="102">0</text><text x="246" y="102">2</text><text x="296" y="102">1</text>
+  </g>
+  <line x1="66" y1="114" x2="320" y2="114" stroke="var(--line)"/>
+  <line x1="324" y1="8" x2="324" y2="194" stroke="var(--line)"/>
+  <g fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5">
+    <rect x="137" y="150" width="18" height="18"/>
+    <rect x="228" y="132" width="18" height="18"/><rect x="246" y="132" width="18" height="18"/><rect x="228" y="150" width="18" height="18"/><rect x="246" y="150" width="18" height="18"/>
+    <rect x="287" y="150" width="18" height="18"/>
+    <rect x="335" y="132" width="18" height="18"/><rect x="353" y="132" width="18" height="18"/><rect x="371" y="132" width="18" height="18"/>
+    <rect x="335" y="150" width="18" height="18"/><rect x="353" y="150" width="18" height="18"/><rect x="371" y="150" width="18" height="18"/>
+  </g>
+  <g fill="none" stroke="var(--muted)" stroke-dasharray="3 3"><rect x="87" y="150" width="18" height="18"/><rect x="187" y="150" width="18" height="18"/></g>
+  <g font-size="14" text-anchor="middle" fill="var(--amber)" font-weight="600">
+    <text x="96" y="188">0</text><text x="146" y="188">1</text><text x="196" y="188">0</text><text x="246" y="188">4</text><text x="296" y="188">1</text>
+  </g>
+  <text x="362" y="22" font-size="18" text-anchor="middle" fill="var(--accent)" font-weight="600">Σ</text>
+  <text x="362" y="62" font-size="13" text-anchor="middle" fill="var(--muted)">pile up</text>
+  <text x="362" y="78" font-size="13" text-anchor="middle" fill="var(--muted)">every</text>
+  <text x="362" y="94" font-size="13" text-anchor="middle" fill="var(--muted)">cell</text>
+  <text x="362" y="190" font-size="16" text-anchor="middle" fill="var(--accent)" font-weight="600">= 6</text>
+</svg>
+<figcaption>The loop body for one flat, drawn: take the miss yᵢ − ŷᵢ, square it (a square with that side, so a miss of 2 is 4 cells), then pile all the cells together. 0 + 1 + 0 + 4 + 1 = 6 cells, the total squared error.</figcaption>
+</figure>
 <p>That 6 is the "Total 6" of Lesson 03's second guess. (Lesson 03 wrote the miss as <code>ŷ − y</code>; after squaring, the sign doesn't matter.) The order of work inside one term follows the usual rules: inside the brackets first, then the square, and only then add it to the total.</p>
 
 <h3>5. Three handy rules, and why they are true</h3>
 <p>Because a sum is only repeated addition, a few shortcuts follow from ordinary arithmetic. Each one is checked here with the areas <code>x = 4, 6, 8, 10, 12</code>, where <code>Σ xᵢ = 40</code>.</p>
 <div class="rules">
   <div><span class="rn">Rule 1 · Pull a constant out</span><div class="rs">Σ c·xᵢ = c · Σ xᵢ</div>
-  <p><strong>Why:</strong> every term carries the same factor c, so factor it out once: <code>2·4 + 2·6 + … = 2·(4 + 6 + …)</code>.<br><strong>Check:</strong> <code>8 + 12 + 16 + 20 + 24 = 80 = 2 × 40</code></p></div>
+  <p><strong>Why:</strong> every term carries the same factor c, so factor it out once: <code>2·4 + 2·6 + … = 2·(4 + 6 + …)</code>.<br><strong>Check:</strong> <code>8 + 12 + 16 + 20 + 24 = 80 = 2 × 40</code></p>
+  <figure>
+  <svg id="r1Svg" viewBox="0 0 340 210" role="img" aria-label="Each area bar x sub i is made of c stacked copies of itself; stacked into a tower the total is c copies of 40."></svg>
+  <label class="slide" for="r1c"><span>constant c = <b id="r1cv">2</b></span><input type="range" id="r1c" min="1" max="4" step="1" value="2"></label>
+  <div class="readout" aria-live="polite"><span class="msg" id="r1Msg"></span></div>
+  <figcaption>Every bar is c copies of the original area, so the pile of all bars is c copies of the original pile: c × 40. Slide c and both sides stay equal.</figcaption>
+  </figure></div>
   <div><span class="rn">Rule 2 · A constant, added n times</span><div class="rs">Σ c = n · c</div>
-  <p><strong>Why:</strong> the loop body ignores i, so every pass adds the same c.<br><strong>Check:</strong> <code>6 + 6 + 6 + 6 + 6 = 5 × 6 = 30</code></p></div>
+  <p><strong>Why:</strong> the loop body ignores i, so every pass adds the same c.<br><strong>Check:</strong> <code>6 + 6 + 6 + 6 + 6 = 5 × 6 = 30</code></p>
+  <figure>
+  <svg viewBox="0 0 340 92" role="img" aria-label="Five equal blocks of 6, one for each pass i = 1 to 5, add up to 5 times 6 = 30.">
+    <g fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5">
+      <rect x="6" y="14" width="38" height="38"/><rect x="50" y="14" width="38" height="38"/><rect x="94" y="14" width="38" height="38"/><rect x="138" y="14" width="38" height="38"/><rect x="182" y="14" width="38" height="38"/>
+    </g>
+    <g font-size="16" text-anchor="middle" fill="currentColor" font-weight="600"><text x="25" y="39">6</text><text x="69" y="39">6</text><text x="113" y="39">6</text><text x="157" y="39">6</text><text x="201" y="39">6</text></g>
+    <g font-size="12" text-anchor="middle" fill="var(--muted)"><text x="25" y="72">i=1</text><text x="69" y="72">i=2</text><text x="113" y="72">i=3</text><text x="157" y="72">i=4</text><text x="201" y="72">i=5</text></g>
+    <text x="232" y="32" font-size="15" fill="currentColor" font-weight="600">= 5 × 6</text>
+    <text x="232" y="52" font-size="15" fill="var(--accent)" font-weight="600">= 30</text>
+    <text x="232" y="72" font-size="12" fill="var(--muted)">n copies</text>
+  </svg>
+  <figcaption>The counter i changes, the block doesn't: n = 5 passes, 6 each time.</figcaption>
+  </figure></div>
   <div><span class="rn">Rule 3 · Split a sum</span><div class="rs">Σ (aᵢ + bᵢ) = Σ aᵢ + Σ bᵢ</div>
-  <p><strong>Why:</strong> addition doesn't care about order, so regroup: all the a's first, then all the b's.<br><strong>Check:</strong> <code>Σ (2xᵢ + 6) = 80 + 30 = 110</code></p></div>
+  <p><strong>Why:</strong> addition doesn't care about order, so regroup: all the a's first, then all the b's.<br><strong>Check:</strong> <code>Σ (2xᵢ + 6) = 80 + 30 = 110</code></p>
+  <figure>
+  <svg viewBox="0 0 340 196" role="img" aria-label="Five two-colour bars, each 2 x sub i in blue with 6 in amber on top: 14, 18, 22, 26 and 30. Regrouped into one tower, all the blue parts make 80 and all the amber parts make 30, 110 in total.">
+    <g stroke-width="1.5">
+      <g fill="var(--accent-soft)" stroke="var(--accent)">
+        <rect x="10" y="164.8" width="26" height="11.2"/><rect x="44" y="159.2" width="26" height="16.8"/><rect x="78" y="153.6" width="26" height="22.4"/><rect x="112" y="148" width="26" height="28"/><rect x="146" y="142.4" width="26" height="33.6"/>
+        <rect x="230" y="64" width="50" height="112"/>
+      </g>
+      <g fill="var(--amber-soft)" stroke="var(--amber)">
+        <rect x="10" y="156.4" width="26" height="8.4"/><rect x="44" y="150.8" width="26" height="8.4"/><rect x="78" y="145.2" width="26" height="8.4"/><rect x="112" y="139.6" width="26" height="8.4"/><rect x="146" y="134" width="26" height="8.4"/>
+        <rect x="230" y="22" width="50" height="42"/>
+      </g>
+    </g>
+    <g font-size="13" text-anchor="middle" fill="currentColor" font-weight="600"><text x="23" y="150">14</text><text x="57" y="145">18</text><text x="91" y="139">22</text><text x="125" y="134">26</text><text x="159" y="128">30</text></g>
+    <text x="255" y="125" font-size="14" text-anchor="middle" fill="var(--accent)" font-weight="600">80</text>
+    <text x="255" y="48" font-size="14" text-anchor="middle" fill="var(--amber)" font-weight="600">30</text>
+    <text x="288" y="26" font-size="15" fill="currentColor" font-weight="600">110</text>
+    <g font-size="12" fill="var(--muted)"><text x="288" y="120">Σ 2xᵢ</text><text x="288" y="50">Σ 6</text></g>
+    <line x1="184" y1="150" x2="214" y2="150" stroke="currentColor" stroke-width="1.5"/><path d="M214 145 L222 150 L214 155 Z" fill="currentColor"/>
+    <line x1="4" y1="176" x2="178" y2="176" stroke="var(--muted)"/><line x1="224" y1="176" x2="286" y2="176" stroke="var(--muted)"/>
+    <g font-size="12" text-anchor="middle" fill="var(--muted)"><text x="91" y="192">2xᵢ + 6, per flat</text><text x="255" y="192">regrouped</text></g>
+  </svg>
+  <figcaption>Same pieces, new grouping: all the blue parts (2xᵢ) in one pile, all the amber parts (6) in another. 80 + 30 = 110, the same height as adding the five two-colour bars.</figcaption>
+  </figure></div>
 </div>
 <p>Check the last one the slow way: the guesses <code>2xᵢ + 6</code> are 14, 18, 22, 26, 30, which add to 110. Same answer, and with the rules we never wrote the five guesses out. In code terms, the split rule says one loop doing two additions equals two loops doing one each.</p>
-<p>What does <em>not</em> work: pulling a square or a product out. <code>Σ xᵢ² = 360</code>, but <code>(Σ xᵢ)² = 40² = 1600</code>. "Square, then add" and "add, then square" are different loops.</p>
+<p>What does <em>not</em> work: pulling a square or a product out. <code>Σ xᵢ² = 360</code>, but <code>(Σ xᵢ)² = 40² = 1600</code>. "Square, then add" and "add, then square" are different loops. The first picture in section g draws both, side by side.</p>
 
 <h3>6. The mean: total divided by count</h3>
 <div class="eq">ȳ = (1/n) · <span class="sig"><small>n</small><span class="s">Σ</span><small>i=1</small></span>yᵢ = 114 / 5 = 22.8</div>
@@ -227,10 +386,26 @@ print(total)               <span class="c"># 114</span></code></pre>
   <dd>"Average over all items." Multiplying by <code>1/n</code> is the same as dividing by <code>n</code>; by rule 1 it could sit inside or outside the Σ.</dd>
 </dl>
 <p><strong>Fair share.</strong> If all five flats charged the same rent and the landlords' total income stayed 114, each would charge 22.8. That is what the mean means: <mark>the one value that, used for everyone, gives the same total</mark>.</p>
+<figure class="mini" id="lev">
+<svg id="levSvg" viewBox="0 0 400 240" role="img" aria-label="Levelling the five rents: on each step, rent is poured from the tallest bar into the shortest until every bar stands at the mean, 22.8."></svg>
+<div class="readout" aria-live="polite">
+  <span>step <span class="big" id="levK">0</span> / 4</span>
+  <span>poured so far <span class="big" id="levP">0</span></span>
+  <span class="msg" id="levMsg"></span>
+</div>
+<div class="btns"><button id="levStep">Level (pour once)</button><button id="levReset" class="ghost">Reset</button></div>
+<figcaption>The mean as levelling: each press pours from the tallest bar into the shortest, never past the line. After four pours every flat stands at 22.8, and the total poured is 13.4, the amount that was above the line all along.</figcaption>
+</figure>
 <p><strong>Balance point.</strong> Measure each rent's distance from the mean: −8.8, −3.8, −0.8, +5.2, +8.2. The ones below add to 13.4, the ones above add to 13.4. They cancel exactly, always, for any list. The rules from step 5 prove it in one line:</p>
 <div class="eq">Σ (yᵢ − ȳ) = Σ yᵢ − n·ȳ = 114 − 5 × 22.8 = 0</div>
 <p>(Split the sum, then the constant <code>ȳ</code> added n times is <code>n·ȳ</code>, which is the total by definition.) Put the five rents on a ruler as equal weights and the ruler balances on a pivot at 22.8. That is the picture in the lab below.</p>
 <p><strong>The best constant guess.</strong> Lesson 03 said that if a model must guess one number for every flat, the best is the average. Try it: the total squared error <code>Σ (yᵢ − c)²</code> is 190 for <code>c = 22</code>, 187 for <code>c = 23</code>, and 186.8 for <code>c = 22.8</code>, the lowest. Any other c leaves the misses unbalanced and pays for it. Lesson 05's slopes can prove this in general; for now, the numbers show it.</p>
+<figure class="mini" id="best">
+<svg id="bestSvg" viewBox="0 0 400 220" role="img" aria-label="The total squared error of a constant guess c, plotted for c from 14 to 31. It is a bowl whose lowest point is at c = 22.8, where the total is 186.8."></svg>
+<label class="slide" for="bestC"><span>constant guess c = <b id="bestCv">22</b></span><input type="range" id="bestC" min="14" max="31" step="0.1" value="22"></label>
+<div class="readout" aria-live="polite"><span>Σ (yᵢ − c)² <span class="big" id="bestT">190</span></span><span class="msg" id="bestMsg"></span></div>
+<figcaption>Slide the guess c and watch the total squared error. It is a bowl: 190 at 22, 187 at 23, and lowest, 186.8, exactly at the mean 22.8.</figcaption>
+</figure>
 <p><strong>Mean squared error.</strong> Average the squared misses instead of adding them and you get the <strong>mean squared error</strong>, MSE: <code>(1/n) Σ (yᵢ − ŷᵢ)² = 6 / 5 = 1.2</code>. Same information as the total, but it doesn't grow just because you have more rows, so 1.2 on 5 flats and on 5,000 flats can be compared. This is the loss of Lesson 07.</p>
 
 <h3>7. The weighted average, and why E[X] is one</h3>
@@ -245,6 +420,18 @@ print(total)               <span class="c"># 114</span></code></pre>
 <p>Now look again at Lesson 06's expected value, <code>E[X] = Σ x · P(X = x)</code>. It is a weighted average where <mark>the weights are probabilities</mark>, which always add up to 1. The "!" counts of Lesson 06 took the values 0 to 5 with probabilities 0.25, 0.25, 0.125, 0.125, 0.125, 0.125, so</p>
 <div class="eq">E[X] = 0×0.25 + 1×0.25 + 2×0.125 + 3×0.125 + 4×0.125 + 5×0.125 = 2</div>
 <p>A fair die gives every face weight 1/6, so its E[X] is the plain average of 1 to 6, 3.5. The loaded die that shows 6 half the time gives the 6 a heavier weight and the balance point slides up to 4.5. Same Σ, different weights.</p>
+<figure class="mini" id="saw">
+<svg id="sawSvg" viewBox="0 0 400 216" role="img" aria-label="A seesaw: each value sits on a beam with a block whose height is its weight, and the pivot sits at the weighted average, where the beam balances."></svg>
+<div class="chips" role="group" aria-label="Example">
+  <button data-p="grade" aria-pressed="true">Grade 40/60</button>
+  <button data-p="bang" aria-pressed="false">"!" counts</button>
+  <button data-p="fair" aria-pressed="false">Fair die</button>
+  <button data-p="loaded" aria-pressed="false">Loaded die</button>
+</div>
+<label class="slide" for="sawW"><span>weight on <b id="sawWho">exam (70)</b> = <b id="sawWv">0.6</b></span><input type="range" id="sawW" min="0" max="1" step="any" value="0.6"></label>
+<div class="readout" aria-live="polite"><span>balance point <span class="big" id="sawAvg">74</span></span><span class="msg" id="sawMsg"></span></div>
+<figcaption>A weighted average is a seesaw. Each value sits at its spot on the beam with a block as heavy as its weight, and the pivot goes where the beam balances: Σ wᵢ·xᵢ / Σ wᵢ. Slide the amber weight up and the pivot walks toward it (the other weights shrink so all of them still add to 1).</figcaption>
+</figure>
 </section>
 
 <section>
@@ -412,7 +599,39 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
 <section>
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
-  <div><span class="wrong">"Σ xᵢ² is the same as (Σ xᵢ)²."</span>The brackets say which happens first. <code>Σ xᵢ²</code> squares each item and then adds: 360 for our areas. <code>(Σ xᵢ)²</code> adds first and squares the total once: 1600. The pull-out rule only works for a plain constant factor, never for a square.</div>
+  <div><span class="wrong">"Σ xᵢ² is the same as (Σ xᵢ)²."</span>The brackets say which happens first. <code>Σ xᵢ²</code> squares each item and then adds: 360 for our areas. <code>(Σ xᵢ)²</code> adds first and squares the total once: 1600. The pull-out rule only works for a plain constant factor, never for a square.
+  <figure>
+  <svg viewBox="0 0 400 244" role="img" aria-label="Left: five separate squares with sides 4, 6, 8, 10 and 12, total area 360. Right: one big square of side 40, area 1600. The five small squares fit along its diagonal; the amber rest, 1240, is what adding first and squaring later also counts.">
+    <g text-anchor="middle">
+      <text x="88" y="18" font-size="17" font-weight="600" fill="var(--accent)">Σ xᵢ²</text>
+      <text x="88" y="40" font-size="15" fill="var(--muted)">square, then add</text>
+      <text x="282" y="18" font-size="17" font-weight="600" fill="var(--amber)">(Σ xᵢ)²</text>
+      <text x="282" y="40" font-size="15" fill="var(--muted)">add, then square</text>
+    </g>
+    <g fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5">
+      <rect x="8" y="176.4" width="13.6" height="13.6"/><rect x="27.6" y="169.6" width="20.4" height="20.4"/><rect x="54" y="162.8" width="27.2" height="27.2"/><rect x="87.2" y="156" width="34" height="34"/><rect x="127.2" y="149.2" width="40.8" height="40.8"/>
+    </g>
+    <rect x="214" y="54" width="136" height="136" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+    <g stroke="var(--amber)" stroke-width=".8" opacity=".6">
+      <line x1="227.6" y1="54" x2="227.6" y2="190"/><line x1="248" y1="54" x2="248" y2="190"/><line x1="275.2" y1="54" x2="275.2" y2="190"/><line x1="309.2" y1="54" x2="309.2" y2="190"/>
+      <line x1="214" y1="67.6" x2="350" y2="67.6"/><line x1="214" y1="88" x2="350" y2="88"/><line x1="214" y1="115.2" x2="350" y2="115.2"/><line x1="214" y1="149.2" x2="350" y2="149.2"/>
+    </g>
+    <g fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5">
+      <rect x="214" y="54" width="13.6" height="13.6"/><rect x="227.6" y="67.6" width="20.4" height="20.4"/><rect x="248" y="88" width="27.2" height="27.2"/><rect x="275.2" y="115.2" width="34" height="34"/><rect x="309.2" y="149.2" width="40.8" height="40.8"/>
+    </g>
+    <text x="190" y="132" font-size="28" text-anchor="middle" fill="var(--bad)" font-weight="600">≠</text>
+    <text x="356" y="126" font-size="14" fill="var(--muted)">40</text>
+    <g text-anchor="middle" font-weight="600">
+      <text x="88" y="216" font-size="18" fill="var(--accent)">= 360</text>
+      <text x="282" y="216" font-size="18" fill="var(--amber)">= 1600</text>
+    </g>
+    <g text-anchor="middle" font-size="14" fill="var(--muted)">
+      <text x="88" y="238">16+36+64+100+144</text>
+      <text x="282" y="238">blue 360 + amber 1240</text>
+    </g>
+  </svg>
+  <figcaption>Wrong idea on the left, the real thing on the right: the five squares (360) are only the diagonal of the big 40 × 40 square. Adding first and squaring later also counts every amber cross-piece, 1240 more.</figcaption>
+  </figure></div>
   <div><span class="wrong">"Σ of a constant is just that constant."</span>The loop still runs n times. <code>Σ</code> from i = 1 to 5 of 6 is <code>6 + 6 + 6 + 6 + 6 = 30</code>, not 6. Forgetting this is how the <code>+ 6·n</code> goes missing when people split <code>Σ (2xᵢ + 6)</code>.</div>
   <div><span class="wrong">"The average is a typical value from the data."</span>No flat rents for 22.8, and no die rolls 3.5. The mean is a balance point, not a member of the list, and one extreme value drags it a long way: change the 31 to 131 and the mean jumps from 22.8 to 42.8, above four of the five rents.</div>
 </div>
@@ -585,6 +804,171 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
   mode.addEventListener('change',load);
   in1.addEventListener('input',read); in2.addEventListener('input',read);
   load();
+})();
+</script>
+<script>
+/* Step visuals: accumulator (step 3), rule 1 slider (step 5), levelling and best-guess bowl (step 6), seesaw (step 7). */
+(function(){
+  const $=id=>document.getElementById(id);
+  const ns="http://www.w3.org/2000/svg";
+  const fmt=(v,d=4)=>{const r=+(+v).toFixed(d); return (Object.is(r,-0)?0:r).toString().replace('-','−');};
+  function el(p,nm,a,t){const e=document.createElementNS(ns,nm);for(const q in a)e.setAttribute(q,a[q]);if(t!=null)e.textContent=t;p.appendChild(e);return e;}
+  const SUB=['₁','₂','₃','₄','₅','₆'];
+  const RENT=[14,19,22,28,31];
+
+  /* ---- step 3: the accumulator ---- */
+  let ak=0;
+  function drawAcc(){
+    const s=$('accSvg'); s.innerHTML='';
+    const d=el(s,'defs',{}); const m=el(d,'marker',{id:'accArrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});
+    el(m,'path',{d:'M0 0 L10 5 L0 10 Z',fill:'var(--accent)'});
+    let total=0; for(let i=0;i<ak;i++) total+=RENT[i];
+    RENT.forEach((v,i)=>{
+      const x=24+72*i, st=i<ak-1?'done':i===ak-1?'now':'todo';
+      el(s,'text',{x:x+32,y:22,'font-size':16,'text-anchor':'middle','font-weight':600,fill:st==='now'?'var(--accent)':'var(--muted)'},'y'+SUB[i]);
+      el(s,'rect',{x:x,y:30,width:64,height:40,rx:4,fill:st==='now'?'var(--accent-soft)':'var(--panel)',stroke:st==='now'?'var(--accent)':'var(--line)','stroke-width':st==='now'?2:1.5,'stroke-dasharray':st==='done'?'4 3':''});
+      el(s,'text',{x:x+32,y:57,'font-size':18,'text-anchor':'middle','font-weight':600,fill:st==='done'?'var(--muted)':'currentColor'},v);
+    });
+    if(ak>0){
+      const cx=56+72*(ak-1);
+      el(s,'path',{d:`M${cx} 74 C ${cx} 100, 200 92, 200 116`,fill:'none',stroke:'var(--accent)','stroke-width':2,'marker-end':'url(#accArrow)'});
+      el(s,'text',{x:cx<200?cx+10:cx-10,y:100,'font-size':14,'text-anchor':cx<200?'start':'end',fill:'var(--accent)','font-weight':600},'+ '+RENT[ak-1]);
+    }
+    el(s,'rect',{x:130,y:120,width:140,height:64,rx:6,fill:'var(--panel)',stroke:'var(--accent)','stroke-width':2});
+    el(s,'text',{x:200,y:140,'font-size':13,'text-anchor':'middle',fill:'var(--muted)'},'total');
+    el(s,'text',{x:200,y:172,'font-size':26,'text-anchor':'middle','font-weight':600,fill:'var(--accent)'},total);
+    el(s,'text',{x:20,y:158,'font-size':14,fill:'var(--muted)'},ak===0?'starts at 0':'was '+(total-(ak?RENT[ak-1]:0)));
+    el(s,'text',{x:290,y:158,'font-size':16,'font-weight':600,fill:'currentColor'},ak?'i = '+ak:'i = –');
+    $('accI').textContent=ak||'–'; $('accT').textContent=total;
+    const hist=[0]; let t=0; for(let i=0;i<ak;i++){t+=RENT[i];hist.push(t);}
+    $('accMsg').textContent = ak===0 ? 'total = 0 before the loop. Press Step for pass i = 1.'
+      : `Pass ${ak}: total = ${total-RENT[ak-1]} + y${SUB[ak-1]} = ${total-RENT[ak-1]} + ${RENT[ak-1]} = ${total}. History: ${hist.join(' → ')}.` + (ak===5?' Done: Σ yᵢ = 114.':'');
+    $('accStep').disabled = ak>=5;
+  }
+  $('accStep').addEventListener('click',()=>{ if(ak<5){ak++;drawAcc();} });
+  $('accReset').addEventListener('click',()=>{ak=0;drawAcc();});
+  drawAcc();
+
+  /* ---- step 5, rule 1: pull a constant out ---- */
+  const AREA=[4,6,8,10,12];
+  function drawR1(){
+    const c=+$('r1c').value, s=$('r1Svg'); s.innerHTML='';
+    const B=190, k=1.05, col=j=>j%2?['var(--amber-soft)','var(--amber)']:['var(--accent-soft)','var(--accent)'];
+    AREA.forEach((x,i)=>{
+      const bx=10+34*i;
+      for(let j=0;j<c;j++){ const [f,st]=col(j); el(s,'rect',{x:bx,y:B-(j+1)*x*k,width:26,height:x*k,fill:f,stroke:st,'stroke-width':1.5}); }
+      el(s,'text',{x:bx+13,y:B-c*x*k-6,'font-size':13,'text-anchor':'middle','font-weight':600,fill:'currentColor'},c*x);
+    });
+    for(let j=0;j<c;j++){
+      const [f,st]=col(j), y=B-(j+1)*40*k;
+      el(s,'rect',{x:230,y:y,width:50,height:40*k,fill:f,stroke:st,'stroke-width':1.5});
+      el(s,'text',{x:255,y:y+40*k/2+5,'font-size':13,'text-anchor':'middle',fill:'currentColor'},'40');
+    }
+    el(s,'text',{x:255,y:B-c*40*k-8,'font-size':14,'text-anchor':'middle','font-weight':600,fill:'var(--accent)'},`${c} × 40 = ${c*40}`);
+    el(s,'line',{x1:184,y1:170,x2:214,y2:170,stroke:'currentColor','stroke-width':1.5});
+    el(s,'path',{d:'M214 165 L222 170 L214 175 Z',fill:'currentColor'});
+    el(s,'line',{x1:4,y1:B,x2:178,y2:B,stroke:'var(--muted)'}); el(s,'line',{x1:224,y1:B,x2:286,y2:B,stroke:'var(--muted)'});
+    el(s,'text',{x:91,y:206,'font-size':12,'text-anchor':'middle',fill:'var(--muted)'},'c·xᵢ, per flat');
+    el(s,'text',{x:255,y:206,'font-size':12,'text-anchor':'middle',fill:'var(--muted)'},'all of them');
+    $('r1cv').textContent=c;
+    $('r1Msg').textContent=`Σ ${c}·xᵢ = ${AREA.map(x=>c*x).join(' + ')} = ${AREA.reduce((a,x)=>a+c*x,0)} = ${c} × 40`;
+  }
+  $('r1c').addEventListener('input',drawR1); drawR1();
+
+  /* ---- step 6: levelling ---- */
+  const MEAN=RENT.reduce((a,b)=>a+b,0)/RENT.length, L='ABCDE';
+  const POURS=[]; (function(){ const h=RENT.slice(); for(let g=0;g<20;g++){
+    let t=0,s=0; h.forEach((v,i)=>{ if(v>h[t]) t=i; if(v<h[s]) s=i; });
+    const a=Math.min(h[t]-MEAN,MEAN-h[s]); if(a<1e-9) break;
+    h[t]-=a; h[s]+=a; POURS.push({from:t,to:s,amt:a,h:h.map(v=>+v.toFixed(6))}); } })();
+  let lk=0;
+  function drawLev(){
+    const s=$('levSvg'); s.innerHTML='';
+    const B=206, k=5, cx=i=>92+66*i, h= lk? POURS[lk-1].h : RENT.slice();
+    const top=v=>B-v*k;
+    h.forEach((v,i)=>{
+      const o=RENT[i];
+      el(s,'rect',{x:cx(i)-22,y:top(Math.min(v,o)),width:44,height:Math.min(v,o)*k,fill:'var(--accent-soft)',stroke:'var(--accent)','stroke-width':1.5});
+      if(v>o+1e-9) el(s,'rect',{x:cx(i)-22,y:top(v),width:44,height:(v-o)*k,fill:'var(--amber-soft)',stroke:'var(--amber)','stroke-width':1.5});
+      if(o>v+1e-9) el(s,'rect',{x:cx(i)-22,y:top(o),width:44,height:(o-v)*k,fill:'none',stroke:'var(--muted)','stroke-width':1.2,'stroke-dasharray':'4 3'});
+      el(s,'text',{x:cx(i),y:top(Math.max(v,o))-6,'font-size':14,'text-anchor':'middle','font-weight':600,fill:'currentColor'},fmt(v,1));
+      el(s,'text',{x:cx(i),y:B+18,'font-size':13,'text-anchor':'middle',fill:'currentColor'},L[i]+' '+o);
+    });
+    el(s,'line',{x1:8,y1:top(MEAN),x2:392,y2:top(MEAN),stroke:'var(--ink)','stroke-width':1.5,'stroke-dasharray':'7 4'});
+    el(s,'text',{x:4,y:top(MEAN)-6,'font-size':13,fill:'currentColor'},'mean'); el(s,'text',{x:4,y:top(MEAN)+17,'font-size':13,'font-weight':600,fill:'currentColor'},'22.8');
+    el(s,'line',{x1:62,y1:B,x2:392,y2:B,stroke:'var(--muted)'});
+    if(lk){
+      const p=POURS[lk-1], x1=cx(p.from), x2=cx(p.to), y1=top(RENT[p.from])-22;
+      el(s,'path',{d:`M${x1} ${y1} Q ${(x1+x2)/2} 22, ${x2} ${Math.min(top(p.h[p.to]),top(RENT[p.to]))-22}`,fill:'none',stroke:'var(--amber)','stroke-width':2,'stroke-dasharray':'5 3'});
+      el(s,'text',{x:(x1+x2)/2,y:14,'font-size':14,'text-anchor':'middle','font-weight':600,fill:'var(--amber)'},'pour '+fmt(p.amt,1));
+    }
+    const poured=POURS.slice(0,lk).reduce((a,p)=>a+p.amt,0);
+    $('levK').textContent=lk; $('levP').textContent=fmt(poured,1);
+    $('levMsg').textContent = lk===0 ? 'Rents 14, 19, 22, 28, 31. Press Level to pour from the tallest bar into the shortest.'
+      : `Poured ${fmt(POURS[lk-1].amt,1)} from ${L[POURS[lk-1].from]} into ${L[POURS[lk-1].to]}. Heights now ${h.map(v=>fmt(v,1)).join(', ')}.`
+        + (lk===POURS.length?` Level: every flat at ${fmt(MEAN,1)}, and ${fmt(poured,1)} was moved, exactly what sat above the line.`:'');
+    $('levStep').disabled = lk>=POURS.length;
+  }
+  $('levStep').addEventListener('click',()=>{ if(lk<POURS.length){lk++;drawLev();} });
+  $('levReset').addEventListener('click',()=>{lk=0;drawLev();});
+  drawLev();
+
+  /* ---- step 6: the best constant guess ---- */
+  const F=c=>RENT.reduce((a,y)=>a+(y-c)*(y-c),0);
+  function drawBest(){
+    const c=+$('bestC').value, s=$('bestSvg'); s.innerHTML='';
+    const sx=v=>56+(v-14)/17*324, sy=v=>180-v/600*160;
+    [0,200,400,600].forEach(t=>{ el(s,'line',{x1:56,y1:sy(t),x2:380,y2:sy(t),stroke:'var(--grid)'}); el(s,'text',{x:50,y:sy(t)+4,'font-size':12,'text-anchor':'end',fill:'var(--muted)'},t); });
+    el(s,'line',{x1:56,y1:180,x2:380,y2:180,stroke:'var(--muted)'});
+    [14,18,22,26,30].forEach(t=>{ el(s,'line',{x1:sx(t),y1:180,x2:sx(t),y2:186,stroke:'var(--muted)'}); el(s,'text',{x:sx(t),y:200,'font-size':12,'text-anchor':'middle',fill:'var(--muted)'},t); });
+    el(s,'text',{x:380,y:216,'font-size':12,'text-anchor':'end',fill:'var(--muted)'},'guess c');
+    let d=''; for(let v=14;v<=31.0001;v+=0.25) d+=(d?' L':'M')+sx(v).toFixed(1)+' '+sy(F(v)).toFixed(1);
+    el(s,'path',{d:d,fill:'none',stroke:'var(--accent)','stroke-width':2.2});
+    el(s,'line',{x1:sx(MEAN),y1:sy(F(MEAN)),x2:sx(MEAN),y2:180,stroke:'var(--ok)','stroke-dasharray':'4 3'});
+    el(s,'text',{x:sx(MEAN),y:sy(F(MEAN))+18,'font-size':12,'text-anchor':'middle',fill:'var(--ok)','font-weight':600},'lowest 186.8');
+    const px=sx(c), py=sy(F(c));
+    el(s,'circle',{cx:px,cy:py,r:6,fill:'var(--amber)',stroke:'var(--panel)','stroke-width':1.5});
+    el(s,'text',{x:px,y:py-12,'font-size':14,'text-anchor':px<90?'start':px>350?'end':'middle','font-weight':600,fill:'var(--amber)'},fmt(F(c),2));
+    el(s,'text',{x:380,y:14,'font-size':13,'text-anchor':'end',fill:'var(--muted)'},'Σ (yᵢ − c)²');
+    $('bestCv').textContent=fmt(c,1); $('bestT').textContent=fmt(F(c),2);
+    const miss=RENT.map(y=>y-c);
+    $('bestMsg').textContent=`misses yᵢ − c: ${miss.map(v=>fmt(v,1)).join(', ')} → squares ${miss.map(v=>fmt(v*v,2)).join(' + ')} = ${fmt(F(c),2)}` + (Math.abs(c-MEAN)<1e-9?'. This is the mean: no guess does better.':'');
+  }
+  $('bestC').addEventListener('input',drawBest); drawBest();
+
+  /* ---- step 7: the seesaw ---- */
+  const P={
+    grade:{x:[80,70],w:[0.4,0.6],hi:1,who:'exam (70)',lo:60,hiR:90,names:['homework','exam']},
+    bang:{x:[0,1,2,3,4,5],w:[0.25,0.25,0.125,0.125,0.125,0.125],hi:5,who:'5',lo:-0.5,hiR:5.5},
+    fair:{x:[1,2,3,4,5,6],w:[1/6,1/6,1/6,1/6,1/6,1/6],hi:5,who:'6',lo:0.5,hiR:6.5},
+    loaded:{x:[1,2,3,4,5,6],w:[0.1,0.1,0.1,0.1,0.1,0.5],hi:5,who:'6',lo:0.5,hiR:6.5}
+  };
+  let cur='grade';
+  function weights(){ const p=P[cur], q=+$('sawW').value, rest=1-p.w[p.hi];
+    return p.w.map((w,i)=> i===p.hi ? q : (rest>0 ? w*(1-q)/rest : (1-q)/(p.w.length-1))); }
+  function drawSaw(){
+    const p=P[cur], w=weights(), s=$('sawSvg'); s.innerHTML='';
+    const sx=v=>30+(v-p.lo)/(p.hiR-p.lo)*340, beam=150;
+    const sw=w.reduce((a,b)=>a+b,0), avg=w.reduce((a,wi,i)=>a+wi*p.x[i],0)/sw;
+    el(s,'rect',{x:24,y:beam,width:352,height:20,rx:3,fill:'var(--panel)',stroke:'currentColor','stroke-width':1.5});
+    p.x.forEach((v,i)=>{
+      const h=w[i]*120, hot=i===p.hi;
+      if(h>0.3) el(s,'rect',{x:sx(v)-15,y:beam-h,width:30,height:h,fill:hot?'var(--amber-soft)':'var(--accent-soft)',stroke:hot?'var(--amber)':'var(--accent)','stroke-width':1.5});
+      el(s,'text',{x:sx(v),y:beam-h-6,'font-size':12,'text-anchor':'middle',fill:hot?'var(--amber)':'var(--muted)','font-weight':hot?600:500},fmt(w[i],3));
+      el(s,'text',{x:sx(v),y:beam+15,'font-size':13,'text-anchor':'middle','font-weight':600,fill:'currentColor'},v);
+      if(p.names) el(s,'text',{x:sx(v),y:beam-h-22,'font-size':12,'text-anchor':'middle',fill:'var(--muted)'},p.names[i]);
+    });
+    const ax=sx(avg);
+    el(s,'path',{d:`M${ax} ${beam+21} L${ax-12} ${beam+42} L${ax+12} ${beam+42} Z`,fill:'var(--amber)'});
+    el(s,'text',{x:ax,y:beam+44+15,'font-size':14,'text-anchor':ax<80?'start':ax>320?'end':'middle','font-weight':600,fill:'var(--amber)'},'balance '+fmt(avg,3));
+    $('sawWho').textContent=p.who; $('sawWv').textContent=fmt(w[p.hi],3); $('sawAvg').textContent=fmt(avg,3);
+    $('sawMsg').textContent=`Σ wᵢ·xᵢ = ${p.x.map((v,i)=>fmt(w[i],3)+'·'+v).join(' + ')} = ${fmt(avg*sw,3)}, and Σ wᵢ = ${fmt(sw,3)}, so the balance point is ${fmt(avg,3)}.`;
+  }
+  document.querySelectorAll('#saw .chips button').forEach(b=>b.addEventListener('click',()=>{
+    cur=b.dataset.p; document.querySelectorAll('#saw .chips button').forEach(o=>o.setAttribute('aria-pressed',o===b?'true':'false'));
+    $('sawW').value=P[cur].w[P[cur].hi]; drawSaw();
+  }));
+  $('sawW').addEventListener('input',drawSaw); drawSaw();
 })();
 </script>
 </body>
