@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math M01 · Functions and graphs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 .95rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-wrap: anywhere; }
+  .fn b { color: var(--accent); }
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; font: 500 .85rem/1.4 var(--mono); }
+  .lab select { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; width: 100%; max-width: 100%; }
+
+  /* added for math M01 */
+  .lab .controls label span { display: flex; justify-content: space-between; gap: .5rem; }
+  .lab .controls label b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .lab input[type=range] { width: 100%; min-width: 0; accent-color: var(--accent); }
+  .lab .tbl table { font-family: var(--mono); font-size: .82rem; }
+  .lab svg#plot { max-width: 560px; margin: .8rem auto 0; }
+  figure svg.mid { max-width: 440px; margin: 0 auto; }
+  .key { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin-top: .5rem; }
+  .key i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: .35rem; border-radius: 50%; background: var(--ok); }
+  .key i.ln { height: 0; width: 18px; border-radius: 0; background: none; border-top: 3px solid var(--accent); }
+  .key i.pt { background: var(--amber); }
+  .narrow { max-width: 32rem; }
+  td.hl { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Math toolkit</span><span>Math M01 of 11</span><span>~14 min read</span></div>
+  <h1><span class="num">M01</span> · Functions and graphs</h1>
+  <p class="lede">A function is a rule that turns an input into an output, exactly like a small piece of code with no side effects. A graph is that rule drawn as a picture: every input paired with its output, plotted as a dot. With those two ideas, "a model is a straight line with two knobs" stops being abstract.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where this is used</span>The AI lessons that lean on this page</h2>
+<p><a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> (the line <code>ŷ = w·x + b</code> fitted to five flats) and <a href="05-derivatives.html">Lesson 05 · Derivatives and slopes</a> (the slope of a line, and curves like <code>f(x) = x²</code>). Later: Lesson 09 · Linear regression end to end (coming) and Lesson 21 · Activation functions (coming).</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Every model is one of these</h2>
+<p>A spam filter, a rent predictor and a chatbot are all functions: features go in, a prediction comes out. Training means changing a few numbers inside the rule, and the clearest way to see what those numbers do is to draw the function and watch the picture move. If you can read <code>f(x) = 2.15x + 5.6</code> and picture its line, you can follow Lesson 03 and Lesson 05 without stopping.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A vending machine</h2>
+<p>Think of a vending machine. You press a button (the <mark>input</mark>), the machine follows its wiring (the <mark>rule</mark>), and a snack drops out (the <mark>output</mark>). Two things make it trustworthy:</p>
+<ul>
+  <li><strong>Same button, same snack.</strong> Press B4 today or next week and you get the same thing. If B4 sometimes gave crisps and sometimes gave a drink, you could not rely on it.</li>
+  <li><strong>One snack per press.</strong> Each button gives exactly one thing. Two different buttons may give the same snack, though, and that's fine.</li>
+</ul>
+<p>That is all a function is. As a programmer you already write them:</p>
+<pre><code>def rent_guess(area):
+    return 2 * area + 6</code></pre>
+<p>Call <code>rent_guess(4)</code> a thousand times and you get 14 every time. It doesn't print, doesn't read a file, doesn't change a global variable: it only turns an input into an output. Maths calls this kind of thing a function, and it only ever means this pure kind.</p>
+<p>Now imagine you pressed every button and wrote each (button, snack) pair on a card, then pinned all the cards on a wall in order. That wall is the <strong>graph</strong>. It shows you the whole machine at once, so you can spot patterns, like "the further right you go, the bigger the snack".</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Eight small steps, from a rule to a line to a curve</h2>
+
+<h3>1. The notation f(x)</h3>
+<p>Maths writes the code above as one line:</p>
+<div class="eq">f(x) = 2x + 6</div>
+<dl class="defn">
+  <dt>f</dt>
+  <dd>The function's name, like <code>rent_guess</code>. Any letter works; <code>f</code> is short for "function", and <code>g</code>, <code>h</code> are common second choices.</dd>
+  <dt>x</dt>
+  <dd>The input, like the parameter <code>area</code>. It is a placeholder: a blank to be filled with a number.</dd>
+  <dt>f(x), read "f of x"</dt>
+  <dd>The output you get when you feed <code>x</code> into <code>f</code>. The brackets mean "applied to", <strong>not</strong> multiply. It is a function call.</dd>
+  <dt>2x</dt>
+  <dd>"2 times x". In maths, a number written right next to a letter means multiply, so <code>2x</code> is <code>2 * x</code> in code. The dot in <code>w · x</code> means the same thing.</dd>
+</dl>
+
+<h3>2. Plugging in a value</h3>
+<p>To <strong>evaluate</strong> a function at a number, replace every <code>x</code> on the right-hand side with that number and work it out. For Lesson 03's flat C, which is 800 sq ft, so <code>x = 8</code> (area in hundreds of sq ft):</p>
+<div class="eq">f(8) = 2 × 8 + 6 = 16 + 6 = 22</div>
+<p>The answer is a rent of 22, meaning ₹22,000 a month. Do it for all five flats and you get a <strong>table of values</strong>:</p>
+<div class="tbl narrow"><table>
+<thead><tr><th>flat</th><th>input x</th><th>work</th><th>output f(x)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>4</td><td>2 × 4 + 6</td><td>14</td></tr>
+<tr><td>B</td><td>6</td><td>2 × 6 + 6</td><td>18</td></tr>
+<tr><td>C</td><td>8</td><td>2 × 8 + 6</td><td>22</td></tr>
+<tr><td>D</td><td>10</td><td>2 × 10 + 6</td><td>26</td></tr>
+<tr><td>E</td><td>12</td><td>2 × 12 + 6</td><td>30</td></tr>
+</tbody></table></div>
+
+<h3>3. The graph: every (input, output) pair as a dot</h3>
+<dl class="defn">
+  <dt>Axes</dt>
+  <dd>Two number lines at right angles. The <strong>horizontal axis</strong> (the x-axis) holds inputs, growing to the right. The <strong>vertical axis</strong> (the y-axis) holds outputs, growing upwards. They meet at the <strong>origin</strong>, the point where both are 0.</dd>
+  <dt>A point (a, c)</dt>
+  <dd>A pair of numbers written in brackets, input first. To plot (8, 22): walk 8 to the right, then 22 up, and put a dot. Order matters: (22, 8) is a different place.</dd>
+  <dt>y = f(x)</dt>
+  <dd>We name the output <code>y</code>, so each dot sits at (x, y) with <code>y = f(x)</code>. That is why people write <code>y = 2x + 6</code> and <code>f(x) = 2x + 6</code> interchangeably.</dd>
+</dl>
+<p>Plot the five rows of the table and you get five dots: (4, 14), (6, 18), (8, 22), (10, 26), (12, 30). They line up perfectly. Now fill in the gaps: <code>f(5) = 16</code>, <code>f(7) = 20</code>, <code>f(9) = 24</code>, even <code>f(8.5) = 23</code>. Every new input adds a new dot on the same straight path. Plot <em>every</em> possible input and the dots merge into a solid line. <mark>The graph is the set of all the dots, so a line on a graph is really infinitely many (input, output) pairs packed tight.</mark></p>
+
+<h3>4. Reading a graph both ways</h3>
+<ul>
+  <li><strong>Forwards (input to output).</strong> Find your <code>x</code> on the horizontal axis, go straight up until you hit the line, then go straight across to the vertical axis and read off <code>y</code>. That is evaluating <code>f</code> with your eyes.</li>
+  <li><strong>Backwards (output to input).</strong> Start with a <code>y</code> you want, go across to the line, then down to read <code>x</code>. "Which flat size would this model price at ₹22,000?" Across from 22, down to 8. With algebra: <code>2x + 6 = 22</code>, so <code>2x = 16</code>, so <code>x = 8</code>.</li>
+</ul>
+<p>Forwards always gives exactly one answer, because a function gives one output per input. Backwards might give one answer, none, or several. We'll meet a function with two answers in step 8.</p>
+
+<h3>5. The straight line y = w·x + b</h3>
+<p>Swap the 2 and the 6 for letters and you have the shape Lesson 03 uses for its model:</p>
+<div class="eq">y = w · x + b</div>
+<dl class="defn">
+  <dt>w: the slope (in ML, the weight)</dt>
+  <dd>How much <code>y</code> goes up when <code>x</code> goes up by 1. Measured as <strong>rise over run</strong>: pick two points on the line, divide the change in height (rise) by the change in input (run). For <code>2x + 6</code> from (4, 14) to (12, 30): rise 30 − 14 = 16, run 12 − 4 = 8, slope 16 ÷ 8 = 2.</dd>
+  <dt>b: the intercept (in ML, the bias)</dt>
+  <dd>Where the line crosses the vertical axis. On that axis <code>x = 0</code>, and <code>w · 0 + b = b</code>, so the crossing point is always (0, b). For <code>2x + 6</code> it is (0, 6).</dd>
+</dl>
+<p><strong>Why is the slope the same everywhere on a line?</strong> Look at the table in step 2. Each time <code>x</code> grows by 2, the output grows by 4: 14, 18, 22, 26, 30. That's no accident. Going from <code>x</code> to <code>x + 1</code> changes <code>w·x + b</code> into <code>w·x + w + b</code>: exactly <code>w</code> more, whatever <code>x</code> you started from. Equal steps in, equal steps out. That constant step is what makes the dots line up straight, and it's why one number, <code>w</code>, can describe the steepness of the whole line.</p>
+<p class="note">School books often write the same line as y = mx + c or y = mx + b. Only the letters differ. ML uses w for "weight" because it says how much weight the input gets.</p>
+
+<h3>6. What turning w does: tilt</h3>
+<ul>
+  <li><strong>Bigger w</strong>: steeper line. Each 100 sq ft adds more rent.</li>
+  <li><strong>w = 0</strong>: a flat line, <code>y = b</code> for every input. The model ignores <code>x</code> entirely (Lesson 03's "constant" family).</li>
+  <li><strong>Negative w</strong>: the line goes downhill. Bigger inputs give smaller outputs, like "older car, lower price".</li>
+</ul>
+<p>Changing <code>w</code> alone spins the line around its crossing point (0, b), because that point doesn't depend on <code>w</code>. Notice that the effect grows with <code>x</code>: adding 0.1 to <code>w</code> raises <code>f(4)</code> by 0.4 but <code>f(12)</code> by 1.2.</p>
+
+<h3>7. What turning b does: slide</h3>
+<p>Changing <code>b</code> adds the same amount to every output, so the whole line moves straight up or down without tilting. <code>2x + 6</code> and <code>2x + 12</code> are parallel: same steepness, one sitting 6 higher. Together, <code>w</code> sets the tilt and <code>b</code> sets the height, and between them they can produce any straight line (except a perfectly vertical one, which isn't a function: one input would need infinitely many outputs).</p>
+
+<h3>8. A first curve: f(x) = x²</h3>
+<p>Not every function is a line. Take <code>f(x) = x²</code>, read "x squared", meaning <code>x × x</code> (in Python, <code>x ** 2</code>). Plug in a few values:</p>
+<div class="tbl narrow"><table>
+<thead><tr><th>x</th><th>−3</th><th>−2</th><th>−1</th><th>0</th><th>1</th><th>2</th><th>3</th></tr></thead>
+<tbody>
+<tr><td>x²</td><td>9</td><td>4</td><td>1</td><td>0</td><td>1</td><td>4</td><td>9</td></tr>
+</tbody></table></div>
+<p>Two things are different from a line:</p>
+<ul>
+  <li><strong>The steps aren't equal.</strong> From 0 to 1 to 2 to 3, the outputs climb by 1, then 3, then 5. The rise per step keeps growing, so the dots bend into a U shape (a <strong>parabola</strong>). There is no single slope: it's gentle near 0 and steep further out. Lesson 05 is all about measuring the slope at one point of a curve like this.</li>
+  <li><strong>Backwards reading can have two answers.</strong> <code>f(−2) = 4</code> and <code>f(2) = 4</code>. Two buttons, same snack. That is still a function (each input has one output); it just can't be read backwards uniquely.</li>
+</ul>
+<p>Neural networks need bends like this to model anything that isn't a straight line. Lesson 21 meets the most common bend in modern networks, <code>ReLU(x) = max(0, x)</code>: 0 for every negative input, <code>x</code> itself otherwise, so <code>ReLU(−2) = 0</code> and <code>ReLU(3) = 3</code>. It's two straight pieces joined at a corner, but as a whole it is not a line.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Dots, slopes and a bend</h2>
+
+<figure>
+<svg class="mid" viewBox="0 0 360 300" role="img" aria-label="Graph of y = 2x + 6 for x from 0 to 14. Five dots at x = 4, 6, 8, 10, 12 with outputs 14, 18, 22, 26, 30 sit on the line. A triangle from (4, 14) to (8, 22) shows run 4 and rise 8, slope 2. The line crosses the vertical axis at 6. A dashed guide reads x = 10 up to the line and across to 26.">
+  <g stroke="var(--grid)" stroke-width="1">
+    <line x1="40" y1="191.4" x2="340" y2="191.4"/><line x1="40" y1="122.9" x2="340" y2="122.9"/><line x1="40" y1="54.3" x2="340" y2="54.3"/>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1.2">
+    <line x1="40" y1="260" x2="344" y2="260"/><line x1="40" y1="260" x2="40" y2="16"/>
+  </g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle">
+    <text x="40" y="276">0</text><text x="82.9" y="276">2</text><text x="125.7" y="276">4</text><text x="168.6" y="276">6</text><text x="211.4" y="276">8</text><text x="254.3" y="276">10</text><text x="297.1" y="276">12</text><text x="340" y="276">14</text>
+    <text x="190" y="294">x (input: area, hundreds of sq ft)</text>
+  </g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end">
+    <text x="34" y="264">0</text><text x="34" y="195.4">10</text><text x="34" y="126.9">20</text><text x="34" y="58.3">30</text>
+  </g>
+  <text x="46" y="14" font-size="11" fill="var(--muted)">y = f(x)</text>
+  <!-- the line y = 2x + 6 -->
+  <line x1="40" y1="218.9" x2="340" y2="26.9" stroke="var(--accent)" stroke-width="2.5"/>
+  <text x="300" y="30" font-size="12" fill="var(--accent)" text-anchor="end" font-weight="600">y = 2x + 6</text>
+  <!-- intercept -->
+  <circle cx="40" cy="218.9" r="5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="50" y="236" font-size="11" fill="var(--accent)">b = 6: crosses at (0, 6)</text>
+  <!-- rise / run triangle -->
+  <path d="M125.7,164 L211.4,164 L211.4,109.1" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="168.6" y="180" font-size="11" fill="var(--amber)" text-anchor="middle">run 4</text>
+  <text x="205" y="152" font-size="11" fill="var(--amber)" text-anchor="end">rise 8</text>
+  <text x="168.6" y="194" font-size="11" fill="var(--amber)" text-anchor="middle">slope = 8 ÷ 4 = 2 = w</text>
+  <!-- reading guide at x = 10 -->
+  <path d="M254.3,260 L254.3,81.7 L40,81.7" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text x="44" y="76" font-size="11" fill="var(--muted)">f(10) = 26</text>
+  <!-- the five flats' dots -->
+  <g fill="var(--accent)">
+    <circle cx="125.7" cy="164" r="4.5"/><circle cx="168.6" cy="136.6" r="4.5"/><circle cx="211.4" cy="109.1" r="4.5"/><circle cx="254.3" cy="81.7" r="4.5"/><circle cx="297.1" cy="54.3" r="4.5"/>
+  </g>
+</svg>
+<figcaption>The table from step 2, drawn. Each dot is one (input, output) pair; filling in every input in between joins them into the line. The amber triangle measures the slope (rise over run), the hollow dot is the intercept, and the dashed guide reads the graph forwards: from x = 10 up to the line, across to 26.</figcaption>
+</figure>
+
+<figure>
+<svg class="mid" viewBox="0 0 390 505" role="img" aria-label="Two panels. Top: lines y = 1x + 6, 2x + 6 and 3x + 6 all start at (0, 6) and fan out: changing w tilts the line. Bottom: lines y = 2x + 0, 2x + 6 and 2x + 12 are parallel: changing b slides the line up and down.">
+  <text x="40" y="22" font-size="11" fill="var(--muted)" letter-spacing="1">TURN w (b STAYS 6): THE LINE TILTS</text>
+  <g stroke="var(--muted)" stroke-width="1.2"><line x1="40" y1="215" x2="334" y2="215"/><line x1="40" y1="215" x2="40" y2="35"/></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle"><text x="40" y="231">0</text><text x="185" y="231">5</text><text x="330" y="231">10</text></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end"><text x="34" y="219">0</text><text x="34" y="129">20</text><text x="34" y="39">40</text></g>
+  <line x1="40" y1="188" x2="330" y2="143" stroke="var(--muted)" stroke-width="2"/>
+  <line x1="40" y1="188" x2="330" y2="98" stroke="var(--accent)" stroke-width="2.5"/>
+  <line x1="40" y1="188" x2="330" y2="53" stroke="var(--amber)" stroke-width="2"/>
+  <circle cx="40" cy="188" r="4.5" fill="var(--panel)" stroke="currentColor" stroke-width="1.5"/>
+  <g font-size="11" text-anchor="end">
+    <text x="336" y="147" fill="var(--muted)" text-anchor="start">w = 1</text>
+    <text x="336" y="102" fill="var(--accent)" text-anchor="start">w = 2</text>
+    <text x="336" y="57" fill="var(--amber)" text-anchor="start">w = 3</text>
+  </g>
+  <text x="48" y="204" font-size="11" fill="var(--muted)">all pass through (0, 6)</text>
+
+  <text x="40" y="272" font-size="11" fill="var(--muted)" letter-spacing="1">TURN b (w STAYS 2): THE LINE SLIDES</text>
+  <g stroke="var(--muted)" stroke-width="1.2"><line x1="40" y1="465" x2="334" y2="465"/><line x1="40" y1="465" x2="40" y2="285"/></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle"><text x="40" y="481">0</text><text x="185" y="481">5</text><text x="330" y="481">10</text></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end"><text x="34" y="469">0</text><text x="34" y="379">20</text><text x="34" y="289">40</text></g>
+  <line x1="40" y1="465" x2="330" y2="375" stroke="var(--muted)" stroke-width="2"/>
+  <line x1="40" y1="438" x2="330" y2="348" stroke="var(--accent)" stroke-width="2.5"/>
+  <line x1="40" y1="411" x2="330" y2="321" stroke="var(--amber)" stroke-width="2"/>
+  <g font-size="11" text-anchor="end">
+    <text x="336" y="379" fill="var(--muted)" text-anchor="start">b = 0</text>
+    <text x="336" y="352" fill="var(--accent)" text-anchor="start">b = 6</text>
+    <text x="336" y="325" fill="var(--amber)" text-anchor="start">b = 12</text>
+  </g>
+  <text x="185" y="500" font-size="11" fill="var(--muted)" text-anchor="middle">all parallel: same slope 2</text>
+</svg>
+<figcaption>Top: changing w spins the line around the point where it crosses the vertical axis. Bottom: changing b lifts every output by the same amount, so the line moves without changing steepness.</figcaption>
+</figure>
+
+<figure>
+<svg class="mid" viewBox="0 0 360 290" role="img" aria-label="The curve y = x squared from x = -3.2 to 3.2, a U shape. Dots at x = -3 to 3 with outputs 9, 4, 1, 0, 1, 4, 9. Steps from x = 0 to 3 rise by 1, 3 and 5. A dashed line at height 4 hits the curve at x = -2 and x = 2.">
+  <g stroke="var(--grid)"><line x1="40" y1="162" x2="320" y2="162"/><line x1="40" y1="52" x2="320" y2="52"/></g>
+  <g stroke="var(--muted)" stroke-width="1.2"><line x1="40" y1="250" x2="320" y2="250"/><line x1="180" y1="250" x2="180" y2="14"/></g>
+  <g font-size="11" fill="var(--muted)" text-anchor="middle">
+    <text x="60" y="266">−3</text><text x="100" y="266">−2</text><text x="140" y="266">−1</text><text x="180" y="266">0</text><text x="220" y="266">1</text><text x="260" y="266">2</text><text x="300" y="266">3</text>
+    <text x="180" y="284">x</text>
+  </g>
+  <g font-size="11" fill="var(--muted)" text-anchor="end"><text x="174" y="166">4</text><text x="174" y="56">9</text></g>
+  <path d="M52,24.7 Q180,475.3 308,24.7" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+  <text x="314" y="22" font-size="12" fill="var(--accent)" font-weight="600" text-anchor="end">y = x²</text>
+  <line x1="40" y1="162" x2="320" y2="162" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="180" y="150" font-size="11" fill="var(--amber)" text-anchor="middle" stroke="var(--panel)" stroke-width="4" paint-order="stroke">f(−2) = f(2) = 4</text>
+  <g fill="var(--accent)">
+    <circle cx="60" cy="52" r="4.5"/><circle cx="100" cy="162" r="4.5"/><circle cx="140" cy="228" r="4.5"/><circle cx="180" cy="250" r="4.5"/><circle cx="220" cy="228" r="4.5"/><circle cx="260" cy="162" r="4.5"/><circle cx="300" cy="52" r="4.5"/>
+  </g>
+  <circle cx="100" cy="162" r="7" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <circle cx="260" cy="162" r="7" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <g font-size="11" fill="var(--ok)">
+    <text x="226" y="246">+1</text><text x="266" y="200">+3</text><text x="306" y="112">+5</text>
+  </g>
+</svg>
+<figcaption>Equal steps right (0 → 1 → 2 → 3) give growing steps up (+1, +3, +5), so the dots bend instead of lining up. And the dashed height 4 meets the curve twice: reading backwards from 4 gives two inputs, −2 and 2.</figcaption>
+</figure>
+
+<div class="lab" id="lab">
+  <h3>Function lab: turn w and b, read the graph</h3>
+  <p style="margin-top:0">The green dots are Lesson 03's five flats (real rents). The blue line is your function. Turn the knobs, move the input, and every number in the table is recomputed from your rule. Switch the shape to the curve and the same two knobs act on <code>w · x² + b</code>.</p>
+  <div class="controls">
+    <label for="shape"><span>shape</span>
+      <select id="shape">
+        <option value="line">line: f(x) = w · x + b</option>
+        <option value="curve">curve: f(x) = w · x² + b</option>
+      </select>
+    </label>
+    <label for="xin"><span>input x <b id="xv">9</b></span>
+      <input type="range" id="xin" min="0" max="14" step="0.5" value="9">
+    </label>
+    <label for="w"><span>w (slope / tilt) <b id="wv">2.00</b></span>
+      <input type="range" id="w" min="-2" max="4" step="0.05" value="2">
+    </label>
+    <label for="b"><span>b (crossing / height) <b id="bv">6.0</b></span>
+      <input type="range" id="b" min="-10" max="20" step="0.1" value="6">
+    </label>
+  </div>
+  <div class="fn" id="fn"></div>
+  <svg id="plot" viewBox="0 0 480 334" role="img" aria-label="Graph of the current function with its value at the chosen input marked, plus the five flats from Lesson 03 as dots when the line shape is chosen."></svg>
+  <div class="key" id="key"><span><i class="ln"></i>your function</span><span><i class="pt"></i>(input, output) you picked</span><span id="keydata"><i></i>real flats (Lesson 03)</span></div>
+  <div class="readout">
+    <span>f(input) <span class="big" id="fx">24</span></span>
+    <span>crosses vertical axis at <span class="big" id="cross">(0, 6)</span></span>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="btns" id="presets">
+    <button data-w="2" data-b="6">w = 2, b = 6</button>
+    <button data-w="2.15" data-b="5.6" class="ghost">fitted: 2.15, 5.6</button>
+    <button data-w="0" data-b="22.8" class="ghost">flat: 0, 22.8</button>
+    <button data-w="1" data-b="0" class="ghost">w = 1, b = 0</button>
+  </div>
+  <div class="tbl"><table id="rows"></table></div>
+  <p class="note">miss = f(x) − real y. rise ÷ run = change in f(x) from the row above, divided by the change in x.</p>
+</div>
+<p>Things to try. Press "fitted" and check the table against the worked example below: 14.2, 18.5, 22.8, 27.1, 31.4. Drag <code>w</code> alone and watch the hollow crossing point stay put while the line spins; drag <code>b</code> alone and watch the line slide. Look at the last column of the table: for a line it is the same number on every row, and that number is <code>w</code>. Then switch to the curve with <code>w = 1, b = 0</code> (plain <code>x²</code>) and the same column changes on every row.</p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>Evaluate.</strong> With <code>f(x) = 2x + 6</code>: <code>f(4) = 14</code>, <code>f(6) = 18</code>, <code>f(8) = 22</code>, <code>f(10) = 26</code>, <code>f(12) = 30</code>. A new 900 sq ft flat: <code>f(9) = 2 × 9 + 6 = 24</code>. The crossing point: <code>f(0) = 6</code>.</p>
+<p><strong>The fitted line.</strong> Lesson 03's search settled on <code>w = 2.15, b = 5.6</code>. Flat A: <code>2.15 × 4 + 5.6 = 8.6 + 5.6 = 14.2</code>. Likewise B: <code>12.9 + 5.6 = 18.5</code>, C: <code>17.2 + 5.6 = 22.8</code>, D: <code>21.5 + 5.6 = 27.1</code>, E: <code>25.8 + 5.6 = 31.4</code>. The 900 sq ft flat: <code>19.35 + 5.6 = 24.95</code>, about ₹24,950.</p>
+<p><strong>Slope from two points.</strong> On <code>2x + 6</code>, from (4, 14) to (12, 30): <code>(30 − 14) ÷ (12 − 4) = 16 ÷ 8 = 2</code>.</p>
+<p><strong>Read backwards.</strong> Which input gives 22? <code>2x + 6 = 22</code>, take 6 from both sides: <code>2x = 16</code>, halve both: <code>x = 8</code>. That is flat C.</p>
+<p><strong>The curve.</strong> <code>x²</code> for <code>x = −3 … 3</code> gives 9, 4, 1, 0, 1, 4, 9. The rises from 0 → 1 → 2 → 3 are 1, 3, 5: not constant, so not a line.</p>
+<pre><code><span class="c"># Lesson 03's five flats: x = area in hundreds of sq ft, y = rent in thousands of rupees</span>
+X = [4, 6, 8, 10, 12]
+Y = [14, 19, 22, 28, 31]
+
+def f(x):
+    <span class="c">"""a function: one input in, one output out, nothing else touched"""</span>
+    return 2 * x + 6
+
+print([f(x) for x in X])         <span class="c"># plug in each flat's size</span>
+print(f(9), f(0))                <span class="c"># a new 900 sq ft flat; and where the line crosses the vertical axis</span>
+
+def line(w, b):
+    <span class="c">"""build the straight line y = w*x + b for any pair of knobs"""</span>
+    def g(x):
+        return w * x + b
+    return g
+
+fitted = line(2.15, 5.6)         <span class="c"># the knobs Lesson 03's search found</span>
+print([round(fitted(x), 2) for x in X])
+print(round(fitted(9), 2))
+
+print((f(12) - f(4)) / (12 - 4)) <span class="c"># slope = rise / run between two points</span>
+print((22 - 6) / 2)              <span class="c"># reading backwards: which x gives 22?</span>
+
+def sq(x):
+    return x ** 2
+
+print([sq(x) for x in range(-3, 4)])
+print([sq(x + 1) - sq(x) for x in range(0, 3)])   <span class="c"># steps of 1 in x: rise is not constant</span></code></pre>
+<p>Output:</p>
+<pre><code>[14, 18, 22, 26, 30]
+24 6
+[14.2, 18.5, 22.8, 27.1, 31.4]
+24.95
+2.0
+8.0
+[9, 4, 1, 0, 1, 4, 9]
+[1, 3, 5]</code></pre>
+<p>Notice <code>line(w, b)</code>: it takes two knobs and hands back a function. That is exactly the "model family" idea from Lesson 03. The family is <code>line</code>; picking <code>w</code> and <code>b</code> picks one member of it. (The <code>round(…, 2)</code> is there because computers store numbers like 2.15 slightly inexactly, so <code>2.15 * 4 + 5.6</code> can print as 14.200000000000001.)</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"f(x) means f times x."</span>The brackets after a function's name mean "feed this in", like a function call in code. <code>f(3)</code> is "the output of f when the input is 3", not "f × 3". The confusion is natural, because <code>2(x + 1)</code> <em>does</em> mean multiply: when the thing before the brackets is a number, it's multiplication; when it's a function's name, it's a call.</div>
+  <div><span class="wrong">"A bigger b makes the line steeper."</span>Only <code>w</code> changes steepness. <code>b</code> lifts or lowers every point by the same amount, so the line moves up or down and stays parallel to itself. If you want a line to rise faster, turn <code>w</code>.</div>
+  <div><span class="wrong">"If two inputs give the same output, it's not a function."</span>That's allowed: <code>x²</code> gives 4 for both −2 and 2. What a function can't do is give two outputs for the same input. Same button, same snack, every time; two buttons can still share a snack.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. For <code>f(x) = 3x − 2</code>, what is <code>f(5)</code>? Which input gives an output of 10?</p><summary>Show answer</summary><p class="a"><code>f(5) = 3 × 5 − 2 = 13</code>. Backwards: <code>3x − 2 = 10</code>, so <code>3x = 12</code>, so <code>x = 4</code>. Check: <code>f(4) = 12 − 2 = 10</code>.</p></details>
+<details><p class="q">2. A straight line passes through (2, 7) and (6, 15). What are its slope <code>w</code> and its intercept <code>b</code>?</p><summary>Show answer</summary><p class="a">Rise 15 − 7 = 8 over run 6 − 2 = 4, so <code>w = 2</code>. Then use one point: <code>7 = 2 × 2 + b</code>, so <code>b = 3</code>. The line is <code>y = 2x + 3</code>; check the other point: <code>2 × 6 + 3 = 15</code>.</p></details>
+<details><p class="q">3. With the fitted line <code>ŷ = 2.15x + 5.6</code>, flat E (<code>x = 12</code>) is priced at 31.4. What does the price become if <code>b</code> goes up by 1? If instead <code>w</code> goes up by 0.1?</p><summary>Show answer</summary><p class="a">Raising <code>b</code> by 1 adds 1 to every output: 32.4. Raising <code>w</code> by 0.1 adds <code>0.1 × 12 = 1.2</code>: <code>2.25 × 12 + 5.6 = 32.6</code>. The same nudge to <code>w</code> would add only 0.4 for flat A (<code>x = 4</code>). A change to <code>w</code> matters more the bigger the input, which is exactly what Lesson 05's slopes will measure.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">A function turns each input into exactly one output, its graph is every (input, output) pair drawn as a dot, and for a line y = w·x + b, w sets the tilt and b sets where it crosses the vertical axis.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Back to the course</span>Read Lesson 03 next</h2>
+<p>With <code>f(x)</code>, slope and intercept in hand, <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> reads as one idea: a model is <code>w · x + b</code> with the knobs left blank, and training is turning them until the line runs through the flats.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://www.khanacademy.org/math/pre-algebra/xb4832e56:functions-and-linear-models" target="_blank" rel="noopener">Khan Academy: Functions and linear models</a>, short videos and practice on what a function is, function tables and linear (straight-line) relationships.</li>
+  <li><a href="https://www.desmos.com/calculator" target="_blank" rel="noopener">Desmos graphing calculator</a>, a free online grapher. Type <code>y = w x + b</code> and it offers sliders for <code>w</code> and <code>b</code>, so you can play with any function you meet in the course.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <span class="muted">Start of the math toolkit</span>
+  <a href="m02-squares-roots.html">Next: Math M02 · Squares, square roots and absolute value →</a>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const fmt=(v,d=4)=>{let s=(+v.toFixed(d)).toString(); if(s==='-0') s='0'; return s.replace('-','−');};
+  const plus=v=>v<0?` − ${fmt(-v)}`:` + ${fmt(v)}`;
+  const par=v=>v<0?`(${fmt(v)})`:fmt(v);
+  const ns="http://www.w3.org/2000/svg";
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+
+  /* Lesson 03's five flats: x = area (hundreds of sq ft), y = rent (thousands of rupees) */
+  const X=[4,6,8,10,12], Y=[14,19,22,28,31], NAMES=['A','B','C','D','E'];
+  const SHAPES={
+    line:{ f:(x,w,b)=>w*x+b, xr:[0,14], yr:[-10,45], xt:[0,2,4,6,8,10,12,14], yt:[-10,0,10,20,30,40], xs:[0,14,0.5], x0:9, w:2, b:6,
+           txt:(w,b)=>`f(x) = <b>${fmt(w)}</b> · x${plus(b).replace(/([\d.]+)$/,'<b>$1</b>')}` },
+    curve:{ f:(x,w,b)=>w*x*x+b, xr:[-4,4], yr:[-10,20], xt:[-4,-3,-2,-1,0,1,2,3,4], yt:[-10,-5,0,5,10,15,20], xs:[-4,4,0.5], x0:2, w:1, b:0,
+           txt:(w,b)=>`f(x) = <b>${fmt(w)}</b> · x²${plus(b).replace(/([\d.]+)$/,'<b>$1</b>')}` }
+  };
+  const svg=$('plot'), L=50, R=468, T=12, B=290;
+  const shapeSel=$('shape'), xin=$('xin'), wIn=$('w'), bIn=$('b');
+  let S=SHAPES.line;
+
+  function draw(){
+    const w=+wIn.value, b=+bIn.value, xi=+xin.value;
+    $('wv').textContent=w.toFixed(2); $('bv').textContent=b.toFixed(1); $('xv').textContent=fmt(xi);
+    const [x0,x1]=S.xr, [y0,y1]=S.yr;
+    const px=x=>L+(x-x0)/(x1-x0)*(R-L), py=y=>B-(y-y0)/(y1-y0)*(B-T);
+    svg.innerHTML='';
+    const defs=el(svg,'defs',{}); const cp=el(defs,'clipPath',{id:'clipArea'}); el(cp,'rect',{x:L,y:T,width:R-L,height:B-T});
+    S.yt.forEach(t=>{ el(svg,'line',{x1:L,y1:py(t),x2:R,y2:py(t),stroke:t===0?'var(--muted)':'var(--grid)','stroke-width':t===0?1.2:1});
+      el(svg,'text',{x:L-7,y:py(t)+5,'font-size':14,'text-anchor':'end',fill:'var(--muted)'},fmt(t)); });
+    S.xt.forEach(t=>{ if(t===0&&x0<0) el(svg,'line',{x1:px(0),y1:T,x2:px(0),y2:B,stroke:'var(--muted)','stroke-width':1.2});
+      el(svg,'text',{x:px(t),y:B+20,'font-size':14,'text-anchor':'middle',fill:'var(--muted)'},fmt(t)); });
+    if(x0===0) el(svg,'line',{x1:L,y1:T,x2:L,y2:B,stroke:'var(--muted)','stroke-width':1.2});
+    el(svg,'text',{x:R,y:B+38,'font-size':14,'text-anchor':'end',fill:'var(--muted)'},S===SHAPES.line?'x: area (hundreds of sq ft)':'x');
+    el(svg,'text',{x:L+8,y:T+14,'font-size':14,fill:'var(--muted)'},S===SHAPES.line?'y: rent (₹ thousands)':'y = f(x)');
+    const g=el(svg,'g',{'clip-path':'url(#clipArea)'});
+    // the function, sampled densely
+    let d=''; const N=160;
+    for(let i=0;i<=N;i++){ const x=x0+(x1-x0)*i/N, y=S.f(x,w,b); d+=(i?'L':'M')+px(x).toFixed(1)+','+py(y).toFixed(1); }
+    el(g,'path',{d,fill:'none',stroke:'var(--accent)','stroke-width':2.5});
+    // data dots (line mode only)
+    if(S===SHAPES.line) X.forEach((x,i)=>el(g,'circle',{cx:px(x),cy:py(Y[i]),r:5,fill:'var(--ok)'}));
+    // crossing point (0, b)
+    const cy=S.f(0,w,b);
+    el(g,'circle',{cx:px(0),cy:py(cy),r:5.5,fill:'var(--panel)',stroke:'var(--accent)','stroke-width':2});
+    // reading guide for the chosen input
+    const yi=S.f(xi,w,b), inView=yi>=y0&&yi<=y1;
+    const gy=inView?py(yi):(yi>y1?T:B);
+    el(g,'path',{d:`M${px(xi)},${py(Math.max(y0,Math.min(0,y1)))} L${px(xi)},${gy}`+(inView?` L${L},${gy}`:''),fill:'none',stroke:'var(--amber)','stroke-width':1.5,'stroke-dasharray':'4 3'});
+    if(inView){ el(g,'circle',{cx:px(xi),cy:gy,r:6,fill:'var(--amber)'});
+      const right=px(xi)<R-120;
+      el(svg,'text',{x:px(xi)+(right?10:-10),y:gy-12,'font-size':15,'font-weight':600,'text-anchor':right?'start':'end',fill:'var(--amber)'},`(${fmt(xi)}, ${fmt(yi)})`); }
+
+    $('fn').innerHTML=S.txt(w,b)+`   →   f(${fmt(xi)}) = <b>${fmt(yi)}</b>`;
+    $('fx').textContent=fmt(yi);
+    $('cross').textContent=`(0, ${fmt(cy)})`;
+    $('keydata').style.display=S===SHAPES.line?'':'none';
+
+    // table: every value recomputed from the current rule
+    let h='';
+    if(S===SHAPES.line){
+      h='<thead><tr><th>flat</th><th>x</th><th>f(x) = w·x + b</th><th>real y</th><th>miss</th><th>rise ÷ run</th></tr></thead><tbody>';
+      let sse=0;
+      X.forEach((x,i)=>{ const fx=S.f(x,w,b), miss=fx-Y[i]; sse+=miss*miss;
+        const step=i?fmt((fx-S.f(X[i-1],w,b))/(x-X[i-1])):'–';
+        h+=`<tr><td>${NAMES[i]}</td><td>${x}</td><td class="hl">${par(w)}·${x}${plus(b)} = ${fmt(fx)}</td><td>${Y[i]}</td><td>${(miss>0?'+':'')+fmt(miss)}</td><td>${step}</td></tr>`; });
+      h+='</tbody>';
+      $('msg').textContent=`Every row's rise ÷ run is ${fmt(w)}: on a line the slope is the same everywhere, and it equals w. Total squared miss over the five flats: ${fmt(sse,2)} (Lesson 03 got 6 for w = 2, b = 6 and 1.9 for the fitted knobs).`;
+    } else {
+      const xs=[-3,-2,-1,0,1,2,3];
+      h='<thead><tr><th>x</th><th>f(x) = w·x² + b</th><th>rise ÷ run</th></tr></thead><tbody>';
+      xs.forEach((x,i)=>{ const fx=S.f(x,w,b); const step=i?fmt(fx-S.f(xs[i-1],w,b)):'–';
+        h+=`<tr><td>${fmt(x)}</td><td class="hl">${par(w)}·${par(x)}²${plus(b)} = ${fmt(fx)}</td><td>${step}</td></tr>`; });
+      h+='</tbody>';
+      const tw=S.f(-xi,w,b);
+      $('msg').textContent= w===0
+        ? 'With w = 0 the x² term vanishes and the curve collapses to the flat line y = b.'
+        : `The rise ÷ run column changes on every row: no single slope, so this is a curve. And f(${fmt(-xi)}) = ${fmt(tw)} too: ${xi===0?'x = 0 is the one input with no mirror twin':'two inputs, one output'}.`;
+    }
+    $('rows').innerHTML=h;
+  }
+  function setShape(){
+    S=SHAPES[shapeSel.value];
+    xin.min=S.xs[0]; xin.max=S.xs[1]; xin.step=S.xs[2]; xin.value=S.x0; wIn.value=S.w; bIn.value=S.b;
+    draw();
+  }
+  [xin,wIn,bIn].forEach(i=>i.addEventListener('input',draw));
+  shapeSel.addEventListener('change',setShape);
+  document.querySelectorAll('#presets button').forEach(btn=>btn.addEventListener('click',()=>{ wIn.value=btn.dataset.w; bIn.value=btn.dataset.b; draw(); }));
+  setShape();
+})();
+</script>
+</body>
+</html>

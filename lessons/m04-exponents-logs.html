@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math M04 · Exponents and logarithms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); color: var(--ink); }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 .95rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-wrap: anywhere; }
+  .fn b { color: var(--accent); }
+
+  /* added for math M04 */
+  .lab input[type=range] { width: 100%; accent-color: var(--accent); margin: .4rem 0 0; }
+  .lab .slab { display: grid; gap: .25rem; font: 500 .85rem/1.4 var(--mono); margin-top: .8rem; }
+  .used { font-size: .98rem; }
+  td:first-child code { white-space: nowrap; }
+  sup, sub { font-size: .72em; line-height: 0; }
+  .key { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin-top: .5rem; }
+  .key i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: .35rem; border-radius: 50%; background: var(--accent); }
+  .key i.ref { background: var(--amber); }
+  .key i.line { height: 0; width: 18px; border-radius: 0; background: none; border-top: 2px dashed var(--amber); }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Math toolkit</span><span>Math M04 of 11</span><span>~14 min read</span></div>
+  <h1><span class="num">M04</span> · Exponents and logarithms</h1>
+  <p class="lede">An exponent counts how many times you multiply. A logarithm runs that backwards: it tells you the count. With those two ideas, plus one special number called e, you can read the loss that trains every classifier.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where this is used</span>The AI lessons that need it</h2>
+<p class="used">Lesson 07 · Loss functions (coming) is built on <code>−ln p</code>, so read this first. Exponents and <code>e</code> come back in Lesson 10 · Logistic regression (coming), Lesson 21 · Activation functions (coming), Lesson 31 · Tokenization (coming) and Lesson 40 · Decoding (coming). The probabilities we take logs of are the ones from <a href="06-probability.html">Lesson 06 · Probability basics for ML</a>, like the spam filter's "0.92".</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>The model said 0.92. How much should that cost?</h2>
+<p>In Lesson 06 a spam filter said "spam with probability 0.92". If the email really is spam, that answer was good, and its cost should be small. If the filter had said 0.08, it was confidently wrong, and the cost should be large. The usual cost is <code>−ln p</code>, where <code>p</code> is the probability the model gave the right answer: 0.0834 for the good answer, 2.5257 for the bad one, about 30 times more. To read that formula you need logarithms, and to understand logarithms you need exponents. That's this page.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>Folding paper</h2>
+<p>Take a sheet of paper and fold it in half. Now it's 2 layers thick. Fold again: 4 layers. Again: 8. Each fold <em>doubles</em> the thickness. Two questions come up naturally:</p>
+<ul>
+  <li><strong>Forwards:</strong> "I folded 3 times. How many layers?" You double three times: 2 × 2 × 2 = 8. That is an <strong>exponent</strong>.</li>
+  <li><strong>Backwards:</strong> "I see 8 layers. How many folds did it take?" You count the doublings: 3. That is a <strong>logarithm</strong>.</li>
+</ul>
+<p>Now unfold it. Each unfold halves the layers: 8, 4, 2, 1. If you could keep going past 1, you'd get half a layer, then a quarter. That's where negative exponents live. Logarithms are just <mark>counting folds</mark>, and everything below is a careful version of this one picture.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Eight steps, from 2 × 2 × 2 to −ln p</h2>
+
+<h3>1. An exponent is repeated multiplication</h3>
+<p>Writing <code>2 × 2 × 2</code> gets tiring, so we write <code>2<sup>3</sup></code>, read "2 to the power 3" or "2 cubed". It means: start from 1, multiply by 2 three times.</p>
+<div class="eq">2<sup>3</sup> = 2 × 2 × 2 = 8<br>10<sup>2</sup> = 10 × 10 = 100<br>5<sup>1</sup> = 5</div>
+<dl class="defn">
+  <dt>Base, written a</dt>
+  <dd>The number that gets multiplied. In <code>2<sup>3</sup></code> the base is 2.</dd>
+  <dt>Exponent (or power), written n</dt>
+  <dd>The small raised number: how many copies of the base are multiplied. In <code>2<sup>3</sup></code> it is 3. In code it is written <code>2 ** 3</code> in Python and <code>Math.pow(2, 3)</code> or <code>2 ** 3</code> in JavaScript.</dd>
+  <dt>a<sup>n</sup></dt>
+  <dd>"a to the n": n copies of a, multiplied together. The result grows very fast: <code>2<sup>10</sup> = 1,024</code>, <code>2<sup>20</sup> = 1,048,576</code>.</dd>
+</dl>
+
+<h3>2. The rules come from counting factors</h3>
+<p>You don't need to memorise the exponent rules. Write the copies out and count them. A <strong>factor</strong> is one of the things being multiplied.</p>
+<figure>
+<svg viewBox="0 0 480 170" role="img" aria-label="2 cubed times 2 squared: three boxes of 2 and two boxes of 2 joined into one row of five boxes, which is 2 to the 5.">
+  <text x="240" y="18" font-size="15" text-anchor="middle" fill="var(--muted)">2³ · 2²: count the 2s</text>
+  <g font-size="19" text-anchor="middle">
+    <g stroke-width="1.5">
+      <rect x="40" y="34" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="88" y="34" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="136" y="34" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="296" y="34" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+      <rect x="344" y="34" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    </g>
+    <g fill="currentColor"><text x="60" y="60">2</text><text x="108" y="60">2</text><text x="156" y="60">2</text><text x="316" y="60">2</text><text x="364" y="60">2</text></g>
+    <text x="236" y="60" fill="currentColor">×</text>
+    <text x="108" y="94" font-size="15" fill="var(--accent)">2³ = 8</text>
+    <text x="340" y="94" font-size="15" fill="var(--amber)">2² = 4</text>
+    <g stroke-width="1.5">
+      <rect x="120" y="108" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="168" y="108" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="216" y="108" width="40" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="264" y="108" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+      <rect x="312" y="108" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    </g>
+    <g fill="currentColor"><text x="140" y="134">2</text><text x="188" y="134">2</text><text x="236" y="134">2</text><text x="284" y="134">2</text><text x="332" y="134">2</text></g>
+    <text x="368" y="134" font-size="16" text-anchor="start" fill="currentColor">= 2⁵ = 32</text>
+  </g>
+</svg>
+<figcaption>Three 2s next to two 2s is just five 2s in a row. That is why the exponents add: 2³ · 2² = 2³⁺² = 2⁵, and 8 × 4 = 32.</figcaption>
+</figure>
+<div class="tbl"><table>
+<thead><tr><th>Rule</th><th>Why (count the factors), with an example</th></tr></thead>
+<tbody>
+<tr><td><code>a<sup>m</sup> · a<sup>n</sup> = a<sup>m+n</sup></code></td><td>m copies, then n more copies: m + n copies.<br><code>2<sup>3</sup> · 2<sup>4</sup> = 8 × 16 = 128 = 2<sup>7</sup></code></td></tr>
+<tr><td><code>a<sup>m</sup> / a<sup>n</sup> = a<sup>m−n</sup></code></td><td>n of the copies on top cancel with the n below.<br><code>2<sup>5</sup> / 2<sup>2</sup> = 32 / 4 = 8 = 2<sup>3</sup></code></td></tr>
+<tr><td><code>(a<sup>m</sup>)<sup>n</sup> = a<sup>m·n</sup></code></td><td>n groups, each of m copies.<br><code>(2<sup>2</sup>)<sup>3</sup> = 4 × 4 × 4 = 64 = 2<sup>6</sup></code></td></tr>
+</tbody></table></div>
+<p>The first rule is the important one for us: <mark>multiplying powers of the same base adds their exponents</mark>. Hold on to it; logarithms are built on it.</p>
+
+<h3>3. Zero and negative exponents: keep halving</h3>
+<p>"Multiply 2 by itself zero times" or "minus one times" sounds like nonsense. But look at the pattern as the exponent goes down by 1: each step <em>divides by 2</em> (one fewer copy of 2).</p>
+<div class="tbl"><table style="text-align:center">
+<thead><tr><th>exponent</th><th>3</th><th>2</th><th>1</th><th>0</th><th>−1</th><th>−2</th><th>−3</th></tr></thead>
+<tbody><tr><td>2<sup>exponent</sup></td><td>8</td><td>4</td><td>2</td><td><strong>1</strong></td><td>1/2</td><td>1/4</td><td>1/8</td></tr>
+<tr><td>as a decimal</td><td>8</td><td>4</td><td>2</td><td><strong>1</strong></td><td>0.5</td><td>0.25</td><td>0.125</td></tr></tbody>
+</table></div>
+<p>Keep the pattern going and the answers are forced: <code>2<sup>0</sup> = 1</code> and <code>2<sup>−n</sup> = 1 / 2<sup>n</sup></code>. The division rule agrees: <code>2<sup>3</sup> / 2<sup>3</sup> = 2<sup>3−3</sup> = 2<sup>0</sup></code>, and anything divided by itself is 1. This is the paper unfolding past one layer. One fact matters a lot later: <strong>a positive base raised to any power is still positive</strong>. Negative exponents make it small, never negative or zero.</p>
+
+<figure>
+<svg viewBox="0 0 480 190" role="img" aria-label="A ladder of powers of 2 from one quarter to 16. Moving right multiplies by 2, which is what exponents do. The logarithm base 2 of a number is how many steps it sits from 1, negative to the left.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <text x="240" y="18" font-size="15" text-anchor="middle" fill="var(--muted)">each step right: × 2   ·   each step left: ÷ 2</text>
+  <g font-size="18" text-anchor="middle">
+    <g stroke-width="1.5">
+      <rect x="14" y="66" width="56" height="44" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+      <rect x="80" y="66" width="56" height="44" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+      <rect x="146" y="66" width="56" height="44" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+      <rect x="212" y="66" width="56" height="44" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+      <rect x="278" y="66" width="56" height="44" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+      <rect x="344" y="66" width="56" height="44" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+      <rect x="410" y="66" width="56" height="44" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    </g>
+    <g fill="currentColor"><text x="42" y="94">1/4</text><text x="108" y="94">1/2</text><text x="174" y="94" font-weight="600">1</text><text x="240" y="94">2</text><text x="306" y="94">4</text><text x="372" y="94" font-weight="600">8</text><text x="438" y="94">16</text></g>
+    <g font-size="15" fill="var(--muted)"><text x="42" y="56">2⁻²</text><text x="108" y="56">2⁻¹</text><text x="174" y="56">2⁰</text><text x="240" y="56">2¹</text><text x="306" y="56">2²</text><text x="372" y="56">2³</text><text x="438" y="56">2⁴</text></g>
+  </g>
+  <g stroke="var(--amber)" stroke-width="1.8" fill="none">
+    <path d="M178,116 Q207,140 236,116" marker-end="url(#ar)" color="var(--amber)"/>
+    <path d="M244,116 Q273,140 302,116" marker-end="url(#ar)" color="var(--amber)"/>
+    <path d="M310,116 Q339,140 368,116" marker-end="url(#ar)" color="var(--amber)"/>
+  </g>
+  <text x="273" y="160" font-size="15" text-anchor="middle" fill="var(--amber)">3 doublings from 1 to 8, so log₂ 8 = 3</text>
+  <text x="75" y="136" font-size="15" text-anchor="middle" fill="var(--muted)">log₂ ¼ = −2</text>
+  <text x="240" y="182" font-size="14" text-anchor="middle" fill="var(--muted)">exponent: steps → number   ·   log: number → steps</text>
+</svg>
+<figcaption>The same ladder read in two directions. An exponent says "take 3 steps from 1": you land on 8. A logarithm says "you're on 8: how many steps from 1?": 3. Left of 1, the step count is negative.</figcaption>
+</figure>
+
+<h3>4. The logarithm: how many times do I multiply?</h3>
+<p>The question "2 to the what is 8?" has the answer 3. We give that question a name:</p>
+<div class="eq">log<sub>2</sub> 8 = 3   because   2<sup>3</sup> = 8</div>
+<dl class="defn">
+  <dt>log<sub>b</sub> x, read "log base b of x"</dt>
+  <dd>The exponent you need on <code>b</code> to get <code>x</code>. In words: how many times do I multiply by <code>b</code>, starting from 1, to reach <code>x</code>? So <code>log<sub>b</sub> x = y</code> means exactly the same thing as <code>b<sup>y</sup> = x</code>.</dd>
+  <dt>Inverse</dt>
+  <dd>Two operations that undo each other, like "add 5" and "subtract 5". "Raise 2 to a power" and "take log base 2" are inverses: <code>log<sub>2</sub>(2<sup>3</sup>) = 3</code> and <code>2<sup>log<sub>2</sub> 8</sup> = 8</code>.</dd>
+</dl>
+<p>A few by counting: <code>log<sub>2</sub> 1024 = 10</code> (ten doublings), <code>log<sub>10</sub> 1000 = 3</code> (1000 has three tens multiplied together), <code>log<sub>2</sub> 1 = 0</code> (no steps at all). And from the halving table, <code>log<sub>2</sub> 0.125 = −3</code>. That last one is worth stating as a rule, because probabilities live there: <mark>the log of a number between 0 and 1 is negative</mark>, and it gets more negative the closer the number is to 0. You can't take the log of 0 or of a negative number: no power of a positive base ever lands there.</p>
+
+<h3>5. Logs turn multiplication into addition</h3>
+<p>Step 2 said multiplying powers adds exponents. A log <em>is</em> an exponent, so:</p>
+<div class="eq">log(x · y) = log x + log y</div>
+<p>Check with base 2: <code>8 × 16 = 128</code>. Counting steps: <code>log<sub>2</sub> 8 = 3</code>, <code>log<sub>2</sub> 16 = 4</code>, and <code>log<sub>2</sub> 128 = 7 = 3 + 4</code>. Three doublings followed by four more is seven doublings. This works for any base, and it's the main reason logs show up in machine learning.</p>
+<p><strong>Why it helps: computers can't hold tiny products.</strong> A language model gives each word of a sentence a probability, and the chance of the whole sentence is all of those multiplied together (if we treat them as independent, Lesson 06's AND rule). Say each of 200 words gets probability 0.02. The product is <code>0.02<sup>200</sup></code>, about 10<sup>−340</sup>. A standard 64-bit float can't store anything smaller than about 5 × 10<sup>−324</sup>, so the product quietly becomes <strong>0</strong>. That's called <strong>underflow</strong>, and once you hit 0 you can't compare two sentences any more. Adding logs instead gives <code>200 × ln 0.02 = −782.4</code>, an ordinary number. So models almost never multiply probabilities; they add their logs.</p>
+
+<h3>6. The special number e, from compound interest</h3>
+<p>Put $1 in a bank that pays 100% interest a year. Paid once at the end of the year, you get $2. Now suppose the bank splits it into 2 half-year payments of 50% each, and the second payment earns interest on the first: <code>1 × 1.5 × 1.5 = 2.25</code>. Split into 12 monthly payments of 1/12 each: <code>(1 + 1/12)<sup>12</sup> = 2.613035</code>. In general, with <code>n</code> payments:</p>
+<div class="eq">(1 + 1/n)<sup>n</sup></div>
+<div class="tbl"><table style="max-width:30rem">
+<thead><tr><th>n (payments per year)</th><th>(1 + 1/n)<sup>n</sup></th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2</td></tr><tr><td>2</td><td>2.25</td></tr><tr><td>12 (monthly)</td><td>2.613035</td></tr><tr><td>365 (daily)</td><td>2.714567</td></tr><tr><td>1,000,000</td><td>2.718280</td></tr>
+</tbody></table></div>
+<p>More slices help, but less and less. The total doesn't grow forever; it creeps towards a fixed number, <mark>e ≈ 2.718282</mark>. Jacob Bernoulli ran into this limit in 1683 while studying exactly this interest question. <strong>e</strong> is "what 100% growth becomes when it is compounding all the time", and that is why it keeps showing up wherever something grows or shrinks in proportion to its own size. The second lab below lets you slide <code>n</code> and watch the approach.</p>
+
+<h3>7. ln and exp: the log and power for base e</h3>
+<dl class="defn">
+  <dt>exp(x), also written e<sup>x</sup></dt>
+  <dd>e raised to the power x. <code>exp(0) = 1</code>, <code>exp(1) = e ≈ 2.718</code>. Like every positive base, it is <strong>always positive</strong>, whatever x is.</dd>
+  <dt>ln x, the natural logarithm</dt>
+  <dd>Log base e: <code>ln x = log<sub>e</sub> x</code>. It undoes exp: <code>ln(e<sup>x</sup>) = x</code> and <code>e<sup>ln x</sup> = x</code>. So <code>ln e = 1</code> and <code>ln 1 = 0</code>. In Python, <code>math.log(x)</code> with one argument is ln, and <code>math.exp(x)</code> is e<sup>x</sup>.</dd>
+</dl>
+<p>Why base e and not 2 or 10? Any base would work: switching base only multiplies every log by a fixed number (<code>ln x ≈ 0.693 × log<sub>2</sub> x</code>). Base e makes the slopes from Lesson 05 come out the cleanest (the slope of <code>e<sup>x</sup></code> is <code>e<sup>x</sup></code> itself), so ML uses it by default. When an ML paper writes "log", it almost always means ln.</p>
+<p>Two previews. In Lesson 10 a classifier turns a score <code>z</code> into a probability with the <strong>sigmoid</strong>, <code>1 / (1 + e<sup>−z</sup>)</code>. A score of 0 gives <code>1 / (1 + 1) = 0.5</code>; a score of 2.4423 gives <code>e<sup>−2.4423</sup> ≈ 0.087</code> and <code>1 / 1.087 ≈ 0.92</code>, our spam filter's answer. And because <code>e<sup>x</sup></code> is never negative, Lessons 31 and 40 use it (in <strong>softmax</strong>) to turn any list of scores into positive numbers that can be scaled into probabilities.</p>
+
+<h3>8. The shape of −ln p: a preview of log loss</h3>
+<p>Now put it together. Let <code>p</code> be the probability a model gave to the answer that turned out to be right. <code>p</code> is between 0 and 1, so <code>ln p</code> is 0 or negative (step 4). Put a minus sign in front and you get a cost that is 0 or positive:</p>
+<div class="eq">cost = −ln p</div>
+<div class="tbl"><table style="max-width:34rem">
+<thead><tr><th>p given to the right answer</th><th>−ln p</th><th>what happened</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0</td><td>certain and right: no cost</td></tr>
+<tr><td>0.92</td><td>0.0834</td><td>confident and right: tiny cost</td></tr>
+<tr><td>0.5</td><td>0.6931</td><td>a coin toss: medium cost</td></tr>
+<tr><td>0.08</td><td>2.5257</td><td>confident and wrong: big cost</td></tr>
+<tr><td>0.01</td><td>4.6052</td><td>very confident and wrong: bigger still</td></tr>
+</tbody></table></div>
+<p>Two things to notice. Near <code>p = 1</code> the curve is almost flat: going from 0.92 to 1 saves only 0.08. Near <code>p = 0</code> it shoots up without limit, because <code>ln p</code> heads to minus infinity. So <mark>being confidently wrong is punished hard</mark>, much harder than being unsure. That is exactly the behaviour Lesson 07 wants from a loss. And the "logs add" rule means the cost of a whole batch of answers is just the sum of their <code>−ln p</code>'s.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Slide p, slide n, stack up small numbers</h2>
+
+<div class="lab" id="lab1">
+  <h3>Cost lab: −ln p for any probability</h3>
+  <p style="margin-top:0">Drag the slider to set <code>p</code>, the probability a model gave to the right answer. The dot rides the curve <code>−ln p</code>; amber dots mark the table values.</p>
+  <svg id="curve" viewBox="0 0 480 270" role="img" aria-label="The curve of minus ln p for p between 0.01 and 1. It is near 0 at p equals 1 and climbs steeply as p approaches 0. A dot marks the current slider value."></svg>
+  <div class="key"><span><i></i>your p</span><span><i class="ref"></i>0.92, 0.5, 0.08, 0.01 from the table</span></div>
+  <label class="slab" for="ps">p = probability given to the right answer
+    <input type="range" id="ps" min="0.01" max="1" step="0.01" value="0.92">
+  </label>
+  <div class="fn" id="pfn"></div>
+  <div class="readout">
+    <span>p <span class="big" id="pv">0.92</span></span>
+    <span>ln p <span class="big" id="lnv">–</span></span>
+    <span>cost −ln p <span class="big" id="costv">–</span></span>
+    <span>× the cost of 0.92 <span class="big" id="ratio">–</span></span>
+    <span class="msg" id="pmsg"></span>
+  </div>
+  <div class="btns">
+    <button data-p="0.92">p = 0.92</button>
+    <button data-p="0.5" class="ghost">0.5</button>
+    <button data-p="0.08" class="ghost">0.08</button>
+    <button data-p="0.01" class="ghost">0.01</button>
+  </div>
+</div>
+
+<div class="lab" id="lab2">
+  <h3>Compounding lab: (1 + 1/n)<sup>n</sup> closes in on e</h3>
+  <p style="margin-top:0">Slide <code>n</code>, the number of interest payments per year. Each dot is one value of <code>(1 + 1/n)<sup>n</sup></code>; the dashed line is e. The x-axis jumps (1, 2, 3 … then 100, 365, a million) so the whole approach fits.</p>
+  <svg id="echart" viewBox="0 0 480 240" role="img" aria-label="Dots for (1 + 1/n) to the n for growing n, rising from 2 towards a dashed line at e, about 2.718."></svg>
+  <div class="key"><span><i></i>(1 + 1/n)<sup>n</sup></span><span><i class="line"></i>e ≈ 2.718282</span></div>
+  <label class="slab" for="ns">n = payments per year
+    <input type="range" id="ns" min="0" max="16" step="1" value="8">
+  </label>
+  <div class="fn" id="efn"></div>
+  <div class="readout">
+    <span>n <span class="big" id="nv">–</span></span>
+    <span>(1 + 1/n)<sup>n</sup> <span class="big" id="ev">–</span></span>
+    <span>gap to e <span class="big" id="gapv">–</span></span>
+  </div>
+</div>
+
+<div class="lab" id="lab3">
+  <h3>Underflow lab: multiply, or add logs?</h3>
+  <p style="margin-top:0">A model gives each of <code>k</code> words probability 0.02. Slide <code>k</code> and watch the product and the sum of logs. Both are computed live by your browser, with the same 64-bit floats Python uses.</p>
+  <label class="slab" for="ks">k = number of words
+    <input type="range" id="ks" min="1" max="300" step="1" value="200">
+  </label>
+  <div class="readout">
+    <span>k <span class="big" id="kv">–</span></span>
+    <span>0.02 × 0.02 × … <span class="big" id="prodv">–</span></span>
+    <span>ln 0.02 + ln 0.02 + … <span class="big" id="sumv">–</span></span>
+    <span class="msg" id="kmsg"></span>
+  </div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>Exponents.</strong> <code>2<sup>3</sup> = 2 × 2 × 2 = 8</code>. <code>2<sup>0</sup> = 1</code>. <code>2<sup>−1</sup> = 1/2 = 0.5</code>, <code>2<sup>−3</sup> = 1/8 = 0.125</code>. Counting factors: <code>2<sup>3</sup> · 2<sup>4</sup> = 8 × 16 = 128 = 2<sup>7</sup></code>.</p>
+<p><strong>Logs.</strong> <code>log<sub>2</sub> 8 = 3</code>, <code>log<sub>2</sub> 1024 = 10</code>, <code>log<sub>2</sub> 0.125 = −3</code>. Multiplication into addition: <code>log<sub>2</sub>(8 × 16) = log<sub>2</sub> 128 = 7 = 3 + 4</code>.</p>
+<p><strong>e.</strong> <code>n = 1</code>: <code>2</code>. <code>n = 2</code>: <code>1.5 × 1.5 = 2.25</code>. <code>n = 12</code>: <code>1.083333…<sup>12</sup> = 2.613035</code>. Then 2.714567 for daily, 2.718280 for a million, closing in on <code>e = 2.718281828…</code>. Also <code>ln e = 1</code>, <code>ln 1 = 0</code>, and <code>e<sup>ln 5</sup> = 5</code> (exp undoes ln).</p>
+<p><strong>Sigmoid preview.</strong> <code>e<sup>−2.4423</sup> ≈ 0.087</code>, so <code>1 / (1 + 0.087) ≈ 0.92</code>.</p>
+<p><strong>Costs.</strong> <code>−ln 0.92 = 0.0834</code>, <code>−ln 0.5 = 0.6931</code>, <code>−ln 0.08 = 2.5257</code>, <code>−ln 0.01 = 4.6052</code>. Logs add, so two answers of 0.92 and 0.5 cost <code>0.0834 + 0.6931 = 0.7765</code>, the same as <code>−ln(0.92 × 0.5) = −ln 0.46 = 0.7765</code>.</p>
+<p><strong>Underflow.</strong> 200 words at 0.02 each: the product is about 10<sup>−340</sup>, below the smallest float, so it becomes 0. The sum of logs is <code>200 × ln 0.02 = 200 × (−3.912) = −782.4</code>.</p>
+<pre><code>import math
+
+<span class="c"># exponents: repeated multiplication</span>
+print(2 ** 3, 2 ** 0, 2 ** -1, 2 ** -3)    <span class="c"># 8 1 0.5 0.125</span>
+print(2 ** 3 * 2 ** 4, 2 ** 7)              <span class="c"># 128 128</span>
+
+<span class="c"># logarithms: "how many times do I multiply?"</span>
+print(math.log2(8), math.log2(1024), math.log2(0.125))   <span class="c"># 3.0 10.0 -3.0</span>
+print(math.log2(8 * 16), math.log2(8) + math.log2(16))   <span class="c"># 7.0 7.0</span>
+
+<span class="c"># e from compound growth: $1 at 100% a year, paid in n slices</span>
+for n in [1, 2, 12, 365, 1_000_000]:
+    print(n, round((1 + 1 / n) ** n, 6))
+<span class="c"># 1 2.0</span>
+<span class="c"># 2 2.25</span>
+<span class="c"># 12 2.613035</span>
+<span class="c"># 365 2.714567</span>
+<span class="c"># 1000000 2.71828</span>
+print(math.e, math.exp(1))       <span class="c"># 2.718281828459045 2.718281828459045</span>
+print(math.log(math.e), math.log(1), round(math.exp(math.log(5)), 10))   <span class="c"># 1.0 0.0 5.0</span>
+
+<span class="c"># the sigmoid from Lesson 10 uses e: a score of 2.4423 becomes 0.92</span>
+print(round(1 / (1 + math.exp(-2.4423)), 4))   <span class="c"># 0.92</span>
+
+<span class="c"># -ln p: the cost of giving the right answer probability p</span>
+for p in [0.92, 0.5, 0.08, 0.01]:
+    print(p, round(-math.log(p), 4))
+<span class="c"># 0.92 0.0834</span>
+<span class="c"># 0.5 0.6931</span>
+<span class="c"># 0.08 2.5257</span>
+<span class="c"># 0.01 4.6052</span>
+
+<span class="c"># multiplying many small probabilities underflows; adding logs does not</span>
+probs = [0.02] * 200
+product = 1.0
+for p in probs:
+    product *= p
+print(product)                                          <span class="c"># 0.0</span>
+print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4</span></code></pre>
+<p>Python prints the million-slice value as <code>2.71828</code> because rounding to 6 places gives 2.718280 and the trailing zero is dropped. The underflow line is the one to remember: a plain loop of multiplications returns exactly 0.0, with no error or warning.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"2³ means 2 × 3."</span>It means three 2s multiplied: 2 × 2 × 2 = 8, not 6. The exponent counts copies; it is not a second number to multiply by. The gap grows fast: 2<sup>10</sup> is 1,024, while 2 × 10 is 20.</div>
+  <div><span class="wrong">"A negative exponent gives a negative number."</span>It gives a small positive number: 2<sup>−3</sup> = 1/8 = 0.125. The minus sign means "divide instead of multiply". It's the <em>log</em> of a number below 1 that is negative, which is why log loss needs a minus sign in front to become a positive cost.</div>
+  <div><span class="wrong">"log(x + y) = log x + log y."</span>Logs turn <em>multiplication</em> into addition, not addition into addition. <code>log<sub>2</sub>(8 + 8) = log<sub>2</sub> 16 = 4</code>, but <code>log<sub>2</sub> 8 + log<sub>2</sub> 8 = 6</code>, which is <code>log<sub>2</sub>(8 × 8) = log<sub>2</sub> 64</code>. There is no simple rule for the log of a sum.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. What is 10<sup>−2</sup>, and what is log<sub>10</sub> 0.01?</p><summary>Show answer</summary><p class="a"><code>10<sup>−2</sup> = 1 / 10<sup>2</sup> = 1/100 = 0.01</code>. The log asks the same question backwards, "10 to the what is 0.01?", so <code>log<sub>10</sub> 0.01 = −2</code>. A number below 1 has a negative log.</p></details>
+<details><p class="q">2. A model gave the right answer probability 0.5 on one email and 0.25 on another. Using −ln 0.5 = 0.6931, what is −ln 0.25?</p><summary>Show answer</summary><p class="a"><code>0.25 = 0.5 × 0.5</code>, and logs turn multiplication into addition, so <code>−ln 0.25 = 0.6931 + 0.6931 = 1.3863</code>. Halving the probability given to the right answer always adds the same 0.6931 to the cost.</p></details>
+<details><p class="q">3. Why do models add up log-probabilities instead of multiplying probabilities?</p><summary>Show answer</summary><p class="a">Multiplying hundreds of numbers below 1 produces a value too small for a float to store, so it rounds to 0 (underflow) and every long sentence looks equally impossible. Because <code>ln(x · y) = ln x + ln y</code>, adding logs carries the same information as the product, but as an ordinary number like −782.4.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">An exponent counts how many times you multiply, a log reads that count back, and because logs turn products into sums, −ln p gives a cost that is tiny when a model is confidently right and huge when it is confidently wrong.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Back to the course</span>Next: Lesson 07 · Loss functions (coming)</h2>
+<p>With <code>−ln p</code> in hand, Lesson 07 is a short step: it adds up that cost over every example in the data, and that sum is the number training pushes down. Until it ships, re-read the end of <a href="06-probability.html">Lesson 06</a>, where the "0.92 spam" output comes from.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://betterexplained.com/articles/demystifying-the-natural-logarithm-ln/" target="_blank" rel="noopener">Better Explained: Demystifying the Natural Logarithm (ln)</a>, a plain-language take on ln as "time needed to grow", with a companion article, <a href="https://betterexplained.com/articles/an-intuitive-guide-to-exponential-functions-e/" target="_blank" rel="noopener">An Intuitive Guide To Exponential Functions &amp; e</a>, that builds e from compounding.</li>
+  <li><a href="https://www.3blue1brown.com/lessons/eulers-number" target="_blank" rel="noopener">3Blue1Brown: What's so special about Euler's number e?</a>, an animated lesson from the Essence of Calculus series on why e<sup>x</sup> is its own slope.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="m03-summation.html">← Math M03 · Summation (Σ) and averages</a>
+  <span class="muted">Next: Math M05 · Partial derivatives and the gradient (coming soon)</span>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const ns="http://www.w3.org/2000/svg";
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+
+  /* ---------- Lab 1: -ln p ---------- */
+  const svg=$('curve'), L=50, R=466, T=14, B=226, YMAX=5;
+  const px=p=>L+p*(R-L), py=v=>B-Math.min(v,YMAX)/YMAX*(B-T);
+  const REF=[0.92,0.5,0.08,0.01];
+  const C92=-Math.log(0.92);
+  const f4=v=>(Math.round(v*1e4)/1e4).toFixed(4).replace('-','−');
+  function drawCurve(p){
+    svg.innerHTML='';
+    for(let v=0;v<=YMAX;v++){
+      el(svg,'line',{x1:L,y1:py(v),x2:R,y2:py(v),stroke:'var(--line)'});
+      el(svg,'text',{x:L-8,y:py(v)+5,'font-size':16,'text-anchor':'end',fill:'var(--muted)'},String(v));
+    }
+    [0,0.25,0.5,0.75,1].forEach(t=>{
+      el(svg,'line',{x1:px(t),y1:B,x2:px(t),y2:B+5,stroke:'var(--muted)'});
+      el(svg,'text',{x:px(t),y:B+22,'font-size':16,'text-anchor':'middle',fill:'var(--muted)'},String(t));
+    });
+    el(svg,'line',{x1:L,y1:B,x2:R,y2:B,stroke:'var(--muted)'});
+    el(svg,'line',{x1:L,y1:T,x2:L,y2:B,stroke:'var(--muted)'});
+    el(svg,'text',{x:R,y:B+40,'font-size':15,'text-anchor':'end',fill:'var(--muted)'},'p →');
+    el(svg,'text',{x:L+16,y:T+14,'font-size':15,fill:'var(--muted)'},'−ln p');
+    let d='';
+    for(let i=0;i<=400;i++){const q=0.0067+i*(1-0.0067)/400; d+=(i?'L':'M')+px(q).toFixed(1)+','+py(-Math.log(q)).toFixed(1);}
+    el(svg,'path',{d,fill:'none',stroke:'var(--ink)','stroke-width':2});
+    REF.forEach(q=>el(svg,'circle',{cx:px(q),cy:py(-Math.log(q)),r:4,fill:'var(--amber)'}));
+    const c=-Math.log(p), x=px(p), y=py(c);
+    el(svg,'line',{x1:x,y1:B,x2:x,y2:y,stroke:'var(--accent)','stroke-dasharray':'4 4','stroke-width':1.5});
+    el(svg,'line',{x1:L,y1:y,x2:x,y2:y,stroke:'var(--accent)','stroke-dasharray':'4 4','stroke-width':1.5});
+    el(svg,'circle',{cx:x,cy:y,r:7,fill:'var(--accent)',stroke:'var(--panel)','stroke-width':2});
+    const right=p<0.6;
+    el(svg,'text',{x:right?x+12:x,y:right?Math.max(y-18,T+30):y-34,'font-size':17,'font-weight':600,'text-anchor':right?'start':'end',fill:'var(--accent)'},'−ln '+p.toFixed(2)+' = '+f4(c));
+  }
+  function setP(p){
+    p=Math.round(p*100)/100;
+    $('ps').value=p;
+    const c=-Math.log(p);
+    drawCurve(p);
+    $('pv').textContent=p.toFixed(2);
+    $('lnv').textContent=f4(-c);
+    $('costv').textContent=f4(c);
+    $('ratio').textContent=(c/C92).toFixed(1)+'×';
+    $('pfn').innerHTML=`e<sup>${f4(-c)}</sup> = ${p.toFixed(2)}, so ln ${p.toFixed(2)} = <b>${f4(-c)}</b> and the cost is <b>${f4(c)}</b>`;
+    let m;
+    if(p===1) m='Certain and right: ln 1 = 0, so the cost is exactly 0.';
+    else if(p>=0.8) m='Confident and right: the curve is nearly flat here, so the cost is small.';
+    else if(p>=0.3) m='Unsure: a medium cost. At 0.5 it is ln 2 ≈ 0.6931, a coin toss.';
+    else if(p>=0.05) m='Confidently wrong: the curve is climbing steeply now.';
+    else m='Very confidently wrong: each halving of p adds another 0.6931, and at p = 0 the cost would be infinite.';
+    $('pmsg').textContent=m;
+  }
+  $('ps').addEventListener('input',e=>setP(+e.target.value));
+  document.querySelectorAll('#lab1 button[data-p]').forEach(b=>b.addEventListener('click',()=>setP(+b.dataset.p)));
+  setP(0.92);
+
+  /* ---------- Lab 2: (1 + 1/n)^n -> e ---------- */
+  const N=[1,2,3,4,5,6,8,10,12,20,50,100,365,1000,10000,100000,1000000];
+  const es=$('echart'), EL=50, ER=466, ET=14, EB=196, Y0=2.0, Y1=2.8;
+  const ex=i=>EL+12+i*(ER-EL-24)/(N.length-1), ey=v=>EB-(v-Y0)/(Y1-Y0)*(EB-ET);
+  const comp=n=>Math.pow(1+1/n,n);
+  const LBL={0:'1',2:'3',8:'12',12:'365',16:'1M'};
+  function setN(i){
+    es.innerHTML='';
+    for(let v=2.0;v<=2.8+1e-9;v+=0.2){
+      el(es,'line',{x1:EL,y1:ey(v),x2:ER,y2:ey(v),stroke:'var(--line)'});
+      el(es,'text',{x:EL-8,y:ey(v)+5,'font-size':16,'text-anchor':'end',fill:'var(--muted)'},v.toFixed(1));
+    }
+    el(es,'line',{x1:EL,y1:EB,x2:ER,y2:EB,stroke:'var(--muted)'});
+    el(es,'line',{x1:EL,y1:ey(Math.E),x2:ER,y2:ey(Math.E),stroke:'var(--amber)','stroke-width':2,'stroke-dasharray':'6 4'});
+    el(es,'text',{x:EL+6,y:ey(Math.E)-8,'font-size':16,fill:'var(--amber)'},'e');
+    for(const k in LBL) el(es,'text',{x:ex(+k),y:EB+22,'font-size':16,'text-anchor':'middle',fill:'var(--muted)'},LBL[k]);
+    el(es,'text',{x:ER,y:EB+40,'font-size':15,'text-anchor':'end',fill:'var(--muted)'},'n →');
+    for(let j=0;j<=i;j++){
+      el(es,'circle',{cx:ex(j),cy:ey(comp(N[j])),r:j===i?7:4,fill:'var(--accent)',opacity:j===i?1:.45});
+    }
+    const n=N[i], v=comp(n);
+    $('nv').textContent=n.toLocaleString('en-US');
+    $('ev').textContent=v.toFixed(6);
+    $('gapv').textContent=(Math.E-v).toFixed(6);
+    $('efn').innerHTML=`(1 + 1/${n.toLocaleString('en-US')})<sup>${n.toLocaleString('en-US')}</sup> = ${(1+1/n).toFixed(n>=1000?7:6)}<sup>${n.toLocaleString('en-US')}</sup> = <b>${v.toFixed(6)}</b>`;
+  }
+  $('ns').addEventListener('input',e=>setN(+e.target.value));
+  setN(8);
+
+  /* ---------- Lab 3: product vs sum of logs ---------- */
+  function setK(k){
+    let prod=1, s=0, zeroAt=null;
+    for(let i=1;i<=k;i++){prod*=0.02; s+=Math.log(0.02); if(prod===0&&zeroAt===null) zeroAt=i;}
+    $('kv').textContent=k;
+    $('prodv').textContent=prod===0?'0 (underflow)':prod.toExponential(3);
+    $('sumv').textContent=(Math.round(s*100)/100).toFixed(2).replace('-','−');
+    $('kmsg').textContent= prod===0
+      ? `The product hit exactly 0 at k = ${zeroAt}: the true value is far below the smallest number a float can hold. The sum of logs, ${(Math.round(s*100)/100).toFixed(2).replace('-','−')}, is still a perfectly ordinary number.`
+      : k>150 ? 'The product is getting close to the smallest number a 64-bit float can store (about 5e-324). Keep sliding.'
+      : 'Both columns are fine for now. Each extra word multiplies the product by 0.02, and adds ln 0.02 ≈ −3.912 to the sum.';
+  }
+  $('ks').addEventListener('input',e=>setK(+e.target.value));
+  setK(200);
+})();
+</script>
+</body>
+</html>

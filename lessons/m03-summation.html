@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math M03 · Summation (Σ) and averages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 .95rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-wrap: anywhere; }
+  .fn b { color: var(--accent); }
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; font: 500 .85rem/1.4 var(--mono); }
+  .lab select, .lab input[type=text] { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; width: 100%; max-width: 100%; min-width: 0; }
+
+  /* added for math M03 */
+  .sig { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1; margin: 0 .2em 0 0; }
+  .sig .s { font-size: 1.7em; line-height: .95; }
+  .sig small { font-size: .62em; }
+  .side { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: 1.2rem 0; }
+  .side > div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; min-width: 0; }
+  .side .hd { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; }
+  .side .eqbig { font: 500 1.15rem/1.5 var(--mono); text-align: center; padding: .6rem 0; }
+  .side pre { margin: 0; border: 0; padding: 0; background: none; }
+  .side ul { margin: .4rem 0 0; font-size: .92rem; }
+  @media (max-width: 640px) { .side { grid-template-columns: 1fr; } }
+  .code { font: 500 .85rem/1.65 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .2rem; margin-top: .9rem; overflow-x: auto; }
+  .code div { padding: 0 .7rem; white-space: pre; border-left: 3px solid transparent; }
+  .code div.on { background: var(--accent-soft); border-left-color: var(--accent); }
+  .terms { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
+  .term { font: 500 .78rem/1.35 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: .3rem .5rem; background: var(--paper); color: var(--muted); min-width: 4.2rem; font-variant-numeric: tabular-nums; }
+  .term b { display: block; font-size: .95rem; color: var(--ink); }
+  .term.done { border-color: var(--accent); color: var(--ink); }
+  .term.now { background: var(--accent-soft); border: 2px solid var(--accent); padding: calc(.3rem - 1px) calc(.5rem - 1px); }
+  .term.todo b { color: var(--muted); }
+  .unroll { font: 500 .9rem/1.6 var(--mono); margin-top: .7rem; overflow-wrap: anywhere; }
+  .unroll b { color: var(--accent); }
+  .lab svg#line { margin-top: .6rem; }
+  .err { color: var(--bad); }
+  .rules { display: grid; gap: .7rem; margin: 1rem 0; }
+  .rules > div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; min-width: 0; }
+  .rules .rn { font: 500 .78rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .rules .rs { font: 600 1.05rem/1.5 var(--mono); margin: .3rem 0; overflow-wrap: anywhere; }
+  .rules p { margin: .3rem 0 0; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Math toolkit</span><span>Math M03 of 11</span><span>~14 min read</span></div>
+  <h1><span class="num">M03</span> · Summation (Σ) and averages</h1>
+  <p class="lede">The big Greek Σ looks scary, but it is a for-loop you already write every week: start a total at zero, walk through a list, add one thing each time. Divide that total by how many things you added and you have an average, the number behind every "mean error" a model reports.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where this is used</span>Lessons that lean on Σ</h2>
+<p><a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> (total squared error, and the average 22.8 as the best constant guess) and <a href="06-probability.html">Lesson 06 · Probability basics</a> (the expected value <code>E[X] = Σ x · P(X = x)</code>). Coming next: Lesson 07 · Loss functions (coming), Lesson 09 · Linear regression (coming) and Lesson 14 · Evaluation metrics (coming), which all start with "add this up over every example, then divide".</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Every loss is a sum</h2>
+<p>A model is never judged on one example. It makes a guess for every row in the data, gets a miss on each, and the training loop needs <em>one</em> number to push down. That number is almost always "add up the misses, then divide by how many there were", written in papers as <code>(1/n) Σ (yᵢ − ŷᵢ)²</code>. If you can read that line as a loop, half of the formulas in ML stop being decoration.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A shopping receipt and a shared bill</h2>
+<p>A supermarket receipt is a sum. The till goes down the list of items one at a time and keeps a running total; the last line is everything added together. Nobody needs a formula for that. Σ is only a short way to <mark>write down the instruction</mark> "go down the list and keep a running total".</p>
+<p>Now five friends split a dinner bill. One ate a lot, one only had soup. The fair share is the total divided by five: everyone pays the same amount, and the bill is still covered. That fair share is the <strong>average</strong> (also called the <strong>mean</strong>). The friends who ate more than the fair share make up for the ones who ate less, exactly, to the rupee. Hold on to that "they cancel out" feeling; it is why the average is called a balance point.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>From a list to Σ to the average, in seven steps</h2>
+
+<h3>1. Adding a list, the long way</h3>
+<p>Lesson 03 had five flats with monthly rents (in thousands of rupees) of 14, 19, 22, 28 and 31. The total is</p>
+<div class="eq">14 + 19 + 22 + 28 + 31 = 114</div>
+<p>Fine for five numbers. For 50,000 training examples we cannot write every term, and we want one line that works for any list. That needs two small tools: names for the items, and a symbol for "add them all".</p>
+
+<h3>2. Naming the items: subscripts</h3>
+<p>Call the list <code>y</code> and number its items from 1. The small number written low after the letter is a <strong>subscript</strong>, and it just says "which one":</p>
+<div class="eq">y₁ = 14,  y₂ = 19,  y₃ = 22,  y₄ = 28,  y₅ = 31</div>
+<p>Read <code>y₃</code> as "y sub three" or "the third y". It is exactly <code>y[3]</code> in code, except that maths usually counts from 1 where Python counts from 0. When we don't want to say which item, we write <code>yᵢ</code>, "the i-th y", where <code>i</code> stands for any position. The length of the list gets its own letter, <code>n</code>; here <code>n = 5</code>.</p>
+
+<h3>3. The Σ sign: a for-loop on paper</h3>
+<p>Σ is the capital Greek letter sigma, the Greek S, for <strong>S</strong>um. Here is the total rent written with it, next to the same thing in Python:</p>
+<div class="side">
+  <div>
+    <div class="hd">Maths</div>
+    <div class="eqbig"><span class="sig"><small>5</small><span class="s">Σ</span><small>i=1</small></span>yᵢ = 114</div>
+    <ul>
+      <li><code>i=1</code> below: start the counter at 1</li>
+      <li><code>5</code> on top: stop after i = 5</li>
+      <li><code>yᵢ</code> on the right: what to add each time</li>
+    </ul>
+  </div>
+  <div>
+    <div class="hd">Python</div>
+<pre><code><span class="c"># pad so y[1] is the first item</span>
+y = [None, 14, 19, 22, 28, 31]
+n = 5
+total = 0
+for i in range(1, n + 1):  <span class="c"># 1..5</span>
+    total += y[i]
+print(total)               <span class="c"># 114</span></code></pre>
+  </div>
+</div>
+<dl class="defn">
+  <dt>Σ, "sum" (capital sigma)</dt>
+  <dd>Add up the expression on its right, once for every value of the counter. In code: <code>total = 0</code>, then a loop of <code>total += …</code>. The starting zero is built in: Σ never starts from anything else.</dd>
+  <dt>i, the index</dt>
+  <dd>The loop counter. It is a placeholder: <code>Σ yᵢ</code> and <code>Σ yⱼ</code> mean the same thing, just as renaming <code>i</code> to <code>j</code> in a loop changes nothing.</dd>
+  <dt>The start (below) and the stop (on top)</dt>
+  <dd>Where the counter begins and the last value it takes, both included. <code>i = 1</code> to <code>5</code> runs through 1, 2, 3, 4, 5: five terms. Python's <code>range(1, n + 1)</code> needs the <code>+ 1</code> because <code>range</code> stops just <em>before</em> its end.</dd>
+  <dt>The expression (on the right)</dt>
+  <dd>The loop body: the thing computed and added on each pass. It may be just <code>yᵢ</code>, or something built from it like <code>yᵢ²</code>.</dd>
+  <dt>Shortcuts you'll see</dt>
+  <dd>When the range is "every item", books often drop it and write <code>Σᵢ yᵢ</code> or just <code>Σ y</code>. Read it as <code>sum(y)</code>.</dd>
+</dl>
+
+<h3>4. Sums of expressions</h3>
+<p>The expression on the right can be any calculation. Each pass, you compute it for the current <code>i</code> and add the result. Two you will meet constantly:</p>
+<ul>
+  <li><code>Σ xᵢ²</code>: square each item, then add the squares. For the areas <code>x = 4, 6, 8, 10, 12</code> that is <code>16 + 36 + 64 + 100 + 144 = 360</code>.</li>
+  <li><code>Σ (yᵢ − ŷᵢ)²</code>: the total squared error from Lesson 03. Here <code>yᵢ</code> is the true rent of flat <code>i</code> and <code>ŷᵢ</code> ("y-hat i") is the model's guess for it. The loop body is "miss, squared".</li>
+</ul>
+<p>With the guess <code>ŷ = 2x + 6</code>, flat by flat:</p>
+<div class="tbl"><table style="max-width:34rem">
+<thead><tr><th>i</th><th>xᵢ</th><th>yᵢ</th><th>ŷᵢ = 2xᵢ + 6</th><th>yᵢ − ŷᵢ</th><th>(yᵢ − ŷᵢ)²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>4</td><td>14</td><td>14</td><td>0</td><td>0</td></tr>
+<tr><td>2</td><td>6</td><td>19</td><td>18</td><td>1</td><td>1</td></tr>
+<tr><td>3</td><td>8</td><td>22</td><td>22</td><td>0</td><td>0</td></tr>
+<tr><td>4</td><td>10</td><td>28</td><td>26</td><td>2</td><td>4</td></tr>
+<tr><td>5</td><td>12</td><td>31</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td class="tot" colspan="5">Σ (yᵢ − ŷᵢ)²</td><td class="tot">6</td></tr>
+</tbody></table></div>
+<p>That 6 is the "Total 6" of Lesson 03's second guess. (Lesson 03 wrote the miss as <code>ŷ − y</code>; after squaring, the sign doesn't matter.) The order of work inside one term follows the usual rules: inside the brackets first, then the square, and only then add it to the total.</p>
+
+<h3>5. Three handy rules, and why they are true</h3>
+<p>Because a sum is only repeated addition, a few shortcuts follow from ordinary arithmetic. Each one is checked here with the areas <code>x = 4, 6, 8, 10, 12</code>, where <code>Σ xᵢ = 40</code>.</p>
+<div class="rules">
+  <div><span class="rn">Rule 1 · Pull a constant out</span><div class="rs">Σ c·xᵢ = c · Σ xᵢ</div>
+  <p><strong>Why:</strong> every term carries the same factor c, so factor it out once: <code>2·4 + 2·6 + … = 2·(4 + 6 + …)</code>.<br><strong>Check:</strong> <code>8 + 12 + 16 + 20 + 24 = 80 = 2 × 40</code></p></div>
+  <div><span class="rn">Rule 2 · A constant, added n times</span><div class="rs">Σ c = n · c</div>
+  <p><strong>Why:</strong> the loop body ignores i, so every pass adds the same c.<br><strong>Check:</strong> <code>6 + 6 + 6 + 6 + 6 = 5 × 6 = 30</code></p></div>
+  <div><span class="rn">Rule 3 · Split a sum</span><div class="rs">Σ (aᵢ + bᵢ) = Σ aᵢ + Σ bᵢ</div>
+  <p><strong>Why:</strong> addition doesn't care about order, so regroup: all the a's first, then all the b's.<br><strong>Check:</strong> <code>Σ (2xᵢ + 6) = 80 + 30 = 110</code></p></div>
+</div>
+<p>Check the last one the slow way: the guesses <code>2xᵢ + 6</code> are 14, 18, 22, 26, 30, which add to 110. Same answer, and with the rules we never wrote the five guesses out. In code terms, the split rule says one loop doing two additions equals two loops doing one each.</p>
+<p>What does <em>not</em> work: pulling a square or a product out. <code>Σ xᵢ² = 360</code>, but <code>(Σ xᵢ)² = 40² = 1600</code>. "Square, then add" and "add, then square" are different loops.</p>
+
+<h3>6. The mean: total divided by count</h3>
+<div class="eq">ȳ = (1/n) · <span class="sig"><small>n</small><span class="s">Σ</span><small>i=1</small></span>yᵢ = 114 / 5 = 22.8</div>
+<dl class="defn">
+  <dt>ȳ, "y-bar", the mean</dt>
+  <dd>The average of the y's: add them up, divide by how many. A bar over a letter is the usual way to write "the average of".</dd>
+  <dt>(1/n) · Σ</dt>
+  <dd>"Average over all items." Multiplying by <code>1/n</code> is the same as dividing by <code>n</code>; by rule 1 it could sit inside or outside the Σ.</dd>
+</dl>
+<p><strong>Fair share.</strong> If all five flats charged the same rent and the landlords' total income stayed 114, each would charge 22.8. That is what the mean means: <mark>the one value that, used for everyone, gives the same total</mark>.</p>
+<p><strong>Balance point.</strong> Measure each rent's distance from the mean: −8.8, −3.8, −0.8, +5.2, +8.2. The ones below add to 13.4, the ones above add to 13.4. They cancel exactly, always, for any list. The rules from step 5 prove it in one line:</p>
+<div class="eq">Σ (yᵢ − ȳ) = Σ yᵢ − n·ȳ = 114 − 5 × 22.8 = 0</div>
+<p>(Split the sum, then the constant <code>ȳ</code> added n times is <code>n·ȳ</code>, which is the total by definition.) Put the five rents on a ruler as equal weights and the ruler balances on a pivot at 22.8. That is the picture in the lab below.</p>
+<p><strong>The best constant guess.</strong> Lesson 03 said that if a model must guess one number for every flat, the best is the average. Try it: the total squared error <code>Σ (yᵢ − c)²</code> is 190 for <code>c = 22</code>, 187 for <code>c = 23</code>, and 186.8 for <code>c = 22.8</code>, the lowest. Any other c leaves the misses unbalanced and pays for it. Lesson 05's slopes can prove this in general; for now, the numbers show it.</p>
+<p><strong>Mean squared error.</strong> Average the squared misses instead of adding them and you get the <strong>mean squared error</strong>, MSE: <code>(1/n) Σ (yᵢ − ŷᵢ)² = 6 / 5 = 1.2</code>. Same information as the total, but it doesn't grow just because you have more rows, so 1.2 on 5 flats and on 5,000 flats can be compared. This is the loss of Lesson 07.</p>
+
+<h3>7. The weighted average, and why E[X] is one</h3>
+<p>The plain mean treats every item the same. Sometimes items should count for different amounts. Say homework counts for 40% of a grade and the exam for 60%, and you scored 80 and 70. The plain average is 75, but the grade is <code>0.4 × 80 + 0.6 × 70 = 32 + 42 = 74</code>: the exam pulls harder.</p>
+<div class="eq">weighted average = Σ wᵢ·xᵢ / Σ wᵢ</div>
+<dl class="defn">
+  <dt>wᵢ, the weight of item i</dt>
+  <dd>How much item i counts. Weights can't be negative. When they already add up to 1 (like 0.4 and 0.6), the bottom <code>Σ wᵢ</code> is 1 and you can leave it off.</dd>
+  <dt>The plain mean is a special case</dt>
+  <dd>Give every item weight <code>1/n</code>: the weights add to 1 and <code>Σ (1/n)·xᵢ</code> is exactly the mean.</dd>
+</dl>
+<p>Now look again at Lesson 06's expected value, <code>E[X] = Σ x · P(X = x)</code>. It is a weighted average where <mark>the weights are probabilities</mark>, which always add up to 1. The "!" counts of Lesson 06 took the values 0 to 5 with probabilities 0.25, 0.25, 0.125, 0.125, 0.125, 0.125, so</p>
+<div class="eq">E[X] = 0×0.25 + 1×0.25 + 2×0.125 + 3×0.125 + 4×0.125 + 5×0.125 = 2</div>
+<p>A fair die gives every face weight 1/6, so its E[X] is the plain average of 1 to 6, 3.5. The loaded die that shows 6 half the time gives the 6 a heavier weight and the balance point slides up to 4.5. Same Σ, different weights.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Reading the symbol, then running the loop</h2>
+
+<figure>
+<svg viewBox="0 0 440 270" role="img" aria-label="The sum from i equals 1 to 5 of x sub i, with labels: sigma means add them all up, the 5 on top is where the counter stops, i equals 1 below is where it starts, i is the loop counter, and x sub i is the expression added on each pass. Below it is unrolled as x1 plus x2 plus x3 plus x4 plus x5.">
+  <text x="160" y="62" font-size="22" text-anchor="middle" fill="currentColor" font-weight="600">5</text>
+  <text x="160" y="138" font-size="84" text-anchor="middle" fill="var(--accent)">Σ</text>
+  <text x="160" y="172" font-size="20" text-anchor="middle" fill="currentColor" font-weight="600">i = 1</text>
+  <text x="206" y="124" font-size="36" fill="currentColor" font-weight="600">xᵢ</text>
+  <g stroke="var(--muted)" stroke-width="1.2" fill="none">
+    <path d="M172 52 L244 30"/>
+    <path d="M190 166 L244 194"/>
+    <path d="M140 174 L96 214"/>
+    <path d="M118 100 L80 70"/>
+    <path d="M250 112 L272 112"/>
+  </g>
+  <g font-size="13" fill="currentColor">
+    <text x="248" y="28"><tspan fill="var(--accent)" font-weight="600">stop</tspan>: i ends at 5</text>
+    <text x="248" y="44" fill="var(--muted)">(the last term)</text>
+    <text x="248" y="196"><tspan fill="var(--accent)" font-weight="600">start</tspan>: i begins at 1</text>
+    <text x="276" y="108"><tspan fill="var(--accent)" font-weight="600">expression</tspan>:</text>
+    <text x="276" y="124" fill="var(--muted)">what to add</text>
+    <text x="276" y="140" fill="var(--muted)">on each pass</text>
+    <text x="10" y="230"><tspan fill="var(--accent)" font-weight="600">index i</tspan>: the loop counter</text>
+    <text x="10" y="56"><tspan fill="var(--accent)" font-weight="600">Σ</tspan>: add them</text>
+    <text x="10" y="72" fill="var(--muted)">all up</text>
+  </g>
+  <line x1="10" y1="244" x2="430" y2="244" stroke="var(--line)"/>
+  <text x="220" y="264" font-size="15" text-anchor="middle" fill="currentColor">= x₁ + x₂ + x₃ + x₄ + x₅</text>
+</svg>
+<figcaption>Every part of the symbol is a part of a loop: the counter, where it starts, where it stops, and the body. "Unrolling" it means writing out every pass.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 420 240" role="img" aria-label="Bar chart of the five rents 14, 19, 22, 28 and 31 with a dashed line at the mean 22.8. The parts of flats D and E above the line, 5.2 and 8.2, add to 13.4, exactly filling the gaps under the line for flats A, B and C, 8.8, 3.8 and 0.8.">
+  <g font-size="13" text-anchor="middle" font-weight="600">
+    <text x="72" y="28" fill="var(--bad)">−8.8</text><text x="142" y="28" fill="var(--bad)">−3.8</text><text x="212" y="28" fill="var(--bad)">−0.8</text>
+    <text x="282" y="28" fill="var(--ok)">+5.2</text><text x="352" y="28" fill="var(--ok)">+8.2</text>
+  </g>
+  <g stroke="var(--accent)" stroke-width="1.5" fill="var(--accent-soft)">
+    <rect x="50" y="130" width="44" height="70"/>
+    <rect x="120" y="105" width="44" height="95"/>
+    <rect x="190" y="90" width="44" height="110"/>
+    <rect x="260" y="86" width="44" height="114"/>
+    <rect x="330" y="86" width="44" height="114"/>
+  </g>
+  <g stroke="var(--amber)" stroke-width="1.5" fill="var(--amber-soft)">
+    <rect x="260" y="60" width="44" height="26"/>
+    <rect x="330" y="45" width="44" height="41"/>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1.5" fill="none" stroke-dasharray="4 3">
+    <rect x="50" y="86" width="44" height="44"/>
+    <rect x="120" y="86" width="44" height="19"/>
+    <rect x="190" y="86" width="44" height="4"/>
+  </g>
+  <line x1="10" y1="86" x2="410" y2="86" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="7 4"/>
+  <text x="12" y="79" font-size="12" fill="currentColor">mean 22.8</text>
+  <line x1="40" y1="200" x2="384" y2="200" stroke="var(--muted)"/>
+  <g font-size="13" text-anchor="middle" fill="currentColor">
+    <text x="72" y="218">A 14</text><text x="142" y="218">B 19</text><text x="212" y="218">C 22</text><text x="282" y="218">D 28</text><text x="352" y="218">E 31</text>
+  </g>
+  <text x="210" y="236" font-size="11" text-anchor="middle" fill="var(--muted)">rent, ₹ thousands</text>
+</svg>
+<figcaption>Fair share: cut the amber tops off D and E (5.2 + 8.2 = 13.4) and pour them into the dashed gaps of A, B and C (8.8 + 3.8 + 0.8 = 13.4). They fit exactly, leaving every bar at 22.8.</figcaption>
+</figure>
+
+<div class="lab" id="lab">
+  <h3>Σ unroller: watch the loop run</h3>
+  <p style="margin-top:0">Pick what to add, edit the numbers if you like, then step through the loop. Each step computes one term and adds it to the running total. The number line shows the items with a pivot at their average so far: the pulls on either side always match.</p>
+  <div class="controls">
+    <label for="mode">expression to sum<select id="mode">
+      <option value="x">Σ xᵢ  (rents from Lesson 03)</option>
+      <option value="x2">Σ xᵢ²  (areas, squared)</option>
+      <option value="err">Σ (yᵢ − ŷᵢ)²  (squared misses)</option>
+      <option value="w">Σ wᵢ·xᵢ  (weighted, Lesson 06)</option>
+    </select></label>
+    <label for="in1"><span id="l1">x values</span><input type="text" id="in1" inputmode="decimal" autocomplete="off"></label>
+    <label for="in2" id="l2wrap"><span id="l2">ŷ values</span><input type="text" id="in2" inputmode="decimal" autocomplete="off"></label>
+  </div>
+  <div class="code" id="code" aria-hidden="true"></div>
+  <div class="terms" id="terms"></div>
+  <div class="unroll" id="unroll"></div>
+  <svg id="line" viewBox="0 0 360 124" role="img" aria-label="Number line with each item as a dot and a pivot triangle at the average of the items added so far."></svg>
+  <div class="readout" aria-live="polite">
+    <span>i <span class="big" id="ri">–</span></span>
+    <span>this term <span class="big" id="rterm">–</span></span>
+    <span>running total <span class="big" id="rtot">0</span></span>
+    <span><span id="mlabel">mean = total / n</span> <span class="big" id="rmean">–</span></span>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="btns">
+    <button id="step">Step (i + 1)</button>
+    <button id="play" class="ghost">Play</button>
+    <button id="all" class="ghost">Run all</button>
+    <button id="reset" class="ghost">Reset</button>
+  </div>
+  <p class="note">Numbers are separated by commas or spaces, 1 to 10 of them. Every default here is a number used elsewhere on this page: Σ rents 114 and mean 22.8, Σ areas² 360, squared misses 6 and MSE 1.2, and the "!" expected value 2.</p>
+</div>
+<p>Things to try. Step through the rents and watch the pivot settle on 22.8, with 13.4 pulling each way. Switch to the squared misses: the total is 6 and the mean, 1.2, is the MSE. In the weighted mode, change the weight of 5 to a large number and see the balance point slide right, the way the loaded die's expected value moved from 3.5 to 4.5. Then set all six weights equal: the weighted average becomes the plain average, 2.5.</p>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>The data.</strong> Lesson 03's five flats: areas <code>x = 4, 6, 8, 10, 12</code> (hundreds of sq ft) and rents <code>y = 14, 19, 22, 28, 31</code> (₹ thousands), <code>n = 5</code>.</p>
+<ul>
+  <li><code>Σ yᵢ = 14 + 19 + 22 + 28 + 31 = 114</code>, running totals 14, 33, 55, 83, 114.</li>
+  <li><code>ȳ = 114 / 5 = 22.8</code>. Distances from it: −8.8, −3.8, −0.8, +5.2, +8.2; below adds to 13.4, above adds to 13.4.</li>
+  <li>Guesses <code>ŷᵢ = 2xᵢ + 6</code>: 14, 18, 22, 26, 30. Squared misses 0, 1, 0, 4, 1. <code>Σ (yᵢ − ŷᵢ)² = 6</code>, so MSE = <code>6 / 5 = 1.2</code>.</li>
+  <li>Rules: <code>Σ 2xᵢ = 2 · 40 = 80</code>. <code>Σ (2xᵢ + 6) = 80 + 5·6 = 110</code>. And <code>Σ xᵢ² = 360 ≠ (Σ xᵢ)² = 1600</code>.</li>
+  <li>Best constant: <code>Σ (yᵢ − c)²</code> is 190 at c = 22, 186.8 at c = 22.8, 187 at c = 23.</li>
+  <li>Weighted: probabilities 0.25, 0.25, 0.125, 0.125, 0.125, 0.125 add to 1, and <code>Σ x · P(x) = 2</code>.</li>
+</ul>
+<pre><code><span class="c"># Lesson 03's five flats: x = area in hundreds of sq ft, y = rent in thousands of rupees</span>
+x = [4, 6, 8, 10, 12]
+y = [14, 19, 22, 28, 31]
+n = len(y)
+
+<span class="c"># Σ yᵢ as a loop. The math counts i from 1; Python lists count from 0, so y[i - 1]</span>
+total = 0
+for i in range(1, n + 1):
+    total += y[i - 1]
+print(total)                                   <span class="c"># 114</span>
+
+<span class="c"># the same sum, built in</span>
+print(sum(y))                                  <span class="c"># 114</span>
+
+<span class="c"># the mean: Σ yᵢ / n</span>
+mean = sum(y) / n
+print(mean)                                    <span class="c"># 22.8</span>
+
+<span class="c"># balance point: the distances from the mean cancel out</span>
+dev = [round(v - mean, 1) for v in y]
+below = -sum(d for d in dev if d &lt; 0)
+above = sum(d for d in dev if d &gt; 0)
+print(dev)                     <span class="c"># [-8.8, -3.8, -0.8, 5.2, 8.2]</span>
+print(round(below, 1), round(above, 1))        <span class="c"># 13.4 13.4</span>
+
+<span class="c"># a sum of an expression: squared misses of the guess ŷ = 2x + 6</span>
+y_hat = [2 * xi + 6 for xi in x]
+print(y_hat)                                   <span class="c"># [14, 18, 22, 26, 30]</span>
+sq = [(yi - yh) ** 2 for yi, yh in zip(y, y_hat)]
+print(sq, sum(sq), sum(sq) / n)                <span class="c"># [0, 1, 0, 4, 1] 6 1.2</span>
+
+<span class="c"># the rules, checked with numbers</span>
+print(sum(2 * xi for xi in x), 2 * sum(x))                 <span class="c"># 80 80</span>
+print(sum(2 * xi + 6 for xi in x), 2 * sum(x) + 6 * n)     <span class="c"># 110 110</span>
+print(sum(xi ** 2 for xi in x), sum(x) ** 2)               <span class="c"># 360 1600</span>
+
+<span class="c"># the average is the best constant guess</span>
+for c in (22, 22.8, 23):
+    print(c, round(sum((yi - c) ** 2 for yi in y), 2))
+<span class="c"># 22 190</span>
+<span class="c"># 22.8 186.8</span>
+<span class="c"># 23 187</span>
+
+<span class="c"># a weighted average with probabilities as weights is an expected value</span>
+values = [0, 1, 2, 3, 4, 5]
+probs = [0.25, 0.25, 0.125, 0.125, 0.125, 0.125]
+print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c"># 1.0 2.0</span></code></pre>
+<p>In real code you will almost always write <code>sum(...)</code> (or numpy's <code>.sum()</code> and <code>.mean()</code>), not the explicit loop. But when a paper shows a Σ, the loop is what it means, and writing it out once is the fastest way to check you've read it right.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"Σ xᵢ² is the same as (Σ xᵢ)²."</span>The brackets say which happens first. <code>Σ xᵢ²</code> squares each item and then adds: 360 for our areas. <code>(Σ xᵢ)²</code> adds first and squares the total once: 1600. The pull-out rule only works for a plain constant factor, never for a square.</div>
+  <div><span class="wrong">"Σ of a constant is just that constant."</span>The loop still runs n times. <code>Σ</code> from i = 1 to 5 of 6 is <code>6 + 6 + 6 + 6 + 6 = 30</code>, not 6. Forgetting this is how the <code>+ 6·n</code> goes missing when people split <code>Σ (2xᵢ + 6)</code>.</div>
+  <div><span class="wrong">"The average is a typical value from the data."</span>No flat rents for 22.8, and no die rolls 3.5. The mean is a balance point, not a member of the list, and one extreme value drags it a long way: change the 31 to 131 and the mean jumps from 22.8 to 42.8, above four of the five rents.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. Unroll and compute <span class="sig"><small>4</small><span class="s">Σ</span><small>i=2</small></span>(2i). How many terms are there?</p><summary>Show answer</summary><p class="a">The counter runs i = 2, 3, 4 (start and stop both included), so three terms: <code>2·2 + 2·3 + 2·4 = 4 + 6 + 8 = 18</code>. In Python: <code>sum(2 * i for i in range(2, 5))</code>. Note the expression can use <code>i</code> itself, not only a list item.</p></details>
+<details><p class="q">2. For the areas <code>x = 4, 6, 8, 10, 12</code> you know <code>Σ xᵢ = 40</code>. Without adding five numbers, find <code>Σ (3xᵢ − 1)</code>.</p><summary>Show answer</summary><p class="a">Split, then pull out the 3, then the constant runs 5 times: <code>3 · 40 − 5 · 1 = 120 − 5 = 115</code>. Check the long way: 11 + 17 + 23 + 29 + 35 = 115.</p></details>
+<details><p class="q">3. Lesson 03's first guess, <code>ŷ = 3x</code>, had squared misses 4, 1, 4, 4, 25. Write its mean squared error with Σ and compute it.</p><summary>Show answer</summary><p class="a"><code>MSE = (1/5) Σ (yᵢ − ŷᵢ)² = (4 + 1 + 4 + 4 + 25) / 5 = 38 / 5 = 7.6</code>. The second guess had MSE 1.2, so it is better by the same factor as the totals, 38 versus 6. Put 14, 19, 22, 28, 31 and 12, 18, 24, 30, 36 into the lab's squared-misses mode to check.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">Σ is a for-loop that adds one term per item; divide that total by the count and you get the mean, the balance point where the items above and below cancel out.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Back to the course</span>Re-read Lesson 03's worked example</h2>
+<p>With Σ in hand, go back to <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> and read its <code>total_error</code> function as <code>Σ (ŷᵢ − yᵢ)²</code>, then glance at the expected value in <a href="06-probability.html">Lesson 06</a>: both are the loops you just stepped through.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://www.khanacademy.org/math/ap-calculus-ab/ab-integration-new/ab-6-3/a/review-summation-notation" target="_blank" rel="noopener">Khan Academy: Summation notation</a>, a short review article with worked examples and practice problems on reading and writing Σ.</li>
+  <li><a href="https://www.mathsisfun.com/algebra/sigma-notation.html" target="_blank" rel="noopener">Math is Fun: Sigma Notation</a>, a friendly page on the same notation, with the sum rules and a small Σ calculator to try your own sums.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="m02-squares-roots.html">← Math M02 · Squares, square roots and absolute value</a>
+  <a href="m04-exponents-logs.html">Math M04 · Exponents and logarithms →</a>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const fmt=v=>{const r=+v.toFixed(4); return (Object.is(r,-0)?0:r).toString().replace('-','−');};
+  const MODES={
+    x:{l1:'x values',d1:'14, 19, 22, 28, 31',two:false,
+       body:'total += x[i]',term:(a)=>a, show:(a)=>fmt(a),
+       mlabel:'mean = total / n', done:'Σ xᵢ / n is the plain mean.'},
+    x2:{l1:'x values',d1:'4, 6, 8, 10, 12',two:false,
+       body:'total += x[i] ** 2',term:(a)=>a*a, show:(a)=>fmt(a)+'²',
+       mlabel:'mean of squares = total / n', done:'The squares add to Σ xᵢ², which is not (Σ xᵢ)².'},
+    err:{l1:'y values (true)',d1:'14, 19, 22, 28, 31',l2:'ŷ values (guesses)',d2:'14, 18, 22, 26, 30',two:true,
+       body:'total += (y[i] - y_hat[i]) ** 2',term:(a,b)=>(a-b)*(a-b), show:(a,b)=>'('+fmt(a)+' − '+fmt(b)+')²',
+       mlabel:'MSE = total / n', done:'Total squared error, then the mean squared error.'},
+    w:{l1:'x values',d1:'0, 1, 2, 3, 4, 5',l2:'weights w',d2:'0.25, 0.25, 0.125, 0.125, 0.125, 0.125',two:true,
+       body:'total += w[i] * x[i]',term:(a,b)=>a*b, show:(a,b)=>fmt(b)+'·'+fmt(a),
+       mlabel:'weighted avg = total / Σw', done:'With weights that add to 1, this is an expected value.'}
+  };
+  const mode=$('mode'), in1=$('in1'), in2=$('in2');
+  let A=[], B=[], k=0, timer=null, bad=null;
+
+  function parse(t){ const s=t.trim(); if(!s) return []; return s.split(/[\s,]+/).filter(Boolean).map(Number); }
+  function load(){
+    const M=MODES[mode.value];
+    $('l1').textContent=M.l1; in1.value=M.d1;
+    $('l2wrap').hidden=!M.two; if(M.two){ $('l2').textContent=M.l2; in2.value=M.d2; }
+    $('mlabel').textContent=M.mlabel;
+    read();
+  }
+  function read(){
+    stop();
+    const M=MODES[mode.value];
+    A=parse(in1.value); B=M.two?parse(in2.value):[];
+    bad=null;
+    if(A.length<1||A.length>10) bad='Enter between 1 and 10 numbers.';
+    else if(A.some(v=>!isFinite(v))||B.some(v=>!isFinite(v))) bad='Only numbers, separated by commas or spaces.';
+    else if(M.two && B.length!==A.length) bad=`The two lists need the same length (now ${A.length} and ${B.length}).`;
+    else if(mode.value==='w' && (B.some(v=>v<0)||B.reduce((s,v)=>s+v,0)<=0)) bad='Weights must be zero or more, and not all zero.';
+    k=0; draw();
+  }
+  const n=()=>A.length;
+  const term=i=>MODES[mode.value].term(A[i],B[i]);
+  function draw(){
+    const M=MODES[mode.value];
+    const step=$('step'), all=$('all'), play=$('play');
+    // code panel: which line is "on"
+    const lines=[
+      'n = '+(bad?'?':n()),
+      'total = 0',
+      'for i in range(1, n + 1):',
+      '    '+M.body,
+      mode.value==='w' ? 'avg = total / sum(w)' : 'mean = total / n'
+    ];
+    const on = bad?-1 : k===0?1 : k<n()?3 : 4;
+    $('code').innerHTML=lines.map((t,j)=>`<div class="${j===on?'on':''}">${t.replace(/</g,'&lt;')}</div>`).join('');
+    step.disabled=all.disabled=play.disabled=!!bad||k>=n();
+    if(bad){
+      $('terms').innerHTML=''; $('unroll').innerHTML=`<span class="err">${bad}</span>`; $('line').innerHTML='';
+      ['ri','rterm','rmean'].forEach(id=>$(id).textContent='–'); $('rtot').textContent='–'; $('msg').textContent='';
+      return;
+    }
+    // terms
+    let total=0; const parts=[];
+    $('terms').innerHTML=A.map((a,i)=>{
+      const t=term(i); const cls=i<k-1?'done':i===k-1?'now':'todo';
+      if(i<k){ total+=t; parts.push(fmt(t)); }
+      return `<div class="term ${cls}">i = ${i+1}<b>${i<k?fmt(t):'?'}</b>${M.show(A[i],B[i])}</div>`;
+    }).join('');
+    $('unroll').innerHTML = k===0 ? 'total starts at <b>0</b>. Press Step to run the first pass.'
+      : 'total = '+parts.join(' + ')+(k<n()?' + …':'')+' = <b>'+fmt(total)+'</b>';
+    $('ri').textContent=k?k:'–';
+    $('rterm').textContent=k?fmt(term(k-1)):'–';
+    $('rtot').textContent=fmt(total);
+    // running average (weighted in w-mode)
+    let pts, wts, avg=null;
+    if(mode.value==='w'){ pts=A.slice(); wts=B.slice(); }
+    else { pts=A.map((a,i)=>term(i)); wts=A.map(()=>1); }
+    const wsum=wts.slice(0,k).reduce((s,v)=>s+v,0);
+    if(k>0 && wsum>0) avg=(mode.value==='w'? total : pts.slice(0,k).reduce((s,v)=>s+v,0))/wsum;
+    $('rmean').textContent= k===0?'–' : (avg===null?'–':fmt(avg));
+    const fin=k>=n();
+    let m = k===0 ? `${n()} items, so the loop will run ${n()} times.`
+      : fin ? `Done: total ${fmt(total)}, divided by ${mode.value==='w'?'Σw = '+fmt(wsum):'n = '+n()} gives ${avg===null?'–':fmt(avg)}. ${M.done}`
+      : `Pass ${k} of ${n()}: added ${fmt(term(k-1))}, total is now ${fmt(total)}.`;
+    if(avg!==null){
+      let L=0,R=0; for(let i=0;i<k;i++){ const d=pts[i]-avg; if(d<0) L+=-d*wts[i]; else R+=d*wts[i]; }
+      m+=` Pull below the pivot ${fmt(L)}, above ${fmt(R)}.`;
+    }
+    $('msg').textContent=m;
+    numberLine(pts,wts,avg);
+  }
+  const ns="http://www.w3.org/2000/svg";
+  function el(p,nm,a,t){const e=document.createElementNS(ns,nm);for(const q in a)e.setAttribute(q,a[q]);if(t!=null)e.textContent=t;p.appendChild(e);return e;}
+  function niceStep(span){const raw=span/6, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p; return (f<=1?1:f<=2?2:f<=5?5:10)*p;}
+  function numberLine(pts,wts,avg){
+    const svg=$('line'); svg.innerHTML='';
+    let lo=Math.min(...pts), hi=Math.max(...pts);
+    if(hi-lo<1e-9){lo-=1;hi+=1;}
+    const st=niceStep(hi-lo); lo=Math.floor(lo/st)*st; hi=Math.ceil(hi/st)*st;
+    const X0=22,X1=338, Y=50, sx=v=>X0+(X1-X0)*(v-lo)/(hi-lo);
+    el(svg,'line',{x1:X0,y1:Y,x2:X1,y2:Y,stroke:'var(--ink)','stroke-width':2.5});
+    for(let t=lo;t<=hi+st*1e-6;t+=st){
+      el(svg,'line',{x1:sx(t),y1:Y+2,x2:sx(t),y2:Y+8,stroke:'var(--muted)'});
+      el(svg,'text',{x:sx(t),y:Y+42,'font-size':13,'text-anchor':'middle',fill:'var(--muted)'},fmt(t));
+    }
+    const wmax=Math.max(...wts);
+    // stack dots that share a value
+    const seen={};
+    pts.forEach((v,i)=>{
+      const key=v.toFixed(6); const lvl=seen[key]=(seen[key]||0)+1;
+      const r= mode.value==='w' ? 4+10*Math.sqrt(wts[i]/wmax) : 8;
+      const cy=Y-r-2-(lvl-1)*(2*r+3);
+      const done=i<k;
+      el(svg,'circle',{cx:sx(v),cy:cy,r:r,fill:done?'var(--accent)':'var(--paper)',stroke:done?'var(--accent)':'var(--muted)','stroke-width':1.5,'stroke-dasharray':done?'':'3 2'});
+    });
+    if(avg!==null){
+      const ax=sx(avg);
+      el(svg,'path',{d:`M${ax} ${Y+3} L${ax-11} ${Y+24} L${ax+11} ${Y+24} Z`,fill:'var(--amber)'});
+      const anchor= ax<70?'start': ax>290?'end':'middle';
+      el(svg,'text',{x:ax,y:Y+64,'font-size':14,'text-anchor':anchor,fill:'var(--amber)','font-weight':600},(k>=n()?'balance ':'so far ')+fmt(avg));
+    }
+  }
+  function stepOnce(){ if(!bad && k<n()){ k++; draw(); } if(k>=n()) stop(); }
+  function stop(){ if(timer){clearInterval(timer); timer=null;} $('play').textContent='Play'; }
+  $('step').addEventListener('click',()=>{stop();stepOnce();});
+  $('all').addEventListener('click',()=>{stop(); if(!bad){k=n(); draw();}});
+  $('reset').addEventListener('click',()=>{stop(); k=0; draw();});
+  $('play').addEventListener('click',()=>{
+    if(timer){stop();return;}
+    if(bad||k>=n()) return;
+    $('play').textContent='Pause';
+    stepOnce(); if(k<n()) timer=setInterval(stepOnce,800); else stop();
+  });
+  mode.addEventListener('change',load);
+  in1.addEventListener('input',read); in2.addEventListener('input',read);
+  load();
+})();
+</script>
+</body>
+</html>

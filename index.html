@@ -292,10 +292,28 @@
 
   const parts = window.LESSONS || [];
   const lessonsReady = parts.flatMap(p => p.lessons).filter(l => l.status === "ready").length;
-  document.getElementById("nLessons").textContent = lessonsReady;
+  document.getElementById("nLessons").textContent = lessonsReady + (window.MATH || []).filter(m => m.status === "ready").length;
   document.getElementById("count").textContent += ` · ${lessonsReady} AI lesson${lessonsReady === 1 ? "" : "s"}`;
   const nn = n => String(n).padStart(2, "0");
-  document.getElementById("lessonList").innerHTML = parts.map(p => {
+  const maths = window.MATH || [];
+  const mathReady = maths.filter(m => m.status === "ready");
+  if (mathReady.length) document.getElementById("count").textContent += ` · ${mathReady.length} math lesson${mathReady.length === 1 ? "" : "s"}`;
+  const mathGroup = maths.length ? `<div style="display:grid;gap:10px">
+      <h3 style="font-size:1.15rem">Math toolkit</h3>
+      <p style="color:var(--muted);margin:0">Short companion lessons for the math the course uses, from first principles. Each AI lesson lists the ones it needs in a "Math you'll need" box at the top.</p>
+      ${mathReady.length ? `<div class="lgrid">${mathReady.map(m => `
+        <a class="topic lesson" href="lessons/${m.slug}.html">
+          <div class="body">
+            <div class="meta"><span class="eyebrow">Math M${nn(m.num)}</span><span class="pill ready">Live</span></div>
+            <h3 style="font-size:1.3rem">${m.title}</h3>
+            <p>${m.blurb}</p>
+            <p class="eyebrow" style="margin:0">Used in lessons ${m.usedBy.map(nn).join(", ")}</p>
+          </div>
+        </a>`).join("")}</div>` : ""}
+      ${maths.some(m => m.status !== "ready") ? `<ul class="planned">${maths.filter(m => m.status !== "ready").map(m => `<li><span class="eyebrow">Math M${nn(m.num)} · for lessons ${m.usedBy.map(nn).join(", ")}</span><h3>${m.title}</h3><p>${m.blurb}</p></li>`).join("")}</ul>` : ""}
+    </div>` : "";
+  const mathLine = l => l.math && l.math.length ? `<p class="eyebrow" style="margin:0">Math: ${l.math.map(n => "M" + nn(n)).join(", ")}</p>` : "";
+  document.getElementById("lessonList").innerHTML = mathGroup + parts.map(p => {
     const r = p.lessons.filter(l => l.status === "ready"), pl = p.lessons.filter(l => l.status !== "ready");
     return `<div style="display:grid;gap:10px">
       <h3 style="font-size:1.15rem">${p.part}</h3>
@@ -305,6 +323,7 @@
             <div class="meta"><span class="eyebrow">Lesson ${nn(l.num)}</span><span class="pill ready">Live</span></div>
             <h3 style="font-size:1.3rem">${l.title}</h3>
             <p>${l.blurb}</p>
+            ${mathLine(l)}
           </div>
         </a>`).join("")}</div>` : ""}
       ${pl.length ? `<ul class="planned">${pl.map(l => `<li><span class="eyebrow">Lesson ${nn(l.num)}</span><h3>${l.title}</h3><p>${l.blurb}</p></li>`).join("")}</ul>` : ""}

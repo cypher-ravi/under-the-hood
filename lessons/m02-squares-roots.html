@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math M02 · Squares, square roots and absolute value</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 .95rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-wrap: anywhere; }
+  .fn b { color: var(--accent); }
+
+  /* added for math M02 */
+  .uses { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .uses ul { margin: .3rem 0 0; }
+  figure svg.mid { max-width: 460px; margin: 0 auto; }
+  .sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .5rem 1.2rem; margin-top: .8rem; }
+  .sliders label { display: grid; gap: .15rem; min-width: 0; font: 500 .82rem/1.4 var(--mono); }
+  .sliders label span { display: flex; justify-content: space-between; gap: .5rem; }
+  .sliders b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .key { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin-top: .5rem; }
+  .key i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: .35rem; border-radius: 2px; background: var(--accent-soft); border: 2px solid var(--accent); }
+  .key i.bar { height: 0; width: 18px; border: 0; border-top: 4px solid var(--amber); border-radius: 0; background: none; }
+  #dist { touch-action: none; max-width: 520px; margin: .4rem auto 0; }
+  #dist .pt { cursor: grab; }
+  #dist .pt:focus { outline: none; }
+  #dist .pt:focus-visible circle.ring { stroke: var(--accent); stroke-width: 3; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">Math toolkit</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Math toolkit</span><span>Math M02 of 11</span><span>~14 min read</span></div>
+  <h1><span class="num">M02</span> · Squares, square roots and absolute value</h1>
+  <p class="lede">Squaring a number means drawing a square with that side and measuring its area. That one picture explains why negative misses turn positive, why big misses get punished so hard, what a square root undoes, and how Pythagoras measures the distance between any two points, even in 768 dimensions.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where this is used</span>The AI lessons that lean on this</h2>
+<div class="uses">
+<ul>
+  <li><a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a>: scoring a line by its <em>total squared error</em>.</li>
+  <li><a href="04-vectors-matrices.html">Lesson 04 · Vectors and matrices</a>: a vector's length, <code>√(x₁² + x₂² + …)</code>.</li>
+  <li><a href="05-derivatives.html">Lesson 05 · Derivatives</a>: the bowl-shaped loss <code>x²</code>.</li>
+  <li>Lesson 07 · Loss functions (coming): squared error versus absolute error. Lesson 13 · Regularization (coming) and Lesson 17 · k-nearest neighbours (coming): sizes of weights and distances between examples.</li>
+</ul>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Misses have a sign, but "how wrong" shouldn't</h2>
+<p>When Lesson 03's line guessed flat A's rent ₹2,000 too low and flat E's ₹5,000 too high, the misses were −2 and +5. Add raw misses and the lows cancel the highs, so a terrible model can score zero. Every loss in ML first has to <mark>make each miss positive</mark>, and the two standard ways to do it, squaring and absolute value, are what this page is about. The square root then comes back as the way to turn "sum of squares" into a distance, which is how k-nearest neighbours decides which examples are "close".</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>Tiles on a floor, and steps from your door</h2>
+<p><strong>Squares are floor tiles.</strong> A square room 3 m on each side needs 9 one-metre tiles: 3 rows of 3. Double the side to 6 m and you need 36 tiles, four times as many. The tile count is the side times itself. That count is what "3 squared" means. A room can't have a negative size: if you paced out the side walking backwards, the floor still needs 9 tiles.</p>
+<p><strong>A square root is reading the room backwards.</strong> The shop says "this square room has 25 tiles". How long is a wall? You look for the side that, times itself, makes 25: it's 5.</p>
+<p><strong>Absolute value is "how many steps from your door".</strong> Your friend is 3 doors to the left, another friend is 3 doors to the right. Different directions, same distance: 3. Absolute value keeps the "how far" and throws away the "which way".</p>
+<p>Both squaring and absolute value throw away direction. The difference is in how they treat big numbers: absolute value counts steps (2 steps then 4 steps), squaring counts tiles (4 tiles then 16 tiles). That difference is the whole story of squared versus absolute error.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Six steps, from one square to the distance between points</h2>
+
+<h3>1. Squaring is a number times itself</h3>
+<dl class="defn">
+  <dt>x², read "x squared"</dt>
+  <dd>The number <code>x</code> multiplied by itself: <code>x² = x × x</code>. The small raised 2 is called an <strong>exponent</strong>; it counts how many copies of <code>x</code> get multiplied. So <code>3² = 3 × 3 = 9</code> and <code>1.5² = 2.25</code>. In Python it is written <code>x ** 2</code>.</dd>
+  <dt>Why "squared"</dt>
+  <dd>Because <code>x²</code> is the area of a square whose side is <code>x</code>: <code>x</code> rows of <code>x</code> unit tiles.</dd>
+</dl>
+<p><strong>What about negatives?</strong> <code>(−3)² = (−3) × (−3) = 9</code>, the same as <code>3²</code>. If "minus times minus is plus" was only ever a rule to memorise, here is why it has to be true. Watch the pattern as you multiply −3 by smaller and smaller numbers:</p>
+<div class="tbl"><table style="max-width:28rem">
+<thead><tr><th>−3 ×</th><th>3</th><th>2</th><th>1</th><th>0</th><th>−1</th><th>−2</th><th>−3</th></tr></thead>
+<tbody><tr><td>=</td><td>−9</td><td>−6</td><td>−3</td><td>0</td><td><strong>3</strong></td><td><strong>6</strong></td><td><strong>9</strong></td></tr></tbody>
+</table></div>
+<p>Every step to the right lowers the second number by 1, so the answer goes <em>up</em> by 3. Nothing stops at zero, so the pattern carries on: 3, 6, 9. Any other answer would break the steady climb. So every square is zero or positive, and <code>x²</code> and <code>(−x)²</code> are always equal. <mark>Squaring erases the sign.</mark></p>
+<p>One trap: <code>−3²</code> written without brackets usually means <code>−(3²) = −9</code>. Python agrees: <code>-3 ** 2</code> is <code>-9</code>, while <code>(-3) ** 2</code> is <code>9</code>. When you square a miss, bracket it.</p>
+
+<h3>2. Squares grow fast</h3>
+<p>Count the tiles as the side grows by one each time:</p>
+<figure>
+<svg class="mid" viewBox="0 0 360 170" role="img" aria-label="Four squares with sides 1, 2, 3 and 4, made of 1, 4, 9 and 16 unit tiles. Each step adds 3, then 5, then 7 tiles.">
+  <g stroke-width="1.5">
+    <rect x="20" y="108" width="24" height="24" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="64" y="84" width="48" height="48" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="132" y="60" width="72" height="72" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <rect x="224" y="36" width="96" height="96" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  </g>
+  <g stroke="var(--accent)" stroke-width=".6" opacity=".7">
+    <line x1="88" y1="84" x2="88" y2="132"/><line x1="64" y1="108" x2="112" y2="108"/>
+    <line x1="156" y1="60" x2="156" y2="132"/><line x1="180" y1="60" x2="180" y2="132"/>
+    <line x1="132" y1="84" x2="204" y2="84"/><line x1="132" y1="108" x2="204" y2="108"/>
+    <line x1="248" y1="36" x2="248" y2="132"/><line x1="272" y1="36" x2="272" y2="132"/><line x1="296" y1="36" x2="296" y2="132"/>
+    <line x1="224" y1="60" x2="320" y2="60"/><line x1="224" y1="84" x2="320" y2="84"/><line x1="224" y1="108" x2="320" y2="108"/>
+  </g>
+  <g font-size="12" text-anchor="middle" fill="currentColor">
+    <text x="32" y="150">1² = 1</text><text x="88" y="150">2² = 4</text><text x="168" y="150">3² = 9</text><text x="272" y="150">4² = 16</text>
+  </g>
+  <g font-size="11" text-anchor="middle" fill="var(--amber)" font-weight="600">
+    <text x="54" y="166">+3</text><text x="122" y="166">+5</text><text x="214" y="166">+7</text>
+  </g>
+</svg>
+<figcaption>Side 1, 2, 3, 4 gives 1, 4, 9, 16 tiles. Each new square must wrap a fresh row and column around the old one, so the jump gets bigger every time: +3, +5, +7.</figcaption>
+</figure>
+<div class="tbl"><table style="max-width:30rem">
+<thead><tr><th>miss</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>10</th></tr></thead>
+<tbody>
+<tr><td>|miss|</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>10</td></tr>
+<tr><td>miss²</td><td>1</td><td>4</td><td>9</td><td>16</td><td>25</td><td>100</td></tr>
+</tbody></table></div>
+<p>Double the side and the area goes up four times: <code>2² = 4</code> but <code>4² = 16</code>; <code>5² = 25</code> but <code>10² = 100</code>. The doubled square has twice as many rows, and each row is twice as long, so it holds 2 × 2 = 4 times the tiles. Ten times the side gives a hundred times the area. In a loss this means <strong>one big miss costs more than several small ones that add up to the same size</strong>. A single miss of 4 costs 16; two misses of 2 cost only 4 + 4 = 8.</p>
+<p>This is also where the "bowl" in Lesson 05 comes from. That lesson's loss for flat C, <code>L(w) = (8w − 22)²</code>, is a miss squared. It can never go below 0, it is exactly 0 when the miss is 0 (at <code>w = 2.75</code>), and it rises faster and faster on both sides. Draw it and you get a bowl.</p>
+
+<h3>3. The square root undoes the square</h3>
+<dl class="defn">
+  <dt>√a, read "the square root of a"</dt>
+  <dd>The side of a square whose area is <code>a</code>: the number that, times itself, gives <code>a</code>. <code>√25 = 5</code> because <code>5 × 5 = 25</code>. <code>√9 = 3</code>, <code>√1 = 1</code>, <code>√0 = 0</code>. In Python: <code>math.sqrt(a)</code>, or <code>a ** 0.5</code>.</dd>
+  <dt>Only the non-negative side</dt>
+  <dd>Both 3 and −3 square to 9, but a side length is never negative, so <code>√9</code> means 3 by agreement. And <code>√(−9)</code> has no answer among ordinary numbers, because no ordinary number squares to something negative. In this course we only take roots of things that are already zero or positive (sums of squares), so it never comes up.</dd>
+</dl>
+<p>Most roots are not whole numbers. <code>√2</code> is the side of a square with area 2. It must be between 1 (area 1) and 2 (area 4); closer search gives <code>1.414 × 1.414 = 1.999396</code>, so <code>√2 ≈ 1.414</code>. A calculator does that same narrowing-down, just very fast.</p>
+<p>Square and root cancel: <code>√(5²) = √25 = 5</code>. But start with a negative and see what happens: <code>√((−3)²) = √9 = 3</code>. The square erased the sign, and the root cannot bring it back. So for any number, <code>√(x²)</code> is its size with the sign dropped, which is exactly the next idea.</p>
+
+<h3>4. Absolute value: distance from zero</h3>
+<dl class="defn">
+  <dt>|x|, read "the absolute value of x"</dt>
+  <dd>How far <code>x</code> is from 0 on the number line, ignoring which side. <code>|−3| = 3</code>, <code>|3| = 3</code>, <code>|0| = 0</code>. The rule: if <code>x</code> is negative, flip its sign; otherwise leave it. In Python: <code>abs(x)</code>.</dd>
+  <dt>The same bars on a vector</dt>
+  <dd>Lesson 04 writes a vector's length as <code>|x|</code> too. It is the same idea, "size, ignoring direction", stretched to arrows. Step 6 shows how to compute it.</dd>
+</dl>
+<figure>
+<svg class="mid" viewBox="0 0 360 86" role="img" aria-label="A number line from −5 to 5. The points −3 and 3 are both 3 steps away from 0, so |−3| = |3| = 3.">
+  <line x1="20" y1="50" x2="340" y2="50" stroke="var(--muted)" stroke-width="1.5"/>
+  <g stroke="var(--muted)" stroke-width="1.2">
+    <line x1="20" y1="45" x2="20" y2="55"/><line x1="52" y1="45" x2="52" y2="55"/><line x1="84" y1="45" x2="84" y2="55"/><line x1="116" y1="45" x2="116" y2="55"/><line x1="148" y1="45" x2="148" y2="55"/><line x1="180" y1="42" x2="180" y2="58"/><line x1="212" y1="45" x2="212" y2="55"/><line x1="244" y1="45" x2="244" y2="55"/><line x1="276" y1="45" x2="276" y2="55"/><line x1="308" y1="45" x2="308" y2="55"/><line x1="340" y1="45" x2="340" y2="55"/>
+  </g>
+  <g font-size="11" text-anchor="middle" fill="var(--muted)">
+    <text x="20" y="72">−5</text><text x="84" y="72">−3</text><text x="180" y="72">0</text><text x="276" y="72">3</text><text x="340" y="72">5</text>
+  </g>
+  <line x1="86" y1="34" x2="178" y2="34" stroke="var(--amber)" stroke-width="3"/>
+  <line x1="182" y1="34" x2="274" y2="34" stroke="var(--amber)" stroke-width="3"/>
+  <circle cx="84" cy="50" r="5" fill="var(--accent)"/><circle cx="276" cy="50" r="5" fill="var(--accent)"/>
+  <g font-size="12" text-anchor="middle" fill="currentColor">
+    <text x="132" y="24">|−3| = 3</text><text x="228" y="24">|3| = 3</text>
+  </g>
+</svg>
+<figcaption>−3 and 3 sit on opposite sides of 0 but the same distance away. Absolute value measures only that distance.</figcaption>
+</figure>
+
+<h3>5. Two ways to make misses positive</h3>
+<dl class="defn">
+  <dt>miss</dt>
+  <dd>Guess minus truth, <code>ŷ − y</code>, as in Lesson 03. Positive means "guessed too high", negative means "too low".</dd>
+  <dt>Σ, the capital Greek letter sigma</dt>
+  <dd>"Add this up over every example." <code>Σ miss²</code> means square each miss, then add the squares. <a href="m03-summation.html">Math M03</a> covers Σ properly.</dd>
+</dl>
+<p>Take Lesson 03's first guess, <code>ŷ = 3x</code>, on the five flats. Its misses are −2, −1, +2, +2, +5.</p>
+<div class="tbl"><table>
+<thead><tr><th>Flat</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th class="tot">total</th></tr></thead>
+<tbody>
+<tr><td>miss</td><td>−2</td><td>−1</td><td>+2</td><td>+2</td><td>+5</td><td>6</td></tr>
+<tr><td>|miss|</td><td>2</td><td>1</td><td>2</td><td>2</td><td>5</td><td class="tot">12</td></tr>
+<tr><td>miss²</td><td>4</td><td>1</td><td>4</td><td>4</td><td>25</td><td class="tot">38</td></tr>
+</tbody></table></div>
+<p>The plain total, 6, hides how bad things are: the three too-high misses (+9 together) are partly cancelled by the two too-low ones (−3). Both fixes stop the cancelling:</p>
+<ul>
+  <li><strong>Total absolute error</strong>, <code>Σ |miss| = 12</code>. Every unit of miss costs the same. Flat E's miss of 5 is 5 of the 12, about 42%.</li>
+  <li><strong>Total squared error</strong>, <code>Σ miss² = 38</code>, Lesson 03's score. Flat E alone is 25 of the 38, about 66%. Squaring makes the worst flat dominate, so a model trained on it will work hardest to fix its biggest misses.</li>
+</ul>
+<p>Lesson 03's better guess, <code>ŷ = 2x + 6</code>, has misses 0, −1, 0, −2, −1: total absolute error 4, total squared error 6. Both scores agree it is better. They do not always agree on <em>how much</em> better, and when the data has a few wild outliers they can even pick different winners. Squared error also has a smooth bottom (the slope of <code>x²</code> is <code>2x</code>, Lesson 05), while <code>|x|</code> has a sharp corner at 0. Lesson 07 weighs these trade-offs.</p>
+
+<h3>6. Pythagoras: distance between two points</h3>
+<p>In a right-angled triangle (one corner is a perfect "L"), call the two short sides <code>a</code> and <code>b</code> and the long slanted side <code>c</code>. Pythagoras' theorem says:</p>
+<div class="eq">a² + b² = c²   so   c = √(a² + b²)</div>
+<p>With <code>a = 4</code> and <code>b = 3</code>: <code>16 + 9 = 25</code>, so <code>c = √25 = 5</code>. In squares-as-areas language: the square on the long side has exactly as much floor as the two squares on the short sides together. The figure in section e shows why.</p>
+<p><strong>From triangle to distance.</strong> Two points on a grid, <code>p = (3, 1)</code> and <code>q = (1, 2)</code>, the arrows <code>u</code> and <code>v</code> from Lesson 04. Walk from one to the other using only "across" and "up" moves and you have drawn a right-angled triangle:</p>
+<ul>
+  <li>across gap: <code>dx = 1 − 3 = −2</code>; up gap: <code>dy = 2 − 1 = 1</code></li>
+  <li>square them (signs vanish, so it doesn't matter which point you start from): <code>4</code> and <code>1</code></li>
+  <li>add and take the root: <code>√(4 + 1) = √5 ≈ 2.236</code></li>
+</ul>
+<div class="eq">distance(p, q) = √(dx² + dy²)</div>
+<p><strong>The length of a vector</strong> is just its distance from the origin <code>(0, 0)</code>, so the gaps are the entries themselves. Lesson 04's <code>u + v = [4, 3]</code> has length <code>√(16 + 9) = 5</code>, and <code>u = [3, 1]</code> has length <code>√(9 + 1) = √10 ≈ 3.162</code>, the numbers that lesson uses.</p>
+<p><strong>More dimensions, same rule.</strong> For three entries, add a third square: <code>|[1, 2, 2]| = √(1 + 4 + 4) = √9 = 3</code>. For a 768-entry embedding you add 768 squares. You can't draw it, but the arithmetic never changes. This "square the gaps, add, root" distance is called the <strong>Euclidean distance</strong>, and it is how k-nearest neighbours (Lesson 17) finds the training examples most like a new one.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Why Pythagoras is true, and two labs</h2>
+
+<figure>
+<svg class="mid" viewBox="0 0 360 214" role="img" aria-label="Two 7 by 7 squares, each holding the same four right triangles with sides 3 and 4. On the left the triangles sit in the corners and leave a tilted square of area 25. On the right they pair up into two rectangles and leave a 4 by 4 square and a 3 by 3 square, area 16 plus 9.">
+  <text x="90" y="18" font-size="11" text-anchor="middle" fill="var(--muted)" letter-spacing="1">LEFT OVER: c²</text>
+  <text x="270" y="18" font-size="11" text-anchor="middle" fill="var(--muted)" letter-spacing="1">LEFT OVER: a² + b²</text>
+  <!-- left: four triangles in the corners -->
+  <rect x="20" y="30" width="140" height="140" fill="var(--accent-soft)" stroke="var(--muted)" stroke-width="1.5"/>
+  <g fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5" stroke-linejoin="round">
+    <polygon points="20,30 100,30 20,90"/>
+    <polygon points="160,30 160,110 100,30"/>
+    <polygon points="160,170 80,170 160,110"/>
+    <polygon points="20,170 20,90 80,170"/>
+  </g>
+  <polygon points="100,30 160,110 80,170 20,90" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="90" y="105" font-size="13" text-anchor="middle" fill="var(--accent)" font-weight="600">c² = 25</text>
+  <text x="60" y="44" font-size="11" text-anchor="middle" fill="currentColor">a = 4</text>
+  <text x="24" y="66" font-size="10" fill="currentColor">b = 3</text>
+  <!-- right: rearranged -->
+  <rect x="200" y="30" width="140" height="140" fill="var(--accent-soft)" stroke="var(--muted)" stroke-width="1.5"/>
+  <g fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5" stroke-linejoin="round">
+    <polygon points="280,30 340,30 340,110"/>
+    <polygon points="280,30 280,110 340,110"/>
+    <polygon points="200,110 280,110 280,170"/>
+    <polygon points="200,110 200,170 280,170"/>
+  </g>
+  <rect x="200" y="30" width="80" height="80" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <rect x="280" y="110" width="60" height="60" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="240" y="75" font-size="13" text-anchor="middle" fill="var(--accent)" font-weight="600">a² = 16</text>
+  <text x="310" y="144" font-size="12" text-anchor="middle" fill="var(--accent)" font-weight="600">b² = 9</text>
+  <text x="180" y="196" font-size="12" text-anchor="middle" fill="currentColor">same big square − same 4 triangles</text>
+  <text x="180" y="211" font-size="12" text-anchor="middle" fill="var(--accent)" font-weight="600">so c² = a² + b²: 25 = 16 + 9</text>
+</svg>
+<figcaption>Both big squares have side a + b = 7 and hold the same four 3-by-4 triangles (amber). Only the arrangement differs, so the uncovered floor (blue) must be the same area in both. On the left it is one tilted square on the long side, c²; on the right it is a² plus b². No algebra needed.</figcaption>
+</figure>
+
+<div class="lab" id="lab1">
+  <h3>Misses lab: lengths versus areas</h3>
+  <p style="margin-top:0">Each slider is one flat's miss. Underneath, the amber bar has length <code>|miss|</code> (the number under it). Above, the blue square has that same length as its side, so its area is <code>miss²</code>. Watch the squares balloon while the bars only stretch.</p>
+  <svg id="sq" viewBox="0 0 500 214" role="img" aria-label="Five squares, one per flat, each with side equal to the size of that flat's miss and area equal to the miss squared, with a bar under each showing the size of the miss."></svg>
+  <div class="key"><span><i></i>miss² (area of the square)</span><span><i class="bar"></i>|miss| (length of the bar)</span></div>
+  <div class="sliders" id="sliders"></div>
+  <div class="fn" id="sqfn"></div>
+  <div class="readout">
+    <span>Σ miss <span class="big" id="rsum">6</span></span>
+    <span>Σ |miss| <span class="big" id="rabs">12</span></span>
+    <span>Σ miss² <span class="big" id="rsq">38</span></span>
+    <span class="msg" id="sqmsg"></span>
+  </div>
+  <div class="btns">
+    <button data-p="g1">Lesson 03 guess 1</button>
+    <button data-p="g2" class="ghost">Guess 2</button>
+    <button data-p="spread" class="ghost">Spread out</button>
+    <button data-p="bunched" class="ghost">Bunched up</button>
+    <button data-p="zero" class="ghost">All zero</button>
+  </div>
+</div>
+<p>Things to try. Start from guess 1 and drag flat E's miss from +5 down to +3: the absolute total drops by 2, the squared total by 16. Then compare "spread out" (2, −2, 2, −2, 2) with "bunched up" (0, 0, 0, 4, 6). Both have <code>Σ |miss| = 10</code>, but squared error says 20 versus 52: it strongly prefers many small misses over a few big ones. Finally flip any miss's sign: neither total moves.</p>
+
+<div class="lab" id="lab2">
+  <h3>Distance lab: drag two points</h3>
+  <p style="margin-top:0">Drag p or q (or focus one with Tab and use the arrow keys). The dashed legs are the across and up gaps; the solid line is the distance, <code>√(dx² + dy²)</code>. Points snap to half-steps.</p>
+  <svg id="dist" viewBox="0 0 480 350" role="img" aria-label="A grid with two draggable points p and q, the right-angled triangle between them, and the straight-line distance."></svg>
+  <div class="fn" id="dfn"></div>
+  <div class="readout">
+    <span>dx <span class="big" id="rdx">−2</span></span>
+    <span>dy <span class="big" id="rdy">1</span></span>
+    <span>dx² + dy² <span class="big" id="rss">5</span></span>
+    <span>distance <span class="big" id="rd">2.236</span></span>
+    <span class="msg" id="dmsg"></span>
+  </div>
+  <div class="btns">
+    <button data-d="uv">Lesson 04: u to v</button>
+    <button data-d="len" class="ghost">Length of [4, 3]</button>
+    <button data-d="flat" class="ghost">Same height</button>
+  </div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>Errors for Lesson 03's guess 1.</strong> Misses −2, −1, +2, +2, +5.</p>
+<ul>
+  <li>Plain sum: <code>−2 − 1 + 2 + 2 + 5 = 6</code> (signs cancel, misleading)</li>
+  <li>Absolute values: <code>2, 1, 2, 2, 5</code>, total <code>12</code></li>
+  <li>Squares: <code>4, 1, 4, 4, 25</code>, total <code>38</code></li>
+  <li>Guess 2 (misses 0, −1, 0, −2, −1): absolute total <code>0 + 1 + 0 + 2 + 1 = 4</code>, squared total <code>0 + 1 + 0 + 4 + 1 = 6</code></li>
+  <li>Spread out (2, −2, 2, −2, 2) versus bunched up (0, 0, 0, 4, 6): absolute totals <code>10</code> and <code>10</code>; squared totals <code>5 × 4 = 20</code> and <code>16 + 36 = 52</code></li>
+</ul>
+<p><strong>Roots.</strong> <code>√25 = 5</code>; <code>√((−3)²) = √9 = 3 = |−3|</code>; <code>√2 ≈ 1.414</code>.</p>
+<p><strong>Distances.</strong> From <code>(3, 1)</code> to <code>(1, 2)</code>: <code>√((−2)² + 1²) = √5 ≈ 2.236</code>. Length of <code>[4, 3]</code>: <code>√(16 + 9) = 5</code>. Length of <code>[3, 1]</code>: <code>√10 ≈ 3.162</code>. Length of <code>[1, 2, 2]</code>: <code>√9 = 3</code>.</p>
+<pre><code>import math
+
+<span class="c"># Lesson 03, guess 1 (y-hat = 3x): miss = guess - real rent, for flats A to E</span>
+misses = [-2, -1, 2, 2, 5]
+
+print([m ** 2 for m in misses])        <span class="c"># each miss squared</span>
+print([abs(m) for m in misses])        <span class="c"># each miss's size, sign dropped</span>
+print(sum(misses))                     <span class="c"># plain sum: signs cancel</span>
+print(sum(abs(m) for m in misses))     <span class="c"># total absolute error</span>
+print(sum(m ** 2 for m in misses))     <span class="c"># total squared error</span>
+
+<span class="c"># Lesson 03, guess 2 (y-hat = 2x + 6)</span>
+guess2 = [0, -1, 0, -2, -1]
+print(sum(abs(m) for m in guess2), sum(m ** 2 for m in guess2))
+
+<span class="c"># same total size, spread out vs bunched up</span>
+spread, bunched = [2, -2, 2, -2, 2], [0, 0, 0, 4, 6]
+print(sum(abs(m) for m in spread), sum(abs(m) for m in bunched))
+print(sum(m ** 2 for m in spread), sum(m ** 2 for m in bunched))
+
+<span class="c"># square root undoes the square, and sqrt(x squared) is |x|</span>
+print(math.sqrt(25), math.sqrt((-3) ** 2), round(math.sqrt(2), 3))
+
+def distance(p, q):
+    <span class="c">"""Pythagoras: square each gap, add them, take the square root"""</span>
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(p, q)))
+
+print(round(distance([3, 1], [1, 2]), 3))   <span class="c"># u to v from Lesson 04</span>
+print(distance([0, 0], [4, 3]))             <span class="c"># length of u + v = [4, 3]</span>
+print(round(distance([0, 0], [3, 1]), 3))   <span class="c"># length of u</span>
+print(distance([0, 0, 0], [1, 2, 2]))       <span class="c"># three entries: same rule</span></code></pre>
+<p>Output:</p>
+<pre><code>[4, 1, 4, 4, 25]
+[2, 1, 2, 2, 5]
+6
+12
+38
+4 6
+10 10
+20 52
+5.0 3.0 1.414
+2.236
+5.0
+3.162
+3.0</code></pre>
+<p>Note <code>(-3) ** 2</code> with brackets, and that <code>distance</code> works for any number of entries: <code>zip</code> pairs up the coordinates, however many there are.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"√(a² + b²) = a + b."</span>A root does not split across a plus. <code>√(9 + 16) = √25 = 5</code>, but <code>√9 + √16 = 3 + 4 = 7</code>. Walking 4 across and 3 up is 7 steps along the grid, but the straight line is only 5. The shortcut across the diagonal is the whole point of Pythagoras.</div>
+  <div><span class="wrong">"Squared error is just absolute error made bigger."</span>It changes the ranking, not just the scale. Spread-out misses (2, −2, 2, −2, 2) and bunched-up ones (0, 0, 0, 4, 6) tie on absolute error at 10, but squared error scores them 20 and 52. With one wild outlier in the data, a squared-error model will bend a lot to reduce it; an absolute-error model barely cares.</div>
+  <div><span class="wrong">"Squaring always makes a number bigger."</span>Only for sizes above 1. <code>0.5² = 0.25</code> and <code>0.1² = 0.01</code>: small misses shrink when squared. That is one more reason squared error barely notices tiny misses and fixates on large ones.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. A model's misses on four houses are +3, −3, +1, −1. What are the plain sum, the total absolute error and the total squared error?</p><summary>Show answer</summary><p class="a">Plain sum: <code>3 − 3 + 1 − 1 = 0</code>, which wrongly says "perfect". Absolute: <code>3 + 3 + 1 + 1 = 8</code>. Squared: <code>9 + 9 + 1 + 1 = 20</code>. Set the misses lab to these values (fifth slider at 0) to check.</p></details>
+<details><p class="q">2. Flat E's miss shrinks from 5 to 4. By how much does the total squared error of Lesson 03's guess 1 drop? And the total absolute error?</p><summary>Show answer</summary><p class="a">Squared: <code>25 → 16</code>, so it drops by 9, from 38 to 29. Absolute: <code>5 → 4</code>, a drop of 1, from 12 to 11. The same one-unit fix is worth nine times more under squared error, because the miss was big.</p></details>
+<details><p class="q">3. What is the distance between the points (2, 5) and (8, −3)? What is the length of the vector [6, −8]?</p><summary>Show answer</summary><p class="a">Gaps: <code>dx = 6</code>, <code>dy = −8</code>. Squares: 36 and 64, sum 100, so the distance is <code>√100 = 10</code>. The vector [6, −8] is exactly those gaps measured from the origin, so its length is also 10. The minus sign on −8 disappears when it is squared.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">Squaring turns a length into an area: signs vanish and big misses balloon; absolute value keeps just the length; and the square root of a sum of squares is a straight-line distance.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Back to the course</span>Where to use it next</h2>
+<p>Reread the worked example in <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a>: its "total squared error" table should now read as five squares of floor, with flat E's 25 tiles doing most of the damage, and then the length formula in <a href="04-vectors-matrices.html">Lesson 04</a> will look like plain Pythagoras.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://betterexplained.com/articles/measure-any-distance-with-the-pythagorean-theorem/" target="_blank" rel="noopener">Better Explained: How to measure any distance with the Pythagorean theorem</a>, an intuition-first article on why <code>a² + b² = c²</code> works for any shape, not only triangles, and how it stretches to more dimensions.</li>
+  <li><a href="https://www.khanacademy.org/math/geometry-home/geometry-pythagorean-theorem" target="_blank" rel="noopener">Khan Academy: Pythagorean theorem</a>, short videos and practice problems, including proofs and using the theorem to find distances between points.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="m01-functions-graphs.html">← Math M01 · Functions and graphs</a>
+  <a href="m03-summation.html">Next: Math M03 · Summation (Σ) and averages →</a>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const ns="http://www.w3.org/2000/svg";
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+  const fmt=v=>{const s=(+(+v).toFixed(3)).toString();return s.replace('-','−');};
+  const sgn=v=>v>0?'+'+fmt(v):fmt(v);
+
+  /* ---------- Misses lab: the same misses as Lesson 03's worked example ---------- */
+  const FLATS=['A','B','C','D','E'];
+  const PRESET={g1:[-2,-1,2,2,5], g2:[0,-1,0,-2,-1], spread:[2,-2,2,-2,2], bunched:[0,0,0,4,6], zero:[0,0,0,0,0]};
+  const sq=$('sq'), box=$('sliders');
+  const inputs=FLATS.map((f,i)=>{
+    const lab=document.createElement('label');
+    lab.innerHTML=`<span>flat ${f} miss <b id="mv${i}"></b></span><input type="range" min="-6" max="6" step="0.5" value="${PRESET.g1[i]}" aria-label="Flat ${f} miss">`;
+    box.appendChild(lab);
+    const inp=lab.querySelector('input'); inp.addEventListener('input',drawSq); return inp;
+  });
+  function drawSq(){
+    const m=inputs.map(x=>+x.value);
+    m.forEach((v,i)=>$('mv'+i).textContent=sgn(v));
+    sq.innerHTML='';
+    const S=14, base=120, slot=100;
+    el(sq,'line',{x1:4,y1:base,x2:496,y2:base,stroke:'var(--line)'});
+    m.forEach((v,i)=>{
+      const cx=slot*i+slot/2, a=Math.abs(v), side=a*S;
+      if(a>0){
+        el(sq,'rect',{x:cx-side/2,y:base-side,width:side,height:side,fill:'var(--accent-soft)',stroke:'var(--accent)','stroke-width':1.5});
+        for(let k=1;k<a;k++){
+          el(sq,'line',{x1:cx-side/2+k*S,y1:base-side,x2:cx-side/2+k*S,y2:base,stroke:'var(--accent)','stroke-width':.5,opacity:.6});
+          el(sq,'line',{x1:cx-side/2,y1:base-side+k*S,x2:cx+side/2,y2:base-side+k*S,stroke:'var(--accent)','stroke-width':.5,opacity:.6});
+        }
+        el(sq,'rect',{x:cx-side/2,y:base+10,width:side,height:5,fill:'var(--amber)',rx:1});
+      } else {
+        el(sq,'circle',{cx,cy:base,r:3,fill:'var(--accent)'});
+      }
+      el(sq,'text',{x:cx,y:Math.min(base-side-6,108),'font-size':18,'text-anchor':'middle',fill:'var(--accent)','font-weight':600},fmt(v*v));
+      el(sq,'text',{x:cx,y:base+38,'font-size':16,'text-anchor':'middle',fill:'var(--amber)','font-weight':600},fmt(a));
+      el(sq,'text',{x:cx,y:base+62,'font-size':17,'text-anchor':'middle',fill:'currentColor'},'flat '+FLATS[i]);
+      el(sq,'text',{x:cx,y:base+86,'font-size':15,'text-anchor':'middle',fill:'var(--muted)'},'miss '+sgn(v));
+    });
+    const s=m.reduce((t,v)=>t+v,0), ab=m.reduce((t,v)=>t+Math.abs(v),0), q=m.reduce((t,v)=>t+v*v,0);
+    $('rsum').textContent=fmt(s); $('rabs').textContent=fmt(ab); $('rsq').textContent=fmt(q);
+    $('sqfn').innerHTML='Σ miss² = '+m.map(v=>'('+sgn(v)+')²').join(' + ')+' = <b>'+fmt(q)+'</b>';
+    let msg;
+    if(q===0) msg='Every miss is zero: a perfect fit on these five flats, and both totals are 0.';
+    else{
+      let bi=0; m.forEach((v,i)=>{if(Math.abs(v)>Math.abs(m[bi]))bi=i;});
+      const big=Math.abs(m[bi]);
+      const ties=m.filter(v=>Math.abs(v)===big).length;
+      msg = ties>1 ? `${ties} misses share the biggest size (${fmt(big)}), so no single flat dominates either total.`
+        : `Biggest miss: flat ${FLATS[bi]}. It is ${Math.round(100*big/ab)}% of Σ |miss| but ${Math.round(100*big*big/q)}% of Σ miss².`;
+      if(Math.abs(s)<1e-9) msg+=' The plain sum is 0 here, even though the model is wrong: the signs cancelled.';
+      else if(Math.abs(s)<ab-1e-9) msg+=` The plain sum (${fmt(s)}) is smaller than Σ |miss| because positive and negative misses cancel.`;
+    }
+    $('sqmsg').textContent=msg;
+  }
+  document.querySelectorAll('#lab1 button[data-p]').forEach(b=>b.addEventListener('click',()=>{
+    PRESET[b.dataset.p].forEach((v,i)=>inputs[i].value=v); drawSq();
+  }));
+  drawSq();
+
+  /* ---------- Distance lab: draggable points on a 0..8 by 0..6 grid ---------- */
+  const ds=$('dist'), L=40, T=20, U=50, XMAX=8, YMAX=6;
+  const px=x=>L+x*U, py=y=>T+(YMAX-y)*U;
+  const P={p:{x:3,y:1}, q:{x:1,y:2}};
+  const DP={uv:{p:[3,1],q:[1,2]}, len:{p:[0,0],q:[4,3]}, flat:{p:[1,4],q:[7,4]}};
+  let drag=null;
+  function drawD(){
+    ds.innerHTML='';
+    for(let i=0;i<=XMAX;i++){el(ds,'line',{x1:px(i),y1:py(0),x2:px(i),y2:py(YMAX),stroke:'var(--line)'});el(ds,'text',{x:px(i),y:py(0)+18,'font-size':16,'text-anchor':'middle',fill:'var(--muted)'},i);}
+    for(let j=0;j<=YMAX;j++){el(ds,'line',{x1:px(0),y1:py(j),x2:px(XMAX),y2:py(j),stroke:'var(--line)'});el(ds,'text',{x:px(0)-8,y:py(j)+5,'font-size':16,'text-anchor':'end',fill:'var(--muted)'},j);}
+    const p=P.p, q=P.q, dx=q.x-p.x, dy=q.y-p.y;
+    // legs: across from p, then up to q
+    el(ds,'line',{x1:px(p.x),y1:py(p.y),x2:px(q.x),y2:py(p.y),stroke:'var(--amber)','stroke-width':2.5,'stroke-dasharray':'7 5'});
+    el(ds,'line',{x1:px(q.x),y1:py(p.y),x2:px(q.x),y2:py(q.y),stroke:'var(--amber)','stroke-width':2.5,'stroke-dasharray':'7 5'});
+    el(ds,'line',{x1:px(p.x),y1:py(p.y),x2:px(q.x),y2:py(q.y),stroke:'var(--accent)','stroke-width':3});
+    if(dx!==0) el(ds,'text',{x:(px(p.x)+px(q.x))/2,y:py(p.y)+(dy>0?24:-10),'font-size':17,'text-anchor':'middle',fill:'var(--amber)','font-weight':600},'dx = '+fmt(dx));
+    if(dy!==0) el(ds,'text',{x:px(q.x)+(dx>=0?8:-8),y:(py(p.y)+py(q.y))/2+6,'font-size':17,'text-anchor':dx>=0?'start':'end',fill:'var(--amber)','font-weight':600},'dy = '+fmt(dy));
+    ['p','q'].forEach(k=>{
+      const g=el(ds,'g',{class:'pt',tabindex:0,role:'slider','aria-label':`point ${k}, x ${P[k].x}, y ${P[k].y}. Arrow keys move it.`});
+      el(g,'circle',{class:'ring',cx:px(P[k].x),cy:py(P[k].y),r:16,fill:'transparent',stroke:'transparent'});
+      el(g,'circle',{cx:px(P[k].x),cy:py(P[k].y),r:9,fill:k==='p'?'var(--accent)':'var(--ok)',stroke:'var(--panel)','stroke-width':2});
+      const lx=px(P[k].x)+12, ly=py(P[k].y)-12;
+      el(g,'text',{x:Math.min(lx,370),y:Math.max(ly,16),'font-size':17,fill:'currentColor','font-weight':600},`${k} (${fmt(P[k].x)}, ${fmt(P[k].y)})`);
+      g.addEventListener('pointerdown',e=>{drag=k;ds.setPointerCapture(e.pointerId);e.preventDefault();});
+      g.addEventListener('keydown',e=>{
+        const st={ArrowLeft:[-.5,0],ArrowRight:[.5,0],ArrowUp:[0,.5],ArrowDown:[0,-.5]}[e.key];
+        if(!st) return; e.preventDefault(); move(k,P[k].x+st[0],P[k].y+st[1]);
+        const n=ds.querySelectorAll('.pt')[k==='p'?0:1]; if(n) n.focus();
+      });
+    });
+    const ss=dx*dx+dy*dy, d=Math.sqrt(ss);
+    $('rdx').textContent=fmt(dx); $('rdy').textContent=fmt(dy); $('rss').textContent=fmt(ss); $('rd').textContent=fmt(d);
+    $('dfn').innerHTML=`√((${fmt(dx)})² + (${fmt(dy)})²) = √(${fmt(dx*dx)} + ${fmt(dy*dy)}) = √${fmt(ss)} = <b>${fmt(d)}</b>`;
+    let msg;
+    if(ss===0) msg='The points sit on top of each other: distance 0.';
+    else if(dx===0||dy===0) msg='One gap is 0, so there is no triangle: the distance is just the size of the other gap, its absolute value.';
+    else if(Number.isInteger(d)) msg=`A whole-number answer: ${fmt(dx*dx)} + ${fmt(dy*dy)} = ${fmt(ss)}, a perfect square. Along the grid lines it would be ${fmt(Math.abs(dx)+Math.abs(dy))} steps; the straight line is shorter.`;
+    else msg=`Along the grid lines it would be |dx| + |dy| = ${fmt(Math.abs(dx)+Math.abs(dy))} steps; the straight line is shorter. Swap p and q and dx, dy flip sign but the distance stays the same.`;
+    if(p.x===0&&p.y===0) msg+=` With p at the origin, this is the length of the vector [${fmt(q.x)}, ${fmt(q.y)}].`;
+    $('dmsg').textContent=msg;
+  }
+  function move(k,x,y){
+    x=Math.max(0,Math.min(XMAX,Math.round(x*2)/2)); y=Math.max(0,Math.min(YMAX,Math.round(y*2)/2));
+    if(x===P[k].x&&y===P[k].y) return; P[k]={x,y}; drawD();
+  }
+  ds.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const pt=ds.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
+    const s=pt.matrixTransform(ds.getScreenCTM().inverse());
+    move(drag,(s.x-L)/U,YMAX-(s.y-T)/U);
+  });
+  const end=()=>{drag=null;};
+  ds.addEventListener('pointerup',end); ds.addEventListener('pointercancel',end);
+  document.querySelectorAll('#lab2 button[data-d]').forEach(b=>b.addEventListener('click',()=>{
+    const d=DP[b.dataset.d]; P.p={x:d.p[0],y:d.p[1]}; P.q={x:d.q[0],y:d.q[1]}; drawD();
+  }));
+  drawD();
+})();
+</script>
+</body>
+</html>

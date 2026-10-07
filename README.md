@@ -68,6 +68,17 @@ A from-zero AI course in 60 lessons (plus deep dives), one concept per lesson, p
 | [05 · Derivatives and slopes](lessons/05-derivatives.html) | Foundations | Shrink a secant's gap until it becomes the tangent, then let the slope walk a loss knob downhill to its best value |
 | [06 · Probability basics for ML](lessons/06-probability.html) | Foundations | Compute P(A \| B) by counting a 20-email inbox, roll a fair or loaded die until frequencies settle, apply Bayes' rule once, and find an expected value |
 
+### Math toolkit
+
+Short companion lessons for the math the AI course uses, written from first principles for anyone rusty on school math. Each AI lesson opens with a "Math you'll need" box linking the ones it relies on.
+
+| Math lesson | Used in | What you can do |
+| --- | --- | --- |
+| [M01 · Functions and graphs](lessons/m01-functions-graphs.html) | Lessons 03, 05, 09, 21 | Read f(x) notation, plug in values, read a graph both ways, and say what w and b do to y = w·x + b |
+| [M02 · Squares, square roots and absolute value](lessons/m02-squares-roots.html) | Lessons 03, 04, 05, 07, 13, 17 | Explain why (−3)² = 9, compare total absolute and squared error on real misses, and compute a distance or a vector's length with Pythagoras |
+| [M03 · Summation (Σ) and averages](lessons/m03-summation.html) | Lessons 03, 06, 07, 09, 14 | Read Σ notation as a loop, use the sum rules, and compute a mean, MSE and a weighted average / expected value |
+| [M04 · Exponents and logarithms](lessons/m04-exponents-logs.html) | Lessons 07, 10, 21, 31, 40 | Read 2⁻³ and log₂ 8, turn products into sums with logs (and avoid underflow), see where e comes from, and read −ln p as a cost |
+
 Each lesson has the same sections: where we are, why it matters, the intuition, how it works (every symbol defined), a diagram or widget computing real values, a worked example by hand and in Python, common misconceptions, three check-yourself questions, the one-line takeaway, what comes next, and optional further reading. The full curriculum is in `window.LESSONS` in [`topics/registry.js`](topics/registry.js).
 
 ## Concept pages
@@ -97,6 +108,7 @@ shared/lab.css        theme tokens (light + dark) and shared components
 topics/registry.js    list of topics and their status
 topics/<slug>.html    one self-contained page per topic
 lessons/<NN>-<slug>.html  one self-contained page per AI lesson
+lessons/m<NN>-<slug>.html one self-contained page per math toolkit lesson
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a topic.

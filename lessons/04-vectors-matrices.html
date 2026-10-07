@@ -101,6 +101,10 @@
   .lab .controls label.v input { accent-color: var(--amber); }
   .lab tr.hl td { background: var(--accent-soft); }
   .lab tbody tr { cursor: pointer; }
+  .mathneed { display: grid; gap: .35rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: 10px; padding: .8rem 1rem; margin: 1.2rem 0 .4rem; font-size: .95rem; }
+  .mathneed .tag { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); }
+  .mathneed ul { margin: 0; padding-left: 1.1rem; } .mathneed li { margin: .1rem 0; }
+  .mathneed p { margin: 0; color: var(--muted); font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -114,6 +118,13 @@
   <h1><span class="num">04</span> · Vectors and matrices, intuitively</h1>
   <p class="lede">A vector is a list of numbers. A matrix is a grid of them. That is almost the whole definition, and with one operation on top, the dot product, you can write any model's prediction for a thousand examples in a single line of code.</p>
 </header>
+<aside class="mathneed" aria-label="Math you'll need">
+  <span class="tag">Math you'll need</span>
+  <ul>
+    <li><a href="m02-squares-roots.html">M02 · Squares, square roots and absolute value</a></li>
+  </ul>
+  <p>Rusty on any of these? Each is a short, from-scratch math lesson. Read it first, then come back.</p>
+</aside>
 
 <section>
 <h2><span class="tag">a · Where we are</span>From one knob per feature to one line for all of them</h2>
