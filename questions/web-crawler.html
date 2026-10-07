@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a Web Crawler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  #arch { width: 100%; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .board { display: grid; gap: 6px; margin-top: 10px; }
+  .hostline { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .hostline .t { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .hostline.rude { border-color: var(--bad); }
+  .hostline.rude .t { color: var(--bad); }
+  .hostline.calm { border-color: var(--ok); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .wctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 24px; align-items: end; }
+  .wctl .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chart { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .keys { display: flex; flex-wrap: wrap; gap: 14px; font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .keys i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .log { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .log .bad { color: var(--bad); }
+  textarea { width: 100%; box-sizing: border-box; font: 500 12px/1.5 var(--mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; resize: vertical; }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .pages label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .pages .h { font: 500 11px/1.4 var(--mono); color: var(--muted); word-break: break-all; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  table.data td.y { color: var(--ok); font-weight: 600; }
+  table.data td.n { color: var(--bad); font-weight: 600; }
+  table.data td.a { color: var(--amber); font-weight: 600; }
+  table.data td.brk { word-break: break-all; min-width: 140px; }
+  table.data tr.cur td { background: var(--accent-soft); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="web-crawler" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a Web Crawler</h1>
+    <p class="lede">Start from a handful of seed URLs, download every page you can reach, pull out the links, and keep going until a large slice of the web is stored for indexing. Fetching one page is easy. The design question is everything around it: which URL to fetch next, how to avoid fetching the same thing twice, how to stay polite to sites that never asked to be crawled, and how to survive machines and servers failing halfway through a crawl that runs for days.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope it to collecting pages. Ranking, building the search index and answering queries are separate systems that read what the crawler stores.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the crawler should</h3>
+        <ul>
+          <li>Start from a list of seed URLs and follow links outward.</li>
+          <li>Download each page and store its raw HTML for later processing.</li>
+          <li>Extract the links from each page and add the new ones to the work list.</li>
+          <li>Obey <span class="mono">robots.txt</span> and only fetch HTML pages (no images or video in scope).</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Be polite: never send a site more requests than it allows, whatever the crawl's total speed.</li>
+          <li>Finish a crawl of billions of pages in days, not months (sized live in 5d).</li>
+          <li>Be fault tolerant: a crashed worker or a dead server must not lose progress or stall the crawl.</li>
+          <li>Not waste work: fetch each URL once and store each distinct page once.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> a crawler is a breadth-first search over a graph you discover while walking it. The graph is enormous, full of cycles and duplicates, and every edge you follow costs a real request to somebody else's server. So the hard parts are the queue (order and politeness), the visited set (dedup), and keeping both durable.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>URL record</h3><code>url (normalized), host
+state: queued | fetched | failed
+attempts, last_fetched_at
+priority, depth</code></div>
+      <div class="entity"><h3>Host</h3><code>hostname, ip (cached)
+robots rules + fetched_at
+crawl_delay, next_allowed_at
+consecutive_failures</code></div>
+      <div class="entity"><h3>Page</h3><code>url, fetched_at, status
+content_hash, simhash
+blob_key (raw HTML)
+out_links</code></div>
+      <div class="entity"><h3>Crawl job</h3><code>seeds, max_depth
+allowed domains
+started_at, counters</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="System interface" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>System interface</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">A crawler has no end users calling it per request. Its interface is what goes in (seeds and settings) and what comes out (stored pages and the link graph), so describe that instead of a REST API.</p>
+<pre class="api"><span class="c">// input</span>
+<span class="verb">POST</span> /crawls   { seeds: [url], max_depth, allowed_domains, user_agent }  → { crawl_id }
+<span class="verb">GET</span>  /crawls/{id}            → { fetched, queued, failed, pages_per_sec }
+
+<span class="c">// output, consumed by the indexer</span>
+blob store:  pages/{content_hash}.html.gz          <span class="c">// one object per distinct page</span>
+topic:       crawled-pages { url, fetched_at, status, content_hash, blob_key, out_links }</pre>
+    <div class="aside"><p><b>Why key blobs by content hash?</b> Two URLs that serve the same bytes (mirrors, tracking parameters, <span class="mono">http</span> and <span class="mono">https</span>) then point at one object, and writing a page you already have becomes a cheap no-op. The event on the topic lets the indexer start without polling the store.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="13m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker" id="webKicker"></p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="play">Play</button>
+          <button id="jump">+10 s</button>
+          <button id="crash">Crash the crawler</button>
+          <button id="reset">Reset</button>
+        </div>
+        <svg id="arch" viewBox="0 0 660 400" role="img" aria-label="Crawler architecture with animated fetches"></svg>
+        <div class="cost" id="cost"></div>
+        <p class="note" id="simNote" aria-live="polite"></p>
+        <div class="board" id="board"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="frontier" data-nav="Deep dive: politeness" data-num="5a" data-time="4m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: a frontier that stays polite</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker" id="frontKicker"></p>
+    <div class="modes" id="fmodes" role="group" aria-label="Frontier design"></div>
+    <div class="wctl">
+      <label class="field" for="fw"><span class="row"><span>Fetch workers</span><b class="mono num" id="fwOut"></b></span><input type="range" id="fw" min="1" max="8" step="1" value="4"></label>
+      <label class="field" for="fd"><span class="row"><span>Crawl delay per host</span><b class="mono num" id="fdOut"></b></span><input type="range" id="fd" min="0.5" max="4" step="0.5" value="2"></label>
+      <label class="field" for="fs"><span class="row"><span>Share of URLs on the biggest host</span><b class="mono num" id="fsOut"></b></span><input type="range" id="fs" min="0.05" max="0.7" step="0.05" value="0.1"></label>
+      <label class="field" for="ft"><span class="row"><span>Replay clock</span><b class="mono num" id="ftOut"></b></span><input type="range" id="ft" min="0" max="1000" step="1" value="1000"></label>
+      <div class="btns"><button class="primary" id="fplay">Replay</button></div>
+    </div>
+    <svg class="chart" id="lanes" viewBox="0 0 720 260" role="img" aria-label="Fetches per host over time"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>fetch that respected the delay</span><span><i style="background:var(--bad)"></i>fetch that broke it</span><span><i style="background:var(--grid)"></i>not yet, at the replay clock</span></div>
+    <div class="results" id="fResults"></div>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Frontier design</th><th>Finishes at</th><th>Pages / s</th><th>Delay broken</th><th>Workers busy</th></tr></thead>
+      <tbody id="fTable"></tbody>
+    </table></div>
+    <h3 style="margin-top:6px">Scheduling decisions up to the replay clock</h3>
+    <ol class="log" id="fLog"></ol>
+    <ul id="fNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+  </section>
+
+  <section class="panel article" id="dedup" data-nav="Deep dive: deduplication" data-num="5b" data-time="4m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: deduplicating URLs and content</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Two different questions. <b>Have I queued this URL before?</b> is answered before fetching, with a normalized URL and a seen set. <b>Have I stored this content before?</b> is answered after fetching, with a hash of the page. Mirrors, session IDs and tracking parameters slip past the first check and get caught by the second.</p>
+    <h3>1. Normalize, then look up</h3>
+    <p>Edit the list. Each line is parsed, the host lowercased, the default port, fragment and <span class="mono">utm_*</span> parameters dropped, <span class="mono">..</span> segments resolved and the remaining query parameters sorted.</p>
+    <textarea id="urls" rows="8" spellcheck="false" aria-label="URLs to normalize">https://Shop.Example/item?id=7&amp;utm_source=mail
+https://shop.example/item?id=7
+https://shop.example:443/item?id=7#reviews
+https://shop.example/item?utm_campaign=x&amp;id=7
+https://shop.example/item?id=8
+http://shop.example/item?id=7
+https://blog.example/a/../post
+https://blog.example/post</textarea>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>#</th><th>Normalized</th><th>Verdict</th></tr></thead>
+      <tbody id="normTable"></tbody>
+    </table></div>
+    <p id="normNote"></p>
+
+    <h3 style="margin-top:6px">2. A seen set that fits in memory: the Bloom filter</h3>
+    <p id="bloomIntro"></p>
+    <div class="calc">
+      <label class="field" for="bn"><span class="row"><span>URLs in the seen set</span><b class="mono num" id="bnOut"></b></span><input type="range" id="bn" min="7" max="11" step="0.1" value="10"></label>
+      <label class="field" for="bb"><span class="row"><span>Bits per URL</span><b class="mono num" id="bbOut"></b></span><input type="range" id="bb" min="2" max="20" step="1" value="10"></label>
+      <label class="field" for="bk"><span class="row"><span>Hash functions k</span><b class="mono num" id="bkOut"></b></span><input type="range" id="bk" min="1" max="12" step="1" value="7"></label>
+    </div>
+    <div class="results" id="bloomResults"></div>
+    <ul id="bloomNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+
+    <h3 style="margin-top:6px">3. Content fingerprints: exact hash and SimHash</h3>
+    <p>An exact hash catches byte-for-byte copies. It misses a page that differs only by a timestamp or an ad. SimHash turns a page into a 64-bit fingerprint where similar pages differ in only a few bits: each two-word phrase is hashed, every bit position adds 1 if the phrase's hash has that bit set and subtracts 1 if not, and the sign of each sum becomes one bit. Edit the pages and watch the distances.</p>
+    <div class="pages" id="pages"></div>
+    <label class="field" for="sth" style="max-width:360px"><span class="row"><span>Near-duplicate if bits differ ≤</span><b class="mono num" id="sthOut"></b></span><input type="range" id="sth" min="0" max="16" step="1" value="6"></label>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Pair</th><th>Exact hash equal?</th><th>SimHash bits different</th><th>Verdict</th></tr></thead>
+      <tbody id="simTable"></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel article" id="failures" data-nav="Deep dive: failures" data-num="5c" data-time="4m">
+    <div class="step-head"><span class="step-num">5c</span><h2>Deep dive: retries, backoff and a dead-letter queue</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker" id="failKicker"></p>
+    <div class="calc">
+      <label class="field" for="fp"><span class="row"><span>Chance one attempt fails (timeouts, 503s)</span><b class="mono num" id="fpOut"></b></span><input type="range" id="fp" min="0" max="0.6" step="0.05" value="0.2"></label>
+      <label class="field" for="fa"><span class="row"><span>Max attempts per URL</span><b class="mono num" id="faOut"></b></span><input type="range" id="fa" min="1" max="6" step="1" value="4"></label>
+      <label class="field" for="fbk"><span class="row"><span>Base backoff</span><b class="mono num" id="fbkOut"></b></span><input type="range" id="fbk" min="1" max="30" step="1" value="5"></label>
+      <div style="display:grid;gap:8px">
+        <label class="check"><input type="checkbox" id="fdown" checked> One host is completely down</label>
+        <label class="check"><input type="checkbox" id="fcb"> Circuit breaker: park a host after 5 failures in a row</label>
+      </div>
+    </div>
+    <div class="results" id="failResults"></div>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Attempt</th><th>Wait before it</th><th>Tried</th><th>Succeeded</th><th>Failed</th><th>Then</th></tr></thead>
+      <tbody id="failTable"></tbody>
+    </table></div>
+    <ul id="failNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: capacity" data-num="5d" data-time="3m">
+    <div class="step-head"><span class="step-num">5d</span><h2>Deep dive: how big, how fast, how many machines</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">A crawl is limited by three things: network bandwidth, how many connections can be open at once (each fetch spends most of its time waiting), and politeness, which caps each host. Move the sliders.</p>
+    <div class="calc">
+      <label class="field" for="cp"><span class="row"><span>Pages to crawl</span><b class="mono num" id="cpOut"></b></span><input type="range" id="cp" min="8" max="11" step="0.1" value="10"></label>
+      <label class="field" for="cdays"><span class="row"><span>Days to finish</span><b class="mono num" id="cdaysOut"></b></span><input type="range" id="cdays" min="1" max="30" step="1" value="5"></label>
+      <label class="field" for="csize"><span class="row"><span>Average page size (HTML)</span><b class="mono num" id="csizeOut"></b></span><input type="range" id="csize" min="20" max="2000" step="10" value="500"></label>
+      <label class="field" for="czip"><span class="row"><span>Compression ratio when stored</span><b class="mono num" id="czipOut"></b></span><input type="range" id="czip" min="1" max="8" step="0.5" value="4"></label>
+      <label class="field" for="cnic"><span class="row"><span>Network per machine</span><b class="mono num" id="cnicOut"></b></span><input type="range" id="cnic" min="1" max="50" step="1" value="10"></label>
+      <label class="field" for="cconn"><span class="row"><span>Open connections per machine</span><b class="mono num" id="cconnOut"></b></span><input type="range" id="cconn" min="100" max="5000" step="100" value="1000"></label>
+      <label class="field" for="clat"><span class="row"><span>Average time per fetch</span><b class="mono num" id="clatOut"></b></span><input type="range" id="clat" min="0.2" max="4" step="0.1" value="1"></label>
+      <label class="field" for="chosts"><span class="row"><span>Distinct hosts</span><b class="mono num" id="chostsOut"></b></span><input type="range" id="chosts" min="6" max="9" step="0.1" value="8"></label>
+    </div>
+    <div class="results" id="capResults"></div>
+    <ul id="capNotes" style="margin:0;padding-left:1.1em;display:grid;gap:6px"></ul>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One link, from discovery to storage</h2>
+    <p class="kicker">Using the final design: a durable frontier partitioned by host, a fleet of fetchers, a robots and DNS cache, URL and content dedup, a retry queue with a dead-letter queue, and a blob store.</p>
+    <ol class="steps">
+      <li><div><h3>Discovered</h3><p>A parser finds <span class="mono">https://Shop.Example/item?id=7&amp;utm_source=mail</span> on a page it just processed. It normalizes it to <span class="mono">https://shop.example/item?id=7</span> and asks the seen set. The Bloom filter says "not seen", so the URL is new for certain, and the parser records it in the URL table as <span class="mono">queued</span>.</p></div></li>
+      <li><div><h3>Queued by host</h3><p>The URL is published to the frontier topic keyed by <span class="mono">shop.example</span>, so every URL of that host lands on the same frontier partition. The frontier node that owns the partition appends it to the host's back queue. The scheduler's heap says the host may next be contacted at a time set by its crawl delay.</p></div></li>
+      <li><div><h3>Allowed?</h3><p>When the host's turn comes, a fetcher takes the URL. It checks the cached <span class="mono">robots.txt</span> rules for <span class="mono">shop.example</span> (refetched when the copy is a day old) and resolves the host from its DNS cache, so most fetches skip both round trips.</p></div></li>
+      <li><div><h3>Fetched, or retried</h3><p>The server answers 503. The fetcher puts the URL on the retry queue with a delay that doubles each attempt, plus jitter. The next attempt succeeds. Had it failed every attempt, it would have gone to the dead-letter queue for a person or a later sweep to inspect.</p></div></li>
+      <li><div><h3>Deduped and stored</h3><p>The fetcher hashes the HTML. The hash is new, so the page is compressed into the blob store under its hash and a <span class="mono">crawled-pages</span> event goes out. The parser consumes it, extracts links, and the cycle starts again for each of them. Only then does the frontier commit its offset, so a crash anywhere before this point means the URL is simply fetched again.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A breadth-first walk of a graph that is discovered while walking it, where visiting a node means a slow network request to a server you don't own.</p></div>
+      <div><span class="q">Why it's hard</span><p>The graph is huge, cyclic and full of duplicates, and the edges are unevenly spread: a few hosts own a large share of all URLs, yet each host can only be visited slowly.</p></div>
+      <div><span class="q">Key insight</span><p>Separate <i>what</i> to crawl from <i>when</i> to crawl it. A queue per host turns politeness into scheduling: the crawl stays fast by interleaving many hosts, never by hitting one host harder.</p></div>
+      <div><span class="q">Where it bends</span><p>Memory for the visited set. A Bloom filter fits billions of URLs in a few gigabytes; its only error is skipping a URL it never saw, which loses a page rather than wasting a fetch.</p></div>
+      <div><span class="q">What must be durable</span><p>The frontier and the URL states. Pages can be refetched; a lost queue can't be rebuilt without crawling again from the seeds.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>From one student's script to a standard</h2>
+    <p>In June 1993 Matthew Gray, a student at MIT, wrote the World Wide Web Wanderer in Perl. Its job was to measure how big the web had become, and later that year its results fed an index called Wandex. Early crawlers like it had no rules to follow. In February 1994 Martijn Koster, then at Nexor, proposed on the www-talk mailing list that sites publish a <span class="mono">robots.txt</span> file telling robots what to leave alone. Charles Stross has said a badly behaved crawler he wrote, which overloaded Koster's server, prompted the idea.</p>
+    <p>Also in 1994, Brian Pinkerton at the University of Washington launched WebCrawler, the first search engine to index the full text of the pages it fetched. In 1998 Sergey Brin and Larry Page described Google's early crawler at the WWW7 conference: a URL server handing out work, about three crawlers each holding roughly 300 connections open, a DNS cache per crawler, and a peak of over 100 pages a second. They noted receiving emails from site owners surprised by how many pages had been read.</p>
+    <p>In 1999 Allan Heydon and Marc Najork of Compaq's Systems Research Center published Mercator, a crawler built to be scalable and extensible. It assigned URLs to FIFO subqueues by host so that only one thread ever talked to a given server, used 64-bit fingerprints to test whether content had been seen, and averaged 112 documents a second in an 8-day crawl. Its frontier, refined into front queues for priority and back queues for politeness with a heap of next-contact times, is the design used in textbooks and on this page. The robots rules stayed an informal convention for 28 years: Google proposed them to the IETF in July 2019, and they became RFC 9309 in September 2022, with Koster among the authors. The RFC says a cached copy should not be used for more than a day, and that if <span class="mono">robots.txt</span> returns a server error, the crawler must assume it may not crawl at all. <span class="mono">Crawl-delay</span>, which many crawlers honor, is not part of it.</p>
+    <ol class="timeline">
+      <li><span class="year">1993</span><p>Matthew Gray's World Wide Web Wanderer measures the web's size from MIT.</p></li>
+      <li><span class="year">1994</span><p>Martijn Koster proposes robots.txt; Brian Pinkerton launches WebCrawler, the first full-text web search engine.</p></li>
+      <li><span class="year">1998</span><p>Brin and Page describe Google's distributed crawler at WWW7.</p></li>
+      <li><span class="year">1999</span><p>Heydon and Najork publish Mercator: per-host queues and content fingerprints.</p></li>
+      <li><span class="year">2022</span><p>The Robots Exclusion Protocol is published as RFC 9309.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Recrawling for freshness:</b> pages change at different rates. Store each URL's last change and schedule the next visit sooner for pages that changed, later for ones that didn't; the front queues then order by priority and due time.</li>
+        <li><b>Crawler traps:</b> calendars and generated links can produce endless distinct URLs. Cap depth, cap URLs per host, and flag hosts whose new URLs keep producing near-duplicate content.</li>
+        <li><b>JavaScript-heavy pages:</b> rendering needs a headless browser and is many times more expensive. Fetch the HTML first, and send only pages that look empty without scripts to a separate rendering pool.</li>
+        <li><b>Spreading the frontier:</b> assign hosts to frontier nodes with consistent hashing, so adding a node moves only a small share of hosts and every host still has one owner enforcing its delay.</li>
+        <li><b>Priority:</b> not all pages are worth the same. Score URLs (link popularity, site quality, freshness) into front queues and let the back-queue scheduler pull from high-priority front queues more often.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/bloom-filter.html">Bloom Filter</a>
+        <a href="../topics/kafka.html">Kafka Partitions</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/rate-limiter.html">Rate Limiter</a>
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/web-crawler">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e12 ? (n / 1e12).toFixed(1) + "T" : n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+  const bytes = b => b >= 1e15 ? (b / 1e15).toFixed(1) + " PB" : b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : b >= 1e3 ? (b / 1e3).toFixed(1) + " KB" : Math.round(b) + " B";
+  const secs = s => s.toFixed(1) + " s";
+  const pct = x => (x * 100).toFixed(x < 0.01 && x > 0 ? 2 : 0) + "%";
+  // seeded random numbers so every simulation is repeatable
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function mix(x) { x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B); x = Math.imul(x ^ (x >>> 13), 0xC2B2AE35); return (x ^ (x >>> 16)) >>> 0; }
+  function fnv(str, seed = 0x811c9dc5) { let h = seed; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
+  const hex = (n, d = 8) => n.toString(16).padStart(d, "0");
+
+  // URL normalization shared by the design sim and deep dive 5b
+  function normalize(raw) {
+    try {
+      const u = new URL(raw.trim());
+      if (!/^https?:$/.test(u.protocol)) return null;
+      u.hash = "";
+      [...u.searchParams.keys()].filter(k => k.toLowerCase().startsWith("utm_")).forEach(k => u.searchParams.delete(k));
+      u.searchParams.sort();
+      const s = u.toString();
+      return s.endsWith("?") ? s.slice(0, -1) : s;
+    } catch (e) { return null; }
+  }
+  const hostOf = u => new URL(u).host;
+
+  // ================= Toy web for the live design =================
+  const HOSTS = ["news.example", "wiki.example", "shop.example", "blog.example", "mirror.example"];
+  const PER_HOST = 6;
+  const WEB = {};
+  HOSTS.forEach(h => { for (let i = 0; i < PER_HOST; i++) WEB[`https://${h}/p${i}`] = { host: h, content: h === "mirror.example" ? `wiki.example/p${i}` : `${h}/p${i}`, links: [] }; });
+  const ALLURLS = Object.keys(WEB);
+  { const r = rng(11);
+    ALLURLS.forEach(u => { const p = WEB[u]; for (let j = 0; j < 4; j++) {
+      let t = r() < 0.5 ? `https://${p.host}/p${Math.floor(r() * PER_HOST)}` : ALLURLS[Math.floor(r() * ALLURLS.length)];
+      const v = r();
+      if (v < 0.2) t = t.replace(/\/\/([^/]+)/, (m, h) => "//" + h.toUpperCase());
+      else if (v < 0.4) t += "?utm_source=feed";
+      else if (v < 0.5) t += "#comments";
+      p.links.push(t);
+    } }); }
+  const SEEDS = ["https://news.example/p0", "https://blog.example/p0"];
+  // what is actually reachable from the seeds (breadth-first, normalized)
+  const REACH = (() => { const seen = new Set(SEEDS), q = [...SEEDS]; while (q.length) { const u = q.shift(); WEB[u].links.forEach(l => { const k = normalize(l); if (!seen.has(k)) { seen.add(k); q.push(k); } }); } return seen; })();
+  const REACH_CONTENT = new Set([...REACH].map(u => WEB[u].content)).size;
+  const RAW_VARIANTS = new Set(ALLURLS.flatMap(u => WEB[u].links)).size;
+
+  const TICK = 0.1, FETCH_T = 4, DELAY_T = 10; // ticks of 0.1 s: a fetch takes 0.4 s, crawl delay 1 s
+  const CFG = [
+    { workers: 1, dedup: false, polite: false, durable: false },
+    { workers: 4, dedup: true, polite: false, durable: false },
+    { workers: 4, dedup: true, polite: true, durable: false },
+    { workers: 4, dedup: true, polite: true, durable: true }
+  ];
+  function makeCrawl(cfg) {
+    const c = { cfg, t: 0, fifo: [], hostQ: new Map(), seen: new Set(), contentSeen: new Set(), everFetched: new Set(), everContent: new Set(),
+      workers: Array.from({ length: cfg.workers }, () => ({ url: null, until: 0 })), fetches: 0, useful: 0, blobs: 0, starts: {}, lastStart: {},
+      violations: 0, skippedUrl: 0, skippedContent: 0, doneAt: null, onStart: null };
+    HOSTS.forEach(h => { c.starts[h] = []; c.lastStart[h] = -1e9; });
+    SEEDS.forEach(s => enqueue(c, s));
+    return c;
+  }
+  function pushQ(c, key) {
+    if (c.cfg.polite) { const h = hostOf(key); if (!c.hostQ.has(h)) c.hostQ.set(h, { q: [], ready: 0 }); c.hostQ.get(h).q.push(key); }
+    else c.fifo.push(key);
+  }
+  function enqueue(c, raw) {
+    const key = c.cfg.dedup ? normalize(raw) : raw;
+    if (!key) return;
+    if (c.cfg.dedup) { if (c.seen.has(key)) { c.skippedUrl++; return; } c.seen.add(key); }
+    pushQ(c, key);
+  }
+  const queued = c => c.cfg.polite ? [...c.hostQ.values()].reduce((a, x) => a + x.q.length, 0) : c.fifo.length;
+  const busy = c => c.workers.filter(w => w.url).length;
+  function nextUrl(c) {
+    if (!c.cfg.polite) return c.fifo.length ? c.fifo.shift() : null;
+    let best = null;
+    c.hostQ.forEach(x => { if (x.q.length && x.ready <= c.t && (!best || x.ready < best.ready)) best = x; });
+    if (!best) return null;
+    best.ready = c.t + DELAY_T;
+    return best.q.shift();
+  }
+  function startFetch(c, w, u, i) {
+    const key = normalize(u), page = WEB[key], h = page.host;
+    const dup = c.everFetched.has(key) || c.everContent.has(page.content);
+    const rude = c.t - c.lastStart[h] < DELAY_T;
+    if (rude) c.violations++;
+    c.lastStart[h] = c.t; c.starts[h].push(c.t); c.fetches++;
+    w.url = u; w.until = c.t + FETCH_T;
+    if (c.onStart) c.onStart({ h, dup, rude, i });
+  }
+  function completeFetch(c, u) {
+    const key = normalize(u), page = WEB[key], hash = fnv(page.content);
+    c.everFetched.add(key);
+    if (!c.everContent.has(page.content)) { c.everContent.add(page.content); c.useful++; }
+    if (c.cfg.dedup) { if (c.contentSeen.has(hash)) { c.skippedContent++; return; } c.contentSeen.add(hash); }
+    c.blobs++;
+    page.links.forEach(l => enqueue(c, l));
+  }
+  function tick(c) {
+    c.workers.forEach(w => { if (w.url && c.t >= w.until) { completeFetch(c, w.url); w.url = null; } });
+    c.workers.forEach((w, i) => { if (w.url) return; const u = nextUrl(c); if (u) startFetch(c, w, u, i); });
+    if (c.doneAt === null && !queued(c) && !busy(c)) c.doneAt = c.t;
+    c.t++;
+  }
+  function crash(c) {
+    const inflight = c.workers.filter(w => w.url).map(w => w.url);
+    c.workers.forEach(w => { w.url = null; });
+    c.doneAt = null;
+    if (c.cfg.durable) { inflight.forEach(u => pushQ(c, u)); return { lost: 0, redelivered: inflight.length, seenKept: c.seen.size }; }
+    const lost = queued(c) + inflight.length, seenLost = c.seen.size;
+    c.fifo = []; c.hostQ = new Map(); c.seen = new Set(); c.contentSeen = new Set();
+    SEEDS.forEach(s => enqueue(c, s));
+    return { lost, redelivered: 0, seenLost };
+  }
+  function peakHost(c) {
+    let best = { n: 0, h: null };
+    HOSTS.forEach(h => { const a = c.starts[h]; let i = 0; for (let j = 0; j < a.length; j++) { while (a[j] - a[i] >= DELAY_T) i++; if (j - i + 1 > best.n) best = { n: j - i + 1, h }; } });
+    return best;
+  }
+  function peakOf(c, h) { const a = c.starts[h]; let i = 0, m = 0; for (let j = 0; j < a.length; j++) { while (a[j] - a[i] >= DELAY_T) i++; m = Math.max(m, j - i + 1); } return m; }
+  function runHeadless(cfg, ticks, crashAt) {
+    const c = makeCrawl(cfg); let cr = null;
+    for (let t = 0; t < ticks; t++) { if (crashAt !== undefined && t === crashAt) cr = crash(c); tick(c); if (c.doneAt !== null && (crashAt === undefined || t > crashAt)) break; }
+    return { c, cr };
+  }
+  // numbers quoted in the "what breaks next" notes come from headless runs of the same model
+  const RUN0 = runHeadless(CFG[0], 300).c;
+  const RUN1 = runHeadless(CFG[1], 3000).c;
+  const RUN2 = runHeadless(CFG[2], 3000).c;
+  const CRASH_AT = Math.round(RUN2.doneAt / 2);
+  const RUN2C = runHeadless(CFG[2], 6000, CRASH_AT);
+  const RUN3C = runHeadless(CFG[3], 6000, CRASH_AT);
+
+  $("webKicker").innerHTML = `A toy web of ${HOSTS.length} hosts and ${ALLURLS.length} pages, crawled from ${SEEDS.length} seeds. Pages link to each other in cycles, ${RAW_VARIANTS} different link spellings point at them (upper-case hosts, <span class="mono">utm_</span> parameters, <span class="mono">#fragments</span>), and <span class="mono">mirror.example</span> serves copies of <span class="mono">wiki.example</span>. From the seeds, ${REACH.size} pages with ${REACH_CONTENT} distinct contents are reachable. Each fetch takes ${FETCH_T * TICK} s and the sites ask for at most one request per ${DELAY_T * TICK} s. Press Play, then try each stage.`;
+
+  const N = {
+    seeds: { x: 80, y: 70, label: "Seed URLs" },
+    frontier: { x: 250, y: 70, label: "Frontier" },
+    fetcher: { x: 425, y: 70, label: "Fetcher" },
+    web: { x: 585, y: 70, label: "The web" },
+    robots: { x: 80, y: 200, label: "Robots + DNS" },
+    seen: { x: 250, y: 200, label: "URL seen set" },
+    parser: { x: 425, y: 200, label: "Parser" },
+    content: { x: 585, y: 200, label: "Content hashes" },
+    retry: { x: 80, y: 330, label: "Retry + DLQ" },
+    meta: { x: 250, y: 330, label: "URL table" },
+    blob: { x: 425, y: 330, label: "Page store" }
+  };
+  // a two-column layout for narrow screens, so labels stay readable at phone width
+  const NARROW = { seeds: [85, 40], retry: [255, 40], frontier: [85, 130], robots: [255, 130], seen: [85, 220], fetcher: [255, 220],
+    parser: [85, 310], web: [255, 310], blob: [85, 400], content: [255, 400], meta: [255, 490] };
+  const narrowMQ = window.matchMedia("(max-width: 600px)");
+  const P = k => narrowMQ.matches ? { x: NARROW[k][0], y: NARROW[k][1] } : N[k];
+  narrowMQ.addEventListener("change", () => { dots = []; renderFrontier(true); });
+  const ROUND = { frontier: 1, seen: 1, content: 1, meta: 1, blob: 1, retry: 1 };
+  const STAGES = [
+    {
+      name: "1 · One loop",
+      nodes: ["seeds", "frontier", "fetcher", "web", "parser"],
+      edges: [["seeds", "frontier"], ["frontier", "fetcher"], ["fetcher", "web"], ["fetcher", "parser"], ["parser", "frontier"]],
+      adds: "A queue starts with the seed URLs. A worker takes a URL, downloads the page, extracts every link and appends all of them to the queue. Repeat until the queue is empty.",
+      why: "This is breadth-first search, and it is the whole algorithm. Everything after this stage is about doing it without waste, without harm and without losing work.",
+      breaks: () => `The web links back to itself. In ${(RUN0.t * TICK).toFixed(0)} simulated seconds the loop makes ${RUN0.fetches} fetches but only ${RUN0.useful} find content it hadn't seen, and the queue has grown to ${queued(RUN0)} URLs. It never empties, because every page fetched again adds its links again.`
+    },
+    {
+      name: "2 · Dedupe",
+      nodes: ["seeds", "frontier", "fetcher", "web", "parser", "seen", "content", "blob"],
+      edges: [["seeds", "frontier"], ["frontier", "fetcher"], ["fetcher", "web"], ["fetcher", "parser"], ["parser", "seen"], ["seen", "frontier"], ["parser", "content"], ["parser", "blob"]],
+      adds: `Before a link is queued it is normalized and checked against a <b>URL seen set</b>. After a page is fetched its content is hashed and checked against <b>content hashes</b>; only new content is stored and parsed. Now ${CFG[1].workers} workers share the queue.`,
+      why: "Two checks for two kinds of duplicate: the same URL spelled differently, and different URLs serving the same bytes. Skipping both makes the crawl finish.",
+      breaks: () => { const p = peakHost(RUN1); return `The crawl now finishes in ${secs(RUN1.doneAt * TICK)} with ${RUN1.fetches} fetches, but the ${CFG[1].workers} workers pull whatever is next, often from the same site: <b>${p.h}</b> got ${p.n} requests inside one second, against a limit of 1. Across the run, ${RUN1.violations} fetches broke the delay. A real crawler with thousands of workers would look like an attack.`; }
+    },
+    {
+      name: "3 · Polite frontier",
+      nodes: ["seeds", "frontier", "fetcher", "web", "parser", "seen", "content", "blob", "robots"],
+      edges: [["seeds", "frontier"], ["frontier", "fetcher"], ["fetcher", "web"], ["fetcher", "parser"], ["parser", "seen"], ["seen", "frontier"], ["parser", "content"], ["parser", "blob"], ["fetcher", "robots"]],
+      adds: `The frontier keeps <b>one queue per host</b> and the time each host may next be contacted. A free worker takes a URL from the host whose turn came earliest; that host then waits ${DELAY_T * TICK} s. Fetchers check cached robots rules and DNS answers per host.`,
+      why: "Politeness becomes scheduling. The crawl stays fast by spreading workers across many hosts at once, never by visiting one host faster.",
+      breaks: () => `Everything lives in one process's memory. Crash it at ${secs(CRASH_AT * TICK)} and ${RUN2C.cr.lost} queued URLs and a seen set of ${RUN2C.cr.seenLost} URLs vanish; it restarts from the seeds and refetches pages it already had, ending with ${RUN2C.c.fetches} fetches instead of ${RUN2.fetches}. A crawl that runs for days on hundreds of machines will see crashes every day.`
+    },
+    {
+      name: "4 · Durable + retries",
+      nodes: ["seeds", "frontier", "fetcher", "web", "parser", "seen", "content", "blob", "robots", "retry", "meta"],
+      edges: [["seeds", "frontier"], ["frontier", "fetcher"], ["fetcher", "web"], ["fetcher", "parser"], ["parser", "seen"], ["seen", "frontier"], ["parser", "content"], ["parser", "blob"], ["fetcher", "robots"], ["retry", "frontier"], ["parser", "meta"]],
+      adds: "The frontier is backed by a log (a Kafka topic partitioned by host) and URL states live in a <b>URL table</b>. A fetcher commits a URL only after its page is stored, so a crash means a re-fetch, never a loss. Failed fetches go to a <b>retry queue</b> with backoff, and give up into a dead-letter queue.",
+      why: "Make the work list and the visited set durable, and make fetching idempotent (blobs keyed by content hash), so any worker can die at any moment.",
+      breaks: () => `Crash it at the same moment: ${RUN3C.cr.lost} URLs lost, ${RUN3C.cr.redelivered} in-flight URLs delivered again, and the crawl ends with ${RUN3C.c.fetches} fetches. What's left is tuning: the frontier's schedule (5a), the size of the seen set (5b), retry policy (5c) and the fleet size (5d).`
+    }
+  ];
+
+  let stage = 0, crawl, dots = [], playing = false, acc = 0, note = "";
+  function nodeLabel(k) {
+    if (k === "frontier") return stage >= 3 ? "Frontier (log)" : stage >= 2 ? "Per-host queues" : "Frontier";
+    if (k === "fetcher") return stage >= 3 ? "Fetcher fleet" : stage === 0 ? "Worker" : "Fetchers";
+    return N[k].label;
+  }
+  function nodeSub(k) {
+    const c = crawl;
+    if (k === "seeds") return `${SEEDS.length} URLs`;
+    if (k === "frontier") return stage >= 2 ? `${queued(c)} queued · ${[...c.hostQ.values()].filter(x => x.q.length).length} hosts` : `${queued(c)} queued`;
+    if (k === "fetcher") return `${busy(c)}/${c.workers.length} busy`;
+    if (k === "web") { const p = recentPeak(); return p > 1 ? `${p} req/s to one host` : `${HOSTS.length} hosts`; }
+    if (k === "parser") return `${c.blobs} parsed`;
+    if (k === "seen") return `${c.seen.size} URLs`;
+    if (k === "content") return `${c.contentSeen.size} hashes`;
+    if (k === "blob") return `${c.blobs} pages`;
+    if (k === "robots") return `delay ${DELAY_T * TICK} s / host`;
+    if (k === "retry") return "backoff, then DLQ";
+    if (k === "meta") return `${c.everFetched.size} fetched`;
+    return "";
+  }
+  // busiest host in the last simulated second
+  function recentPeak() { let m = 0; HOSTS.forEach(h => { m = Math.max(m, crawl.starts[h].filter(t => t > crawl.t - 1 - DELAY_T).length); }); return m; }
+  function resetSim() {
+    crawl = makeCrawl(CFG[stage]); dots = []; note = "";
+    crawl.onStart = ev => { if (dots.length < 16) travel(stage === 0 ? ["frontier", "fetcher", "web", "fetcher", "parser", "frontier"] : ["frontier", "fetcher", "web", "fetcher", "parser", "seen", "frontier"], ev.rude ? "rude" : ev.dup ? "dup" : "ok"); };
+  }
+  function travel(path, kind) { dots.push({ path, seg: 0, f: 0, x: P(path[0]).x, y: P(path[0]).y, kind }); }
+  function stepDots(dt) {
+    const SPEED = 700;
+    dots.forEach(d => {
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = P(d.path[d.seg]), b = P(d.path[d.seg + 1]);
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+        const a2 = P(d.path[d.seg]), b2 = P(d.path[Math.min(d.seg + 1, d.path.length - 1)]);
+        d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+      }
+    });
+    dots = dots.filter(d => d.seg < d.path.length - 1);
+  }
+  function draw() {
+    const st = STAGES[stage];
+    let s = "";
+    const narrow = narrowMQ.matches, VH = narrow ? 560 : 400;
+    $("arch").setAttribute("viewBox", narrow ? "0 0 340 560" : "0 0 660 400");
+    st.edges.forEach(([a, b]) => { const p = P(a), q = P(b); s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"/>`; });
+    const colors = { ok: "var(--accent)", dup: "var(--amber)", rude: "var(--bad)" };
+    dots.forEach(d => { s += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    const hotWeb = recentPeak() > 1;
+    st.nodes.forEach(k => {
+      const n = P(k), w = 140, h = 50, round = ROUND[k], hot = k === "web" && hotWeb;
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${round ? 14 : 6}" fill="var(--panel)" stroke="${hot ? "var(--bad)" : round ? "var(--accent)" : "var(--ink)"}" stroke-width="${hot ? 2.4 : 1.6}"/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="15" font-weight="700" fill="var(--ink)">${nodeLabel(k)}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 15}" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="${hot ? "var(--bad)" : "var(--muted)"}">${nodeSub(k)}</text>`;
+    });
+    s += narrow
+      ? `<text x="12" y="${VH - 26}" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue new page · amber wasted fetch</text><text x="12" y="${VH - 10}" font-family="var(--mono)" font-size="12" fill="var(--muted)">red too fast for its host</text>`
+      : `<text x="12" y="392" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue new page · amber wasted fetch · red too fast for its host</text>`;
+    $("arch").innerHTML = s;
+  }
+  function render() {
+    const c = crawl, p = peakHost(c);
+    $("cost").innerHTML = `
+      <div><span>Simulated time</span><b>${secs(c.t * TICK)}</b></div>
+      <div><span>Fetches</span><b>${c.fetches}</b></div>
+      <div><span>New content found</span><b style="color:var(--ok)">${c.useful} / ${REACH_CONTENT}</b></div>
+      <div><span>Wasted fetches</span><b style="color:${c.fetches - c.useful ? "var(--amber)" : "var(--ink)"}">${c.fetches - c.useful}</b></div>
+      <div><span>Most requests to one host in 1 s</span><b style="color:${p.n > 1 ? "var(--bad)" : "var(--ok)"}">${p.n}</b></div>
+      <div><span>Queued URLs</span><b>${queued(c)}</b></div>`;
+    $("simNote").innerHTML = note || (c.doneAt !== null ? `Crawl finished at ${secs(c.doneAt * TICK)}: the queue is empty.` : c.fetches ? "" : "Press Play to start crawling.");
+    $("board").innerHTML = `<span class="stage-label">Per host, whole run</span>` + HOSTS.map(h => { const n = c.starts[h].length, pk = peakOf(c, h); return `<div class="hostline ${pk > 1 ? "rude" : n ? "calm" : ""}"><span><b>${h}</b></span><span class="t">${n} request${n === 1 ? "" : "s"} · peak ${pk} in 1 s</span></div>`; }).join("");
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks()}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  function setPlaying(v) { playing = v; $("play").textContent = v ? "Pause" : "Play"; }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; setPlaying(false); resetSim(); renderExplain(); render(); };
+  $("play").onclick = () => { if (crawl.doneAt !== null && !playing) { resetSim(); } setPlaying(!playing); };
+  $("jump").onclick = () => { for (let i = 0; i < 100; i++) tick(crawl); note = ""; render(); };
+  $("crash").onclick = () => {
+    const at = crawl.t * TICK, r = crash(crawl);
+    note = crawl.cfg.durable
+      ? `<b style="color:var(--ok)">Crashed at ${secs(at)}.</b> The log still holds every queued URL and the URL table still holds ${r.seenKept} seen URLs. ${r.redelivered ? `${r.redelivered} in-flight URL${r.redelivered === 1 ? " was" : "s were"} never committed, so ${r.redelivered === 1 ? "it is" : "they are"} delivered again.` : "No fetch was in flight."} Nothing is lost.`
+      : `<b style="color:var(--bad)">Crashed at ${secs(at)}.</b> ${r.lost} queued or in-flight URL${r.lost === 1 ? "" : "s"}${crawl.cfg.dedup ? ` and a seen set of ${r.seenLost} URLs` : ""} lived only in memory and ${r.lost === 1 && !crawl.cfg.dedup ? "is" : "are"} gone. The crawl restarts from the seeds and will refetch pages it already has.`;
+    dots = []; render();
+  };
+  $("reset").onclick = () => { setPlaying(false); resetSim(); render(); };
+
+  // ================= 5a: frontier scheduling =================
+  const FH = ["big.example", "news.example", "wiki.example", "shop.example", "blog.example", "docs.example", "forum.example", "maps.example", "jobs.example", "pics.example", "video.example", "mail.example"];
+  const FN = 120;
+  const FLAT = (() => { const r = rng(9); return FH.map(() => Math.round((0.3 + 0.6 * r()) * 20) / 20); })();
+  const MODES = [
+    { name: "One FIFO, no waiting", short: "FIFO, no wait" },
+    { name: "One FIFO, wait for the host", short: "FIFO, wait" },
+    { name: "Back queues + heap (Mercator)", short: "Back queues" }
+  ];
+  let fmode = 2, fTimer = null;
+  function frontierOrder(share) {
+    const r = rng(5), nBig = Math.round(FN * share), list = [];
+    for (let i = 0; i < nBig; i++) list.push(0);
+    for (let i = 0; i < FN - nBig; i++) list.push(1 + (i % (FH.length - 1)));
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    return list;
+  }
+  function simFrontier(mode, W, D, share) {
+    const urls = frontierOrder(share), free = new Array(W).fill(0), last = FH.map(() => -1e9), ev = [];
+    let waited = 0, B = 0;
+    const pickWorker = () => { let i = 0; for (let j = 1; j < W; j++) if (free[j] < free[i]) i = j; return i; };
+    const take = (i, h, start, wait) => { const rude = start - last[h] < D - 1e-9; last[h] = start; const end = start + FLAT[h]; ev.push({ w: i, h, start, end, rude, wait }); free[i] = end; waited += wait; };
+    if (mode < 2) {
+      urls.forEach(h => { const i = pickWorker(); const start = mode === 0 ? free[i] : Math.max(free[i], last[h] + D); take(i, h, start, start - free[i]); });
+    } else {
+      B = Math.min(3 * W, FH.length);
+      let fi = 0; const owner = new Map(), bq = Array.from({ length: B }, () => ({ h: -1, q: [], ready: 0, live: false }));
+      const refill = (q, now) => { while (fi < urls.length) { const h = urls[fi++]; if (owner.has(h)) { owner.get(h).q.push(h); continue; } q.h = h; q.q = [h]; q.ready = Math.max(now, last[h] + D); q.live = true; owner.set(h, q); return; } q.live = false; };
+      bq.forEach(q => refill(q, 0));
+      for (;;) {
+        const live = bq.filter(q => q.live); if (!live.length) break;
+        const q = live.reduce((m, x) => x.ready < m.ready ? x : m, live[0]); // heap top: earliest next-contact time
+        const i = pickWorker(), start = Math.max(free[i], q.ready), h = q.q.shift();
+        take(i, h, start, start - free[i]);
+        q.ready = start + D;
+        if (!q.q.length) { owner.delete(q.h); refill(q, start); }
+      }
+    }
+    const finish = Math.max(...ev.map(e => e.end));
+    const busyT = ev.reduce((a, e) => a + (e.end - e.start), 0);
+    const counts = FH.map((_, h) => urls.filter(x => x === h).length);
+    return { ev, finish, rate: FN / finish, violations: ev.filter(e => e.rude).length, util: busyT / (W * finish), waited, B, counts };
+  }
+  function renderFrontier(keepClock) {
+    const W = +$("fw").value, D = +$("fd").value, share = +$("fs").value;
+    $("fwOut").textContent = W; $("fdOut").textContent = D.toFixed(1) + " s"; $("fsOut").textContent = Math.round(share * 100) + "%";
+    const all = MODES.map((_, m) => simFrontier(m, W, D, share)), r = all[fmode];
+    const xMax = Math.max(...all.map(x => x.finish));
+    if (!keepClock) $("ft").value = 1000;
+    const clockT = +$("ft").value / 1000 * r.finish;
+    $("ftOut").textContent = secs(clockT);
+    $("fmodes").innerHTML = MODES.map((m, i) => `<button aria-pressed="${i === fmode}" data-m="${i}">${m.name}</button>`).join("");
+    const big = r.counts[0], lower = (big - 1) * D + FLAT[0];
+    $("frontKicker").innerHTML = `${FN} URLs waiting in the frontier, spread over ${FH.length} hosts in a shuffled order. Every host asks for a gap between requests, and each host answers in its own time (${Math.min(...FLAT).toFixed(2)}–${Math.max(...FLAT).toFixed(2)} s). Compare three ways for the workers to take work. The Mercator design keeps ${MODES[2].short.toLowerCase()} (here ${Math.min(3 * W, FH.length)}, three per worker as its authors suggest, capped at the number of hosts), each holding one host's URLs, and a heap ordered by the time each host may next be contacted.`;
+    // lane chart
+    const nar = narrowMQ.matches, L = nar ? 96 : 110, top = 14, lane = nar ? 20 : 18, Wd = nar ? 420 : 720, H = top + FH.length * lane + 30, X = t => L + (t / xMax) * (Wd - L - 12);
+    $("lanes").setAttribute("viewBox", `0 0 ${Wd} ${H}`);
+    let s = "";
+    const doneBy = FH.map((_, h) => r.ev.filter(e => e.h === h && e.start <= clockT).length);
+    FH.forEach((name, h) => {
+      const y = top + h * lane;
+      s += `<text x="4" y="${y + 12}" font-family="var(--mono)" font-size="10.5" fill="${h === 0 ? "var(--ink)" : "var(--muted)"}">${name.replace(".example", "")} ${doneBy[h]}/${r.counts[h]}</text>`;
+      s += `<line x1="${L}" y1="${y + lane - 2}" x2="${Wd - 12}" y2="${y + lane - 2}" stroke="var(--grid)"/>`;
+    });
+    r.ev.forEach(e => { const y = top + e.h * lane + 3; const past = e.start <= clockT; s += `<rect x="${X(e.start)}" y="${y}" width="${Math.max(1.5, X(e.end) - X(e.start) - 0.5)}" height="${lane - 7}" rx="2" fill="${!past ? "var(--grid)" : e.rude ? "var(--bad)" : "var(--accent)"}"/>`; });
+    s += `<line x1="${X(clockT)}" y1="${top - 6}" x2="${X(clockT)}" y2="${top + FH.length * lane}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    const step = (xMax > 120 ? 30 : xMax > 60 ? 15 : xMax > 24 ? 10 : 5) * (nar ? 2 : 1);
+    for (let t = 0; t <= xMax; t += step) s += `<text x="${X(t)}" y="${H - 10}" text-anchor="${t === 0 ? "start" : "middle"}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${t} s</text>`;
+    if (lower <= xMax) s += `<line x1="${X(lower)}" y1="${top}" x2="${X(lower)}" y2="${top + FH.length * lane}" stroke="var(--amber)" stroke-dasharray="4 3"/><text x="${Math.min(X(lower) + 3, Wd - 120)}" y="${top + FH.length * lane + 12}" font-family="var(--mono)" font-size="10.5" fill="var(--amber)">big host's floor</text>`;
+    $("lanes").innerHTML = s;
+    $("fResults").innerHTML = `
+      <div><span>Finishes at</span><b>${secs(r.finish)}</b></div>
+      <div><span>Pages per second</span><b>${r.rate.toFixed(2)}</b></div>
+      <div><span>Fetches that broke the delay</span><b style="color:${r.violations ? "var(--bad)" : "var(--ok)"}">${r.violations}</b></div>
+      <div><span>Workers busy</span><b>${pct(r.util)}</b></div>
+      <div><span>Floor set by ${FH[0]} (${big} URLs)</span><b style="color:var(--amber)">${secs(lower)}</b></div>`;
+    $("fTable").innerHTML = all.map((x, i) => `<tr class="${i === fmode ? "cur" : ""}"><td><b>${MODES[i].name}</b></td><td class="mono">${secs(x.finish)}</td><td class="mono">${x.rate.toFixed(2)}</td><td class="${x.violations ? "n" : "y"}">${x.violations}</td><td class="mono">${pct(x.util)}</td></tr>`).join("");
+    const shown = r.ev.filter(e => e.start <= clockT).sort((a, b) => a.start - b.start || a.w - b.w).slice(-6);
+    $("fLog").innerHTML = shown.length ? shown.map(e => `<li class="${e.rude ? "bad" : ""}">${e.start.toFixed(2)} s · worker ${e.w + 1} → ${FH[e.h]}${e.wait > 0.005 ? ` after waiting ${e.wait.toFixed(2)} s` : ""}${e.rude ? " · too soon" : ""}</li>`).join("") : "<li>Nothing yet at this clock.</li>";
+    const [a, b, c] = all;
+    $("fNotes").innerHTML = [
+      `No waiting finishes at ${secs(a.finish)}, but ${a.violations} of ${FN} fetches arrive at a host sooner than ${D.toFixed(1)} s after the previous one. Fast because it is rude.`,
+      `Waiting in a single FIFO is polite (${b.violations} broken) but takes ${secs(b.finish)}, with workers busy only ${pct(b.util)} of the time: when the head of the queue is a host that isn't ready, the worker sleeps, even if the next URL belongs to an idle host. That is head-of-line blocking.`,
+      c.finish < b.finish * 0.97
+        ? `Back queues are just as polite (${c.violations} broken) and finish at ${secs(c.finish)}, ${(b.finish / c.finish).toFixed(1)}× faster than waiting in a FIFO, with workers busy ${pct(c.util)} of the time. A worker always takes the host whose turn comes first, so it waits only when every host in its back queues is resting.`
+        : `Here back queues (${secs(c.finish)}) do no better than waiting in a FIFO (${secs(b.finish)}). One host holds so much of the work that its delay sets the pace, and a heap ordered only by "whose turn comes first" sometimes lets a small host go ahead of it. Lower the big host's share and the gap opens up.`,
+      `No polite design beats ${secs(lower)}: ${FH[0]} has ${big} URLs and must be spaced ${D.toFixed(1)} s apart. Raise its share and watch every polite design converge on that floor. Adding workers then helps nothing, which is why real crawlers interleave millions of hosts.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  $("fmodes").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; fmode = +b.dataset.m; renderFrontier(); };
+  ["fw", "fd", "fs"].forEach(id => $(id).oninput = () => renderFrontier());
+  $("ft").oninput = () => renderFrontier(true);
+  $("fplay").onclick = () => {
+    if (fTimer) { clearInterval(fTimer); fTimer = null; $("fplay").textContent = "Replay"; return; }
+    $("ft").value = 0; $("fplay").textContent = "Pause";
+    fTimer = setInterval(() => { const v = +$("ft").value; if (v >= 1000) { clearInterval(fTimer); fTimer = null; $("fplay").textContent = "Replay"; return; } $("ft").value = Math.min(1000, v + 8); renderFrontier(true); }, 50);
+  };
+
+  // ================= 5b: dedup =================
+  function renderNorm() {
+    const lines = $("urls").value.split("\n").map(x => x.trim()).filter(Boolean);
+    const first = new Map(); let dups = 0, bad = 0;
+    $("normTable").innerHTML = lines.map((raw, i) => {
+      const n = normalize(raw);
+      let verdict, cls;
+      if (!n) { verdict = "not a crawlable URL"; cls = "n"; bad++; }
+      else if (first.has(n)) { verdict = `duplicate of #${first.get(n)}`; cls = "a"; dups++; }
+      else { first.set(n, i + 1); verdict = "new: queue it"; cls = "y"; }
+      return `<tr><td class="mono">${i + 1}</td><td class="mono brk">${n || raw.replace(/</g, "&lt;")}</td><td class="${cls}">${verdict}</td></tr>`;
+    }).join("");
+    $("normNote").innerHTML = `${lines.length} lines, ${first.size} distinct URL${first.size === 1 ? "" : "s"} after normalizing, ${dups} duplicate${dups === 1 ? "" : "s"} caught before any fetch${bad ? `, ${bad} rejected` : ""}. Note what normalization leaves alone: <span class="mono">http</span> and <span class="mono">https</span> may serve different pages, so they stay distinct and the content hash decides.`;
+  }
+  $("urls").oninput = renderNorm;
+
+  const BT = 20000;
+  const testUrl = j => `https://site${j % 997}.example/page/${j}`;
+  function bloomRun(bpu, k) {
+    const m = bpu * BT, bits = new Uint8Array(m);
+    const idx = (s, i) => { const h1 = fnv(s), h2 = mix(h1 ^ 0x5bd1e995) | 1; return ((h1 + Math.imul(i, h2)) >>> 0) % m; };
+    for (let j = 0; j < BT; j++) { const s = testUrl(j); for (let i = 0; i < k; i++) bits[idx(s, i)] = 1; }
+    let fp = 0; for (let j = BT; j < 2 * BT; j++) { const s = testUrl(j); let all = true; for (let i = 0; i < k; i++) if (!bits[idx(s, i)]) { all = false; break; } if (all) fp++; }
+    let set = 0; for (let i = 0; i < m; i++) set += bits[i];
+    return { fp, rate: fp / BT, fill: set / m };
+  }
+  function renderBloom() {
+    const n = Math.pow(10, +$("bn").value), bpu = +$("bb").value, k = +$("bk").value;
+    $("bnOut").textContent = fmt(n); $("bbOut").textContent = bpu; $("bkOut").textContent = k;
+    const theory = Math.pow(1 - Math.exp(-k / bpu), k), kOpt = Math.max(1, Math.round(bpu * Math.LN2)), best = Math.pow(1 - Math.exp(-kOpt / bpu), kOpt);
+    const real = bloomRun(bpu, k);
+    const bloomB = n * bpu / 8, fpB = n * 8, strB = n * 80;
+    $("bloomIntro").innerHTML = `The exact seen set for billions of URLs is too big for one machine's memory. A Bloom filter keeps <i>m</i> bits and <i>k</i> hash functions: adding a URL sets <i>k</i> bits, and a lookup says "seen" only if all <i>k</i> are set. It can wrongly say "seen" (a false positive) but never wrongly say "new". The results below include a real filter: ${fmt(BT)} URLs inserted, then ${fmt(BT)} different URLs tested.`;
+    $("bloomResults").innerHTML = `
+      <div><span>Bloom filter memory</span><b style="color:var(--ok)">${bytes(bloomB)}</b></div>
+      <div><span>Exact set of 8-byte fingerprints</span><b>${bytes(fpB)}</b></div>
+      <div><span>Exact set of URL strings (~80 B)</span><b>${bytes(strB)}</b></div>
+      <div><span>False positive rate, formula</span><b>${pct(theory)}</b></div>
+      <div><span>Measured on the real filter</span><b style="color:${real.rate > 0.05 ? "var(--bad)" : "var(--ink)"}">${pct(real.rate)}</b></div>
+      <div><span>New URLs skipped per million</span><b>${fmt(Math.round(theory * 1e6))}</b></div>`;
+    $("bloomNotes").innerHTML = [
+      `With ${bpu} bits per URL and k = ${k}, the formula (1 − e<sup>−k/(bits per URL)</sup>)<sup>k</sup> gives ${pct(theory)}; the real filter measured ${real.fp} false positives out of ${fmt(BT)} (${pct(real.rate)}), with ${pct(real.fill)} of its bits set.`,
+      k === kOpt ? `k = ${k} is already the best choice for ${bpu} bits per URL (about 0.69 × bits per URL).` : `For ${bpu} bits per URL the best k is about 0.69 × ${bpu} ≈ ${kOpt}, which would give ${pct(best)}. ${k > kOpt ? "Too many hashes fill the bits up." : "Too few hashes leave each lookup easy to fool."}`,
+      `A false positive here means a new URL is skipped, so that page is never crawled. That's a safe failure: it wastes nothing and harms no site, and a later recrawl from a fresh filter can pick it up. Keep the exact URL table on disk (sharded by host) as the source of truth, and use the filter in memory as the fast first check.`,
+      `${fmt(n)} URLs need ${bytes(bloomB)} as a filter versus ${bytes(fpB)} as exact fingerprints, ${(fpB / bloomB).toFixed(1)}× more.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["bn", "bb", "bk"].forEach(id => $(id).oninput = renderBloom);
+
+  const PAGES = [
+    { name: "A · news.example/bike-lanes", text: "City council approves new bike lanes on Main Street after a long debate. The plan adds twelve kilometres of protected lanes, connects the station to the university, and construction starts next spring. Residents can comment on the final route until the end of the month. Updated 09:14." },
+    { name: "B · same story, later", text: "City council approves new bike lanes on Main Street after a long debate. The plan adds twelve kilometres of protected lanes, connects the station to the university, and construction starts next spring. Residents can comment on the final route until the end of the month. Updated 09:52." },
+    { name: "C · mirror.example copy", text: "City council approves new bike lanes on Main Street after a long debate. The plan adds twelve kilometres of protected lanes, connects the station to the university, and construction starts next spring. Residents can comment on the final route until the end of the month. Updated 09:14." },
+    { name: "D · recipe.example/soup", text: "Roast the tomatoes with garlic and olive oil for forty minutes, then blend them with basil and a little stock. Season with salt and pepper, simmer for ten minutes, and serve with warm bread and a spoon of cream on top." }
+  ];
+  $("pages").innerHTML = PAGES.map((p, i) => `<label for="pg${i}"><span>${p.name}</span><textarea id="pg${i}" rows="5" spellcheck="false">${p.text}</textarea><span class="h" id="pgh${i}"></span></label>`).join("");
+  function tokens(t) { return t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean); }
+  function simhash(t) {
+    const w = tokens(t), v = new Array(64).fill(0);
+    const feats = w.length > 1 ? w.slice(1).map((x, i) => w[i] + " " + x) : w;
+    feats.forEach(f => { const lo = fnv(f), hi = fnv(f, 0x2f0e1c3b); for (let b = 0; b < 32; b++) { v[b] += (lo >>> b) & 1 ? 1 : -1; v[32 + b] += (hi >>> b) & 1 ? 1 : -1; } });
+    let lo = 0, hi = 0; for (let b = 0; b < 32; b++) { if (v[b] > 0) lo |= 1 << b; if (v[32 + b] > 0) hi |= 1 << b; }
+    return [hi >>> 0, lo >>> 0];
+  }
+  const pop = x => { let c = 0; while (x) { c += x & 1; x >>>= 1; } return c; };
+  function renderSim() {
+    const th = +$("sth").value; $("sthOut").textContent = th + " bits";
+    const info = PAGES.map((_, i) => { const t = $("pg" + i).value; return { exact: fnv(t.replace(/\s+/g, " ").trim()), sim: simhash(t) }; });
+    info.forEach((x, i) => { $("pgh" + i).textContent = `exact ${hex(x.exact)} · simhash ${hex(x.sim[0])}${hex(x.sim[1])}`; });
+    let rows = "";
+    for (let i = 0; i < PAGES.length; i++) for (let j = i + 1; j < PAGES.length; j++) {
+      const eq = info[i].exact === info[j].exact, d = pop(info[i].sim[0] ^ info[j].sim[0]) + pop(info[i].sim[1] ^ info[j].sim[1]);
+      const verdict = eq ? ["exact duplicate: don't store", "a"] : d <= th ? ["near duplicate", "a"] : ["different pages", "y"];
+      rows += `<tr><td><b>${PAGES[i].name[0]} · ${PAGES[j].name[0]}</b></td><td class="${eq ? "a" : ""}">${eq ? "yes" : "no"}</td><td class="mono">${d} of 64</td><td class="${verdict[1]}">${verdict[0]}</td></tr>`;
+    }
+    $("simTable").innerHTML = rows;
+  }
+  PAGES.forEach((_, i) => $("pg" + i).oninput = renderSim);
+  $("sth").oninput = renderSim;
+
+  // ================= 5c: retries =================
+  const RH = ["news.example", "wiki.example", "shop.example", "down.example", "blog.example", "docs.example", "forum.example", "maps.example", "jobs.example", "pics.example"];
+  const RN = 300, DOWN = 3, BREAK_AT = 5;
+  function simRetries(p, maxA, base, down, breaker) {
+    const r = rng(77), consec = RH.map(() => 0), parkedHosts = new Set();
+    const per = Array.from({ length: maxA }, () => ({ tried: 0, ok: 0, fail: 0 }));
+    let first = 0, later = 0, dlq = 0, parked = 0, attempts = 0, worst = 0, worstSched = null;
+    for (let u = 0; u < RN; u++) {
+      const h = u % RH.length;
+      if (breaker && parkedHosts.has(h)) { parked++; continue; }
+      let t = 0; const sched = [];
+      for (let a = 0; a < maxA; a++) {
+        if (a > 0) { const d = base * Math.pow(2, a - 1) * (0.5 + r()); t += d; }
+        sched.push(t); attempts++; per[a].tried++;
+        const fail = (down && h === DOWN) || r() < p;
+        if (!fail) { per[a].ok++; consec[h] = 0; if (a === 0) first++; else later++; break; }
+        per[a].fail++; consec[h]++;
+        if (breaker && consec[h] >= BREAK_AT) parkedHosts.add(h);
+        if (a === maxA - 1) dlq++;
+        if (breaker && parkedHosts.has(h)) { if (a < maxA - 1) parked++; break; }
+      }
+      if (t > worst) { worst = t; worstSched = sched; }
+    }
+    return { per, first, later, dlq, parked, attempts, worst, worstSched, parkedHosts };
+  }
+  function renderRetries() {
+    const p = +$("fp").value, maxA = +$("fa").value, base = +$("fbk").value, down = $("fdown").checked, br = $("fcb").checked;
+    $("fpOut").textContent = Math.round(p * 100) + "%"; $("faOut").textContent = maxA; $("fbkOut").textContent = base + " s";
+    const s = simRetries(p, maxA, base, down, br), noCb = br ? simRetries(p, maxA, base, down, false) : null;
+    $("failKicker").innerHTML = `${RN} URLs spread evenly over ${RH.length} hosts. Each attempt fails at random with the chance below${down ? `, and every request to <span class="mono">${RH[DOWN]}</span> fails` : ""}. A failed URL waits base × 2<sup>attempt − 1</sup>, scaled by a random factor between 0.5 and 1.5 (jitter, so retries from many URLs don't arrive together), then tries again. After the last attempt it goes to the dead-letter queue (DLQ).`;
+    $("failResults").innerHTML = `
+      <div><span>Fetched on the first try</span><b style="color:var(--ok)">${s.first}</b></div>
+      <div><span>Fetched after a retry</span><b>${s.later}</b></div>
+      <div><span>Sent to the DLQ</span><b style="color:${s.dlq ? "var(--bad)" : "var(--ink)"}">${s.dlq}</b></div>
+      ${br ? `<div><span>Parked by the breaker</span><b style="color:var(--amber)">${s.parked}</b></div>` : ""}
+      <div><span>Requests sent</span><b>${s.attempts}</b></div>
+      <div><span>Extra load from retries</span><b>${pct(s.attempts / RN - 1 > 0 ? s.attempts / RN - 1 : 0)}</b></div>
+      <div><span>Longest wait for a final answer</span><b>${secs(s.worst)}</b></div>`;
+    $("failTable").innerHTML = s.per.map((x, a) => `<tr><td class="mono">${a + 1}</td><td class="mono">${a === 0 ? "—" : `${(base * Math.pow(2, a - 1) * 0.5).toFixed(1)}–${(base * Math.pow(2, a - 1) * 1.5).toFixed(1)} s`}</td><td class="mono">${x.tried}</td><td class="y">${x.ok}</td><td class="${x.fail ? "n" : ""}">${x.fail}</td><td>${a === maxA - 1 ? (x.fail ? "DLQ" : "—") : (x.fail ? "retry" : "—")}</td></tr>`).join("");
+    const notes = [
+      `${s.first + s.later} of ${RN} URLs were fetched, ${s.later} of them only thanks to a retry. Retries cost ${s.attempts - RN > 0 ? s.attempts - RN : 0} extra requests (${pct(Math.max(0, s.attempts / RN - 1))} more load).`,
+      s.worstSched ? `The slowest URL tried at ${s.worstSched.map(t => secs(t)).join(", ")}: the doubling keeps the total wait bounded while giving a struggling server room to recover.` : "",
+      down ? (br ? `With the breaker on, ${RH[DOWN]} was parked after ${BREAK_AT} failures in a row, so the crawler sent ${noCb.attempts - s.attempts} fewer requests than without it and ${s.parked} URLs wait for the host to come back instead of filling the DLQ.` : `Every URL on ${RH[DOWN]} burns all ${maxA} attempts and lands in the DLQ. Turn on the circuit breaker: when a whole host is failing, stop sending it work and check back later.`) : `Tick "one host is down" to see why retries alone are not enough.`,
+      `Durability makes this safe: a URL leaves the queue only when its fetch is committed, and a retry is just the same URL published again with a later "not before" time.`
+    ].filter(Boolean);
+    $("failNotes").innerHTML = notes.map(x => `<li>${x}</li>`).join("");
+  }
+  ["fp", "fa", "fbk", "fdown", "fcb"].forEach(id => { $(id).oninput = renderRetries; $(id).onchange = renderRetries; });
+
+  // ================= 5d: capacity =================
+  const NIC_USE = 0.7, URL_B = 100;
+  function renderCap() {
+    const pages = Math.pow(10, +$("cp").value), days = +$("cdays").value, kb = +$("csize").value, zip = +$("czip").value,
+      nic = +$("cnic").value, conn = +$("cconn").value, lat = +$("clat").value, hosts = Math.pow(10, +$("chosts").value);
+    $("cpOut").textContent = fmt(pages); $("cdaysOut").textContent = days; $("csizeOut").textContent = kb + " KB"; $("czipOut").textContent = zip + "×";
+    $("cnicOut").textContent = nic + " Gbps"; $("cconnOut").textContent = fmt(conn); $("clatOut").textContent = lat.toFixed(1) + " s"; $("chostsOut").textContent = fmt(hosts);
+    const pps = pages / (days * 86400), gbps = pps * kb * 1000 * 8 / 1e9, raw = pages * kb * 1000, stored = raw / zip;
+    const byNet = Math.ceil(gbps / (nic * NIC_USE)), perMachine = conn / lat, byConn = Math.ceil(pps / perMachine), machines = Math.max(byNet, byConn);
+    const perHost = pps / hosts, pagesPerHost = pages / hosts, bloom = pages * 9.6 / 8, frontier = pages * URL_B;
+    $("capResults").innerHTML = `
+      <div><span>Pages per second</span><b>${fmt(pps)}</b></div>
+      <div><span>Download bandwidth</span><b>${gbps.toFixed(gbps < 10 ? 1 : 0)} Gbps</b></div>
+      <div><span>Raw HTML</span><b>${bytes(raw)}</b></div>
+      <div><span>Stored, compressed</span><b>${bytes(stored)}</b></div>
+      <div><span>Machines (network bound)</span><b>${byNet}</b></div>
+      <div><span>Machines (connection bound)</span><b>${byConn}</b></div>
+      <div><span>Fetcher machines needed</span><b style="color:var(--accent)">${machines}</b></div>
+      <div><span>Seen-set Bloom filter, 1% FP</span><b>${bytes(bloom)}</b></div>`;
+    $("capNotes").innerHTML = [
+      `${fmt(pages)} pages in ${days} day${days === 1 ? "" : "s"} is ${fmt(pps)} pages a second. At ${kb} KB each that is ${gbps.toFixed(1)} Gbps of downloads, ${bytes(raw)} of raw HTML, and ${bytes(stored)} once compressed ${zip}:1.`,
+      `One machine with ${nic} Gbps, used at ${Math.round(NIC_USE * 100)}%, moves ${fmt(nic * NIC_USE * 1e9 / 8 / (kb * 1000))} pages a second; with ${fmt(conn)} connections open and ${lat.toFixed(1)} s per fetch it can only start ${fmt(perMachine)} a second. ${byConn > byNet ? `Connections are the tighter limit, so ${machines} machines: raise connections (asynchronous I/O) before buying bandwidth.` : byNet > byConn ? `Bandwidth is the tighter limit, so ${machines} machines.` : `Both limits agree on ${machines} machines.`}`,
+      `Spread over ${fmt(hosts)} hosts, the crawl asks each host for ${perHost < 0.01 ? perHost.toExponential(1) : perHost.toFixed(2)} pages a second on average (${fmt(pagesPerHost)} pages each), comfortably polite. The risk is the few huge hosts: one with 1% of all pages would need ${fmt(pps * 0.01)} pages a second, so its crawl takes ${fmt(pages * 0.01 / 86400)} days at one page a second however many machines you add.`,
+      `The seen set: ${fmt(pages)} URLs at about 9.6 bits each (1% false positives) is ${bytes(bloom)}, small enough for memory on each frontier node. The URL table behind it, at about ${URL_B} bytes a URL, is ${bytes(frontier)}, so it lives on disk, sharded by host.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["cp", "cdays", "csize", "czip", "cnic", "cconn", "clat", "chosts"].forEach(id => $(id).oninput = renderCap);
+
+  // ================= boot =================
+  resetSim(); renderExplain(); render(); renderFrontier(); renderNorm(); renderBloom(); renderSim(); renderRetries(); renderCap();
+  let last = performance.now(), lastRender = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (playing) {
+      acc += dt;
+      while (acc >= 0.05) { acc -= 0.05; tick(crawl); if (crawl.doneAt !== null) { setPlaying(false); acc = 0; break; } }
+      if (!playing || now - lastRender > 120) { render(); lastRender = now; }
+    }
+    stepDots(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

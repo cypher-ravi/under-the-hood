@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Lesson 06 · Probability basics for ML</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
+  .lesson-wrap { max-width: 50rem; gap: 0; }
+  .lesson-wrap > section, .lesson-wrap > header { min-width: 0; }
+  .lesson-wrap { font-size: 16.5px; line-height: 1.7; }
+  header.top { padding-block: 20px 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .topbar .eyebrow { display: inline; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.08; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h1 .num { color: var(--accent); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 40rem; }
+  h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.6rem 0 .6rem; }
+  h2 .tag { display: block; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  h3 { font-size: 1.18rem; margin: 1.8rem 0 .3rem; }
+  p { margin: .8rem 0; }
+  strong { font-weight: 600; }
+  mark { background: linear-gradient(transparent 55%, var(--amber-soft) 55%); color: inherit; padding: 0 .1em; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--panel); border: 1px solid var(--line); padding: .05em .35em; border-radius: 4px; }
+  pre { font: 500 .86rem/1.55 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  a { text-underline-offset: 3px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font: 500 .8rem/1.55 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: .7rem .9rem; margin-top: 1.2rem; }
+  .defn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .defn dt { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .defn dd { margin: .1rem 0 .9rem 0; }
+  .defn dd:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--mono); }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .tbl { overflow-x: auto; margin: 1rem 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 .74rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .spam { color: var(--amber); font-weight: 600; } .ham { color: var(--ok); font-weight: 600; }
+  .lab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; margin: 1.6rem 0; }
+  .lab h3 { margin-top: 0; }
+  .lab svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+  .lab button { font: 500 .85rem/1 var(--mono); background: var(--accent); color: var(--panel); border: 0; border-radius: 6px; padding: .6rem .9rem; cursor: pointer; }
+  .lab button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .readout { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font: 500 .88rem/1.5 var(--mono); margin-top: .8rem; font-variant-numeric: tabular-nums; }
+  .readout b { font-weight: 600; }
+  .readout .msg { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+  .readout .big { font-size: 1.15rem; font-weight: 600; color: var(--accent); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; margin: .8rem 0; }
+  details p.q { margin: 0 0 .4rem; font-weight: 600; }
+  summary { cursor: pointer; font: 500 .82rem/1.4 var(--mono); color: var(--accent); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  details .a { margin: .5rem 0 0; }
+  .takeaway { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; border-left: 4px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; text-wrap: balance; }
+  .mis { display: grid; gap: .8rem; margin: 1rem 0; }
+  .mis div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+  .mis .wrong { font: 500 .85rem/1.4 var(--mono); color: var(--bad); display: block; margin-bottom: .2rem; }
+  .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .pn .muted { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .eq { font: 500 1.05rem/1.5 var(--mono); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1.2rem 0; overflow-x: auto; white-space: nowrap; }
+  td.tot, th.tot { border-top: 2px solid var(--accent); font-weight: 600; }
+  .btns { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
+  .fn { font: 500 .95rem/1.5 var(--mono); margin: .9rem 0 .2rem; overflow-wrap: anywhere; }
+  .fn b { color: var(--accent); }
+  .lab .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem 1.4rem; margin-top: .8rem; align-items: start; }
+  .lab .controls label { display: grid; gap: .25rem; min-width: 0; font: 500 .85rem/1.4 var(--mono); }
+  .lab select { font: 500 .88rem/1.4 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; width: 100%; max-width: 100%; }
+
+  /* added for lesson 06 */
+  figure svg.tall { max-width: 420px; margin: 0 auto; }
+  .lab svg#dice { max-width: 540px; margin: .6rem auto 0; }
+  .key { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin-top: .5rem; }
+  .key i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: .35rem; border-radius: 3px; background: var(--accent); }
+  .key i.tp { height: 0; width: 18px; border-radius: 0; background: none; border-top: 2px dashed var(--amber); }
+  .key i.hit { background: var(--accent-soft); border: 2px solid var(--accent); }
+  .key i.out { background: var(--paper); border: 1px solid var(--line); opacity: .5; }
+  .seq { font: 500 .85rem/1.5 var(--mono); color: var(--muted); margin-top: .5rem; overflow-wrap: anywhere; }
+  .inbox { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; margin-top: 1rem; }
+  .tile { border: 1px solid var(--line); border-radius: 8px; padding: .35rem .4rem; background: var(--paper); font: 500 .68rem/1.35 var(--mono); min-width: 0; overflow: hidden; transition: opacity .2s; }
+  .tile .id { color: var(--muted); }
+  .tile .lbl { display: block; font-size: .78rem; }
+  .tile .tg { display: block; color: var(--muted); }
+  .tile .tg.on { color: var(--ink); font-weight: 600; }
+  .tile.out { opacity: .28; }
+  .tile.hit { background: var(--accent-soft); border: 2px solid var(--accent); padding: calc(.35rem - 1px) calc(.4rem - 1px); }
+  .twobytwo td, .twobytwo th { text-align: center; }
+  .twobytwo td:first-child, .twobytwo th:first-child { text-align: left; }
+  .out-tbl { max-width: 30rem; }
+</style>
+</head>
+<body>
+<main class="wrap lesson-wrap">
+<div class="topbar">
+  <a class="back" href="../index.html#lessons">← All AI lessons</a>
+  <span class="eyebrow">AI lessons</span>
+</div>
+<header class="top intro">
+  <div class="eyebrow"><span>Part 1 · Foundations</span><span>Lesson 06 of 60</span><span>~18 min read</span></div>
+  <h1><span class="num">06</span> · Probability basics for ML</h1>
+  <p class="lede">A probability is a number between 0 and 1 that says how often something happens out of all the times it could. It is the language a model uses to say how sure it is, and once you see it as counting a part out of a whole, every rule in this lesson becomes common sense.</p>
+</header>
+
+<section>
+<h2><span class="tag">a · Where we are</span>From "which way to turn the knob" to "how sure is the answer"</h2>
+<p>Lesson 05 gave us slopes: for any loss, the derivative says which way to turn each knob. But we have not yet said what a classifier should <em>output</em> when the honest answer is "probably spam, but I can't be certain". Today we learn to say "probably" with numbers, so that Lesson 07 can measure how wrong such an answer is.</p>
+</section>
+
+<section>
+<h2><span class="tag">b · Why this matters</span>Almost every model speaks in chances</h2>
+<p>A spam filter doesn't really say "spam". It says "spam with probability 0.92", and a separate rule decides what to do with that number. A weather app's "70% chance of rain", a fraud model's risk score and a chatbot picking its next word from a list of word probabilities all work the same way. If you can't read these numbers, you can't tell a confident model from a lucky one, and you can't understand the loss that trains it.</p>
+</section>
+
+<section>
+<h2><span class="tag">c · The intuition</span>A jar of marbles</h2>
+<p>Picture a jar with 20 marbles: 5 orange, 15 green. Shake it, close your eyes, pull one out. How likely is orange? You already know the answer without any formula: 5 out of 20, a quarter of the time. That is all a probability is: <mark>the share of the whole</mark> that matches what you care about.</p>
+<p>Now someone tells you something extra: "the marble you pulled is one of the 4 with a scratch on it", and 3 of the scratched ones are orange. You forget the other 16 marbles. Your new "whole" is just the 4 scratched ones, and orange is now 3 out of 4. <strong>Learning a fact shrinks the whole you count over.</strong> That one move, called conditioning, is how a spam filter goes from "a quarter of all mail is spam" to "this email that says <em>free</em> is probably spam".</p>
+<p>Swap marbles for emails, orange for spam and the scratch for the word "free", and you have the core of this lesson. The rest is giving names to these counts.</p>
+</section>
+
+<section>
+<h2><span class="tag">d · How it actually works</span>Six steps, from one die to a model's output</h2>
+
+<h3>1. Outcomes, events and probability</h3>
+<dl class="defn">
+  <dt>Experiment and outcome</dt>
+  <dd>An <strong>experiment</strong> is anything with an uncertain result: rolling a die, picking an email from the inbox at random. Each possible result is an <strong>outcome</strong>. A die has six: 1, 2, 3, 4, 5, 6.</dd>
+  <dt>Event</dt>
+  <dd>A group of outcomes you care about, given a name. "Roll an even number" is the event {2, 4, 6}. "The email is spam" is the event made of every spam email.</dd>
+  <dt>P(A), read "the probability of A"</dt>
+  <dd>A number from 0 to 1 saying what share of the time event <code>A</code> happens if you repeat the experiment many, many times. When every outcome is equally likely, you can get it by counting:</dd>
+</dl>
+<div class="eq">P(A) = (outcomes in A) / (all outcomes)</div>
+<p>For a fair die, <code>P(even) = 3 / 6 = 0.5</code> and <code>P(roll a 6) = 1 / 6 ≈ 0.167</code>. The "many times" part is important. Roll a die six times and you might not see a 6 at all. Roll it 6,000 times and very close to 1,000 of them will be 6s. The probability is what the running share settles towards, the same way Lesson 05's secant slopes settled towards the derivative. The lab in section e lets you watch that happen.</p>
+
+<h3>2. Four rules, all from counting</h3>
+<p>Every rule below follows from "part out of a whole". We'll use our inbox of <strong>20 emails</strong>: 5 are spam, 4 contain the word "free", and 3 emails are both.</p>
+<div class="tbl"><table>
+<thead><tr><th>Rule</th><th>In symbols</th><th>Why it's true</th><th>Inbox example</th></tr></thead>
+<tbody>
+<tr><td>Range</td><td><code>0 ≤ P(A) ≤ 1</code></td><td>a part can't be smaller than nothing or bigger than the whole</td><td><code>P(spam) = 5/20 = 0.25</code></td></tr>
+<tr><td>Total</td><td>all outcomes add up to 1</td><td>every email is somewhere</td><td><code>P(spam) + P(ok) = 0.25 + 0.75 = 1</code></td></tr>
+<tr><td>Complement</td><td><code>P(not A) = 1 − P(A)</code></td><td>what's left over from the whole</td><td><code>P(not spam) = 1 − 0.25 = 0.75</code></td></tr>
+<tr><td>OR</td><td><code>P(A or B) = P(A) + P(B) − P(A and B)</code></td><td>adding counts both-at-once twice, so take it off once</td><td><code>5/20 + 4/20 − 3/20 = 6/20 = 0.3</code></td></tr>
+</tbody></table></div>
+<p>The OR check by plain counting: the 5 spam emails plus the 1 non-spam email that says "free" make 6 emails, and 6 / 20 = 0.3. The minus term matters: adding 5 and 4 would count the 3 "spam and free" emails twice.</p>
+
+<h3>3. AND, and what "independent" means</h3>
+<p>Flip a fair coin twice. The four outcomes HH, HT, TH, TT are equally likely, so <code>P(two heads) = 1/4</code>. Notice that <code>1/4 = 1/2 × 1/2</code>. That shortcut works because the coin has no memory: the first flip does not change the second. Events like that are called <strong>independent</strong>, and only for them:</p>
+<div class="eq">P(A and B) = P(A) × P(B)    (only if A and B are independent)</div>
+<p>Spam and "free" are <em>not</em> independent. Multiplying would give <code>0.25 × 0.2 = 0.05</code>, which is 1 email, but the real count is 3 emails, <code>P(spam and free) = 3/20 = 0.15</code>. The word "free" and spam go together more often than chance would suggest, and that link is exactly what a spam filter wants to learn.</p>
+
+<h3>4. Conditional probability: shrink the whole</h3>
+<p>Put the inbox into a small table, one row per label, one column per "free or not". This is called a <strong>contingency table</strong>, a table of counts.</p>
+<div class="tbl"><table class="twobytwo" style="max-width:30rem">
+<thead><tr><th></th><th>says "free"</th><th>no "free"</th><th>total</th></tr></thead>
+<tbody>
+<tr><td class="spam">spam</td><td><strong>3</strong></td><td>2</td><td>5</td></tr>
+<tr><td class="ham">ok</td><td>1</td><td>14</td><td>15</td></tr>
+<tr><td class="tot">total</td><td class="tot"><strong>4</strong></td><td class="tot">16</td><td class="tot">20</td></tr>
+</tbody></table></div>
+<p>Question: an email says "free". How likely is it spam? Only look at the "says free" column. It has 4 emails, 3 of them spam, so the answer is 3 out of 4.</p>
+<div class="eq">P(spam | free) = 3 / 4 = 0.75</div>
+<dl class="defn">
+  <dt>P(A | B), read "the probability of A given B"</dt>
+  <dd>The share of B's outcomes that are also in A. The bar <code>|</code> means "given that we already know". B becomes the new whole.</dd>
+  <dt>The formula version</dt>
+  <dd><code>P(A | B) = P(A and B) / P(B)</code>. Same counting, with both counts divided by 20 first: <code>0.15 / 0.2 = 0.75</code>. The 20s cancel, which is why counting inside the column gives the same answer.</dd>
+</dl>
+<p>Before you knew anything, the chance of spam was 0.25. After seeing "free" it is 0.75. A word tripled the odds, and this is the most basic way evidence moves a probability. Now flip the question around: <em>of the spam emails, how many say "free"?</em> Look along the spam row: 3 of 5, so <code>P(free | spam) = 0.6</code>. Same 3 emails on top, a different whole underneath, a different answer. The order inside <code>P( | )</code> matters.</p>
+<p>With this, the coin rule can be said precisely: A and B are <strong>independent</strong> when knowing B doesn't change the chance of A, that is, <code>P(A | B) = P(A)</code>. For spam and "free", 0.75 ≠ 0.25, so they are not.</p>
+
+<h3>5. One gentle step of Bayes' rule</h3>
+<p>Often you know one direction and need the other. A filter's designers can measure <code>P(free | spam)</code> by reading through a pile of known spam, but in use they need <code>P(spam | free)</code>. Both come from the same "both" count, <code>P(spam and free)</code>, so you can go from one to the other:</p>
+<div class="eq">P(spam | free) = P(free | spam) × P(spam) / P(free)</div>
+<p>Check with our numbers: <code>0.6 × 0.25 / 0.2 = 0.15 / 0.2 = 0.75</code>. That's the same 0.75 we counted. This is <strong>Bayes' rule</strong>. The top line rebuilds the "both" count; dividing by <code>P(free)</code> shrinks the whole to the "free" column. Nothing new happens, only the same table read in the other direction.</p>
+
+<h3>6. Distributions and the expected value</h3>
+<p>Sometimes the outcome is a number: the face of a die, or the "!" count of an email. A <strong>random variable</strong>, written with a capital like <code>X</code>, is that number before you know it. Its <strong>probability distribution</strong> is the full list of values it can take, each with its probability, and the probabilities must add up to 1.</p>
+<p>Lessons 01 and 02 had 8 emails with "!" counts 0, 1, 0, 2, 3, 5, 1, 4. Pick one at random and let <code>X</code> be its count:</p>
+<div class="tbl"><table style="max-width:34rem">
+<thead><tr><th>value x</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th class="tot">sum</th></tr></thead>
+<tbody>
+<tr><td>emails</td><td>2</td><td>2</td><td>1</td><td>1</td><td>1</td><td>1</td><td>8</td></tr>
+<tr><td>P(X = x)</td><td>0.25</td><td>0.25</td><td>0.125</td><td>0.125</td><td>0.125</td><td>0.125</td><td>1</td></tr>
+<tr><td>x · P(X = x)</td><td>0</td><td>0.25</td><td>0.25</td><td>0.375</td><td>0.5</td><td>0.625</td><td class="tot">2</td></tr>
+</tbody></table></div>
+<p>The bottom row leads to the <strong>expected value</strong>, also called the <strong>expectation</strong> or <strong>mean</strong>: multiply each value by its probability and add.</p>
+<div class="eq">E[X] = Σ x · P(X = x) = 2</div>
+<dl class="defn">
+  <dt>E[X], read "the expected value of X"</dt>
+  <dd>A probability-weighted average: values that happen more often count for more. Here it equals the plain average (16 bangs / 8 emails = 2) because every email was equally likely to be picked.</dd>
+  <dt>Σ, the capital Greek letter sigma</dt>
+  <dd>Short for "add up the following over every value". Here, over x = 0 to 5.</dd>
+</dl>
+<p>"Expected" doesn't mean "the value you'll see". A fair die has <code>E[X] = (1 + 2 + 3 + 4 + 5 + 6) × 1/6 = 3.5</code>, and you will never roll a 3.5. It means the long-run average: roll many times and the average of your rolls settles near 3.5. Change the probabilities and the expectation moves with them. A loaded die that shows 6 half the time (and each other face 0.1 of the time) has <code>E[X] = 0.1 × (1+2+3+4+5) + 0.5 × 6 = 4.5</code>.</p>
+
+<h3>7. Why models output probabilities</h3>
+<p>A classifier's output is itself a distribution over the possible labels. For one email it might say <code>[spam: 0.92, ok: 0.08]</code>. For a photo, <code>[cat: 0.70, dog: 0.20, bird: 0.10]</code>. In both cases the numbers are between 0 and 1 and add up to 1, the same rules as above. Two reasons this beats a bare "spam":</p>
+<ul>
+  <li><strong>It keeps the doubt.</strong> 0.92 and 0.51 both round to "spam", but you'd only want to auto-delete the first. Whoever uses the model can pick a threshold that fits the cost of each kind of mistake.</li>
+  <li><strong>It can be scored smoothly.</strong> If the email really is spam, a model that said 0.92 was a little wrong and one that said 0.10 was very wrong. A plain yes/no throws that difference away. Probabilities keep it, and a loss can turn it into a number whose slope (Lesson 05) tells each knob how to move. That loss is Lesson 07.</li>
+</ul>
+<p>Read 0.92 as a conditional probability: <code>P(spam | this email's features) = 0.92</code>, the model's estimate of what share of emails <em>like this one</em> are spam. Our 20-email table did the same by counting; a model has to estimate it for emails it has never seen.</p>
+</section>
+
+<section>
+<h2><span class="tag">e · See it</span>Conditioning is zooming in</h2>
+
+<figure>
+<svg class="tall" viewBox="0 0 360 404" role="img" aria-label="An inbox of 20 emails, 5 of them spam, gives P(spam) = 5/20 = 0.25. Keeping only the 4 emails that say free, 3 of which are spam, gives P(spam given free) = 3/4 = 0.75.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <text x="180" y="16" font-size="11" fill="var(--muted)" text-anchor="middle" letter-spacing="1">THE WHOLE INBOX · 20 EMAILS</text>
+  <text x="180" y="36" font-size="13" fill="currentColor" text-anchor="middle">P(spam) = 5 / 20 = 0.25</text>
+  <g stroke-width="1.5">
+    <!-- row 0 -->
+    <rect x="64" y="48" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="112" y="48" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="160" y="48" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="208" y="48" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="256" y="48" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <!-- row 1 -->
+    <rect x="64" y="96" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="112" y="96" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="160" y="96" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="208" y="96" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="256" y="96" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <!-- row 2 -->
+    <rect x="64" y="144" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="112" y="144" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="160" y="144" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="208" y="144" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="256" y="144" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <!-- row 3: the four "free" emails sit at columns 1-4 -->
+    <rect x="64" y="192" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="112" y="192" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="160" y="192" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="208" y="192" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="256" y="192" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  </g>
+  <g font-size="11" text-anchor="middle" fill="currentColor">
+    <text x="132" y="216">free</text><text x="180" y="216">free</text><text x="228" y="216">free</text><text x="276" y="216">free</text>
+  </g>
+  <rect x="106" y="186" width="196" height="52" rx="9" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>
+  <line x1="204" y1="240" x2="204" y2="290" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="214" y="261" font-size="11" fill="var(--accent)">given "free":</text>
+  <text x="214" y="276" font-size="11" fill="var(--muted)">keep only these 4</text>
+  <g stroke-width="1.5">
+    <rect x="88" y="300" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="136" y="300" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <rect x="184" y="300" width="40" height="40" rx="6" fill="var(--panel)" stroke="var(--muted)"/>
+    <rect x="232" y="300" width="40" height="40" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  </g>
+  <rect x="82" y="294" width="196" height="52" rx="9" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="180" y="370" font-size="13" fill="var(--accent)" font-weight="600" text-anchor="middle">P(spam | free) = 3 / 4 = 0.75</text>
+  <g font-size="11" fill="var(--muted)">
+    <rect x="86" y="386" width="12" height="12" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="104" y="396">spam</text>
+    <rect x="176" y="386" width="12" height="12" rx="3" fill="var(--panel)" stroke="var(--muted)"/><text x="194" y="396">ok</text>
+  </g>
+</svg>
+<figcaption>Before you know anything, spam is 5 of 20 emails. Learning "this email says free" throws away the 16 emails without it; spam is now 3 of the 4 that remain. The top count (3) barely changed; the whole underneath it shrank from 20 to 4.</figcaption>
+</figure>
+
+<div class="lab" id="lab1">
+  <h3>Inbox lab: count to get P(A | B)</h3>
+  <p style="margin-top:0">These are the 20 emails from the table. Pick what you ask about and what you already know. Emails outside what you know fade out; the ones that also match the question light up. The probability is just lit-up tiles divided by visible tiles.</p>
+  <div class="controls">
+    <label for="ask">ask about (A)<select id="ask">
+      <option value="spam">is spam</option>
+      <option value="free">says "free"</option>
+      <option value="unk">unknown sender</option>
+    </select></label>
+    <label for="given">given that we know (B)<select id="given">
+      <option value="all">nothing (whole inbox)</option>
+      <option value="free" selected>says "free"</option>
+      <option value="nofree">no "free"</option>
+      <option value="unk">unknown sender</option>
+      <option value="known">known sender</option>
+      <option value="spam">is spam</option>
+      <option value="ok">is ok (not spam)</option>
+      <option value="freeunk">says "free" and unknown sender</option>
+    </select></label>
+  </div>
+  <div class="inbox" id="inbox" aria-live="polite"></div>
+  <div class="key"><span><i class="hit"></i>in B and in A</span><span><i class="out"></i>not in B (ignored)</span></div>
+  <div class="fn" id="cfn"></div>
+  <div class="readout">
+    <span>P(A | B) <span class="big" id="pcond">0.75</span></span>
+    <span>P(A) with no condition <span class="big" id="pprior">0.25</span></span>
+    <span class="msg" id="cmsg"></span>
+  </div>
+</div>
+<p>Things to try. Ask about spam given "free" (0.75), then flip it: ask about "free" given spam (0.6). Ask about spam given known sender: 0, because every spam email here came from a stranger. Then pick "free and unknown sender": all 3 remaining emails are spam. Each extra fact shrinks the whole a little more, which is how a filter with many features gets confident.</p>
+
+<div class="lab" id="lab2">
+  <h3>Dice lab: frequencies settle on probabilities</h3>
+  <p style="margin-top:0">Roll a die and watch each face's share of all rolls (blue bars) against its true probability (dashed amber marks). Few rolls look wild; thousands of rolls hug the dashes. The average of your rolls heads for the expected value.</p>
+  <div class="controls">
+    <label for="die">which die<select id="die">
+      <option value="fair">fair: every face 1/6</option>
+      <option value="loaded">loaded: 6 half the time, others 0.1</option>
+    </select></label>
+  </div>
+  <svg id="dice" viewBox="0 0 480 250" role="img" aria-label="Bar chart of the share of rolls that landed on each face 1 to 6, with dashed marks at each face's true probability."></svg>
+  <div class="key"><span><i></i>share of your rolls</span><span><i class="tp"></i>true probability</span></div>
+  <div class="readout">
+    <span>rolls <span class="big" id="nroll">0</span></span>
+    <span>average roll <span class="big" id="avg">–</span></span>
+    <span>expected value <span class="big" id="ev">3.5</span></span>
+    <span>biggest gap from true <span class="big" id="gap">–</span></span>
+    <span class="msg" id="dmsg"></span>
+  </div>
+  <div class="seq" id="seq"></div>
+  <div class="btns">
+    <button data-n="1">Roll 1</button>
+    <button data-n="10">Roll 10</button>
+    <button data-n="100" class="ghost">Roll 100</button>
+    <button data-n="1000" class="ghost">Roll 1,000</button>
+    <button id="dreset" class="ghost">Reset</button>
+  </div>
+  <p class="note">The dice use a fixed-seed random number generator, so Reset replays the same sequence of rolls. Every fixed number elsewhere in this lesson comes from counting, not from this simulator.</p>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
+<p><strong>The inbox.</strong> 20 emails. Spam: 5, all from unknown senders, 3 of them say "free". Ok: 15, of which 1 says "free" (a colleague offering free lunch, from a known sender), 9 more are from known senders, and 5 are from unknown senders (shops, banks, newsletters).</p>
+<ul>
+  <li><code>P(spam) = 5 / 20 = 0.25</code> and <code>P(free) = 4 / 20 = 0.2</code></li>
+  <li><code>P(spam and free) = 3 / 20 = 0.15</code> (if they were independent it would be <code>0.25 × 0.2 = 0.05</code>; it isn't)</li>
+  <li><code>P(spam or free) = 0.25 + 0.2 − 0.15 = 0.3</code>, which is 6 emails</li>
+  <li><code>P(not spam) = 1 − 0.25 = 0.75</code></li>
+  <li><code>P(spam | free) = 0.15 / 0.2 = 0.75</code>, that is 3 of the 4 "free" emails</li>
+  <li><code>P(free | spam) = 0.15 / 0.25 = 0.6</code>, that is 3 of the 5 spam emails</li>
+  <li>Bayes, the long way round: <code>0.6 × 0.25 / 0.2 = 0.75</code>, the same answer</li>
+</ul>
+<p><strong>An expectation.</strong> "!" counts of the 8 emails from Lessons 01–02: 0, 1, 0, 2, 3, 5, 1, 4. The distribution is <code>{0: 0.25, 1: 0.25, 2: 0.125, 3: 0.125, 4: 0.125, 5: 0.125}</code>, which sums to 1, and <code>E[X] = 0×0.25 + 1×0.25 + 2×0.125 + 3×0.125 + 4×0.125 + 5×0.125 = 0 + 0.25 + 0.25 + 0.375 + 0.5 + 0.625 = 2</code>. For a fair die, <code>E[X] = 21 / 6 = 3.5</code>.</p>
+<p>The same thing in plain Python. <code>P</code> does exactly what the inbox lab does: keep the emails where the condition holds, then take the share of those where the event holds.</p>
+<pre><code><span class="c"># 20 emails: (is_spam, has_free, known_sender)</span>
+inbox = (
+    [(1, 1, 0)] * 3 +   <span class="c"># spam, says "free", unknown sender</span>
+    [(1, 0, 0)] * 2 +   <span class="c"># spam, no "free", unknown sender</span>
+    [(0, 1, 1)] * 1 +   <span class="c"># ok, says "free", known sender</span>
+    [(0, 0, 1)] * 9 +   <span class="c"># ok, no "free", known sender</span>
+    [(0, 0, 0)] * 5     <span class="c"># ok, no "free", unknown sender</span>
+)
+n = len(inbox)
+
+def P(event, given=lambda e: True):
+    <span class="c">"""count the emails where `given` holds, then the share of those where `event` holds"""</span>
+    pool = [e for e in inbox if given(e)]
+    return sum(1 for e in pool if event(e)) / len(pool)
+
+spam = lambda e: e[0] == 1
+free = lambda e: e[1] == 1
+
+print(n, P(spam), P(free))                      <span class="c"># 20 0.25 0.2</span>
+print(P(lambda e: spam(e) and free(e)))         <span class="c"># 0.15   P(spam and free)</span>
+print(P(lambda e: spam(e) or free(e)))          <span class="c"># 0.3    P(spam or free)</span>
+print(1 - P(spam))                              <span class="c"># 0.75   P(not spam)</span>
+print(P(spam, given=free))                      <span class="c"># 0.75   P(spam | free)</span>
+print(P(free, given=spam))                      <span class="c"># 0.6    P(free | spam)</span>
+print(round(P(free, given=spam) * P(spam) / P(free), 4))   <span class="c"># 0.75   Bayes' rule</span>
+
+<span class="c"># expectation: "!" counts of the 8 emails from Lessons 01-02</span>
+bangs = [0, 1, 0, 2, 3, 5, 1, 4]
+dist = {k: bangs.count(k) / len(bangs) for k in sorted(set(bangs))}
+print(dist, sum(dist.values()))
+<span class="c"># {0: 0.25, 1: 0.25, 2: 0.125, 3: 0.125, 4: 0.125, 5: 0.125} 1.0</span>
+print(sum(k * p for k, p in dist.items()))      <span class="c"># 2.0    expected value</span>
+print(sum(f * (1 / 6) for f in range(1, 7)))    <span class="c"># 3.5    fair die</span></code></pre>
+<p>Notice that <code>P</code> never uses a formula like <code>P(A and B) / P(B)</code>. It just counts inside the smaller pool, and the formula falls out. Real ML libraries don't count tables of emails, but the numbers they produce mean exactly this.</p>
+</section>
+
+<section>
+<h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
+<div class="mis">
+  <div><span class="wrong">"P(spam | free) and P(free | spam) are the same thing."</span>They share the same top count but divide by different wholes. Here they are 0.75 and 0.6, and they can be far apart. Most emails from your bank mention "account", yet most emails mentioning "account" are not from your bank. Mixing up the two directions is one of the most common reasoning errors, in ML and in medicine.</div>
+  <div><span class="wrong">"After five heads in a row, tails is due."</span>A fair coin has no memory; each flip is independent, so the next one is still 0.5. Long-run shares settle near 0.5 not because the coin makes up for past streaks, but because thousands of later flips swamp a short streak. In the dice lab, an early lopsided run never gets "corrected"; it just becomes a smaller and smaller part of the total.</div>
+  <div><span class="wrong">"A model that says 0.92 is right 92% of the time on that email."</span>For one email the answer is simply spam or not. 0.92 is a claim about emails <em>like</em> it: of all emails the model scores near 0.92, about 92% should be spam. A model whose numbers live up to that is called <strong>well calibrated</strong>. Many models are not, so a high number is a hint, not a guarantee.</div>
+</div>
+</section>
+
+<section>
+<h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
+<details><p class="q">1. Roll a fair die once. What is the probability of rolling 5 or more? What about less than 5?</p><summary>Show answer</summary><p class="a">"5 or more" is {5, 6}, 2 of 6 outcomes, so <code>2/6 = 1/3 ≈ 0.333</code>. "Less than 5" is its complement: <code>1 − 1/3 = 2/3 ≈ 0.667</code>. Counting {1, 2, 3, 4} gives the same 4/6.</p></details>
+<details><p class="q">2. In the 20-email inbox, what is P(spam | unknown sender)? And P(unknown sender | spam)?</p><summary>Show answer</summary><p class="a">There are 10 unknown senders (5 spam + 5 ok), so <code>P(spam | unknown) = 5/10 = 0.5</code>. All 5 spam emails came from unknown senders, so <code>P(unknown | spam) = 5/5 = 1</code>. Same top count, different wholes, very different answers. Check both in the inbox lab.</p></details>
+<details><p class="q">3. The number of spam emails arriving in a minute is 0 with probability 0.5, 1 with probability 0.3 and 2 with probability 0.2. Is this a valid distribution, and what is the expected number per minute?</p><summary>Show answer</summary><p class="a">Valid: every probability is between 0 and 1, and <code>0.5 + 0.3 + 0.2 = 1</code>. <code>E[X] = 0×0.5 + 1×0.3 + 2×0.2 = 0.7</code> spam emails per minute, about 42 an hour. You will never get 0.7 in one minute; it is the long-run average.</p></details>
+</section>
+
+<section>
+<h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
+<p class="takeaway">A probability is a part divided by a whole; knowing something new just shrinks the whole you count over, and a model's "0.92 spam" is that same kind of number.</p>
+</section>
+
+<section>
+<h2><span class="tag">j · Next time</span>Lesson 07 · Loss functions: measuring how wrong a model is</h2>
+<p>Now that a model can say "spam with probability 0.92", we need a single number that says how good or bad that answer was given the true label, and that number, the loss, is what the slopes of Lesson 05 will push downhill.</p>
+</section>
+
+<section>
+<h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
+<ul>
+  <li><a href="https://seeing-theory.brown.edu/" target="_blank" rel="noopener">Seeing Theory</a>, an interactive visual introduction to probability and statistics made at Brown University. Its first two chapters, Basic Probability and Compound Probability, cover expectation and conditional probability with simulations you can play with.</li>
+  <li><a href="https://www.khanacademy.org/math/statistics-probability/probability-library" target="_blank" rel="noopener">Khan Academy: Probability</a>, short videos and practice exercises on basic probability, adding and multiplying probabilities, and conditional probability.</li>
+</ul>
+</section>
+
+<nav class="pn" aria-label="Lesson navigation">
+  <a href="05-derivatives.html">← Lesson 05 · Derivatives and slopes</a>
+  <span class="muted">Next: Lesson 07 · Loss functions (coming soon)</span>
+</nav>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const fmt=v=>{const s=(+v.toFixed(4)).toString();return s;};
+
+  /* ---------- Inbox lab: the same 20 emails as the table and the Python code ---------- */
+  /* s = spam, f = says "free", k = known sender */
+  const MAIL=[
+    [0,0,1,'Standup moved'],[1,1,0,'FREE gift card'],[0,0,1,'March invoice'],[0,0,0,'Order shipped'],[0,0,1,'Lunch?'],
+    [1,0,0,'You won!'],[0,1,1,'Free lunch Fri'],[0,0,0,'Webinar today'],[0,0,1,'PR review'],[1,1,0,'Free crypto'],
+    [0,0,1,'Call me, Mom'],[0,0,0,'Bank statement'],[0,0,1,'Trip photos'],[1,0,0,'Verify account'],[0,0,1,'Rent receipt'],
+    [0,0,0,'Job alert'],[1,1,0,'Free iPhone'],[0,0,1,'Offsite plan'],[0,0,1,'Re: design doc'],[0,0,0,'Book due']
+  ].map(([s,f,k,t],i)=>({id:i+1,s,f,k,t}));
+  const PRED={
+    all:{fn:()=>true,txt:'nothing'},
+    spam:{fn:e=>e.s===1,txt:'spam'}, ok:{fn:e=>e.s===0,txt:'ok'},
+    free:{fn:e=>e.f===1,txt:'free'}, nofree:{fn:e=>e.f===0,txt:'no free'},
+    unk:{fn:e=>e.k===0,txt:'unknown sender'}, known:{fn:e=>e.k===1,txt:'known sender'},
+    freeunk:{fn:e=>e.f===1&&e.k===0,txt:'free and unknown sender'}
+  };
+  const inbox=$('inbox'), ask=$('ask'), given=$('given');
+  const tiles=MAIL.map(e=>{
+    const d=document.createElement('div'); d.className='tile'; d.title=e.t;
+    d.innerHTML=`<span class="id">#${e.id}</span><span class="lbl ${e.s?'spam':'ham'}">${e.s?'spam':'ok'}</span>`+
+      `<span class="tg${e.f?' on':''}">${e.f?'"free"':'–'}</span><span class="tg">${e.k?'known':'unknown'}</span>`;
+    inbox.appendChild(d); return d;
+  });
+  function cond(){
+    const A=PRED[ask.value], B=PRED[given.value];
+    let nB=0,nAB=0,nA=0;
+    MAIL.forEach((e,i)=>{
+      const inB=B.fn(e), inA=A.fn(e);
+      if(inA) nA++;
+      if(inB){nB++; if(inA) nAB++;}
+      tiles[i].classList.toggle('out',!inB);
+      tiles[i].classList.toggle('hit',inB&&inA);
+    });
+    const a=A.txt, b=B.txt, p=nAB/nB, pa=nA/20;
+    $('pcond').textContent=fmt(p); $('pprior').textContent=fmt(pa);
+    $('cfn').innerHTML = given.value==='all'
+      ? `P(${a}) = <b>${nA}</b> / <b>20</b> = <b>${fmt(pa)}</b>`
+      : `P(${a} | ${b}) = <b>${nAB}</b> / <b>${nB}</b> = <b>${fmt(p)}</b>  ·  as a formula: P(${a} and ${b}) / P(${b}) = ${fmt(nAB/20)} / ${fmt(nB/20)}`;
+    let m;
+    if(given.value==='all') m=`No condition: the whole inbox of 20 is the whole.`;
+    else if(ask.value===given.value||(ask.value==='free'&&given.value==='freeunk')||(ask.value==='unk'&&given.value==='freeunk')) m=`You already know it, so the answer is certain: 1.`;
+    else if(Math.abs(p-pa)<1e-9) m=`Knowing "${b}" leaves the chance unchanged, so here the two are independent.`;
+    else m=`Knowing "${b}" moved the chance of "${a}" from ${fmt(pa)} to ${fmt(p)}: ${p>pa?'up':'down'}, so the two are not independent.`;
+    $('cmsg').textContent=`${nB} email${nB===1?'':'s'} left in the whole, ${nAB} of them in A (${a}). `+m;
+  }
+  ask.addEventListener('change',cond); given.addEventListener('change',cond);
+  cond();
+
+  /* ---------- Dice lab: seeded generator so the run is reproducible ---------- */
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  const DIE={fair:[1,1,1,1,1,1].map(x=>x/6), loaded:[0.1,0.1,0.1,0.1,0.1,0.5]};
+  const ns="http://www.w3.org/2000/svg";
+  const el=(p,n,a,t)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;p.appendChild(e);return e;};
+  const svg=$('dice'), L=46, R=470, T=14, B=210;
+  let rng, counts, total, sum, recent, probs;
+  function reset(){rng=mulberry32(2026); counts=[0,0,0,0,0,0]; total=0; sum=0; recent=[]; probs=DIE[$('die').value]; draw();}
+  function roll(n){
+    for(let i=0;i<n;i++){
+      const u=rng(); let c=0, f=0;
+      while(f<5 && u>=c+probs[f]){c+=probs[f]; f++;}
+      counts[f]++; total++; sum+=f+1; recent.push(f+1);
+    }
+    if(recent.length>20) recent=recent.slice(-20);
+    draw();
+  }
+  function draw(){
+    const share=counts.map(c=>total?c/total:0);
+    const top=Math.max(0.6,...share);
+    const ymax=Math.ceil(top*10)/10;
+    const py=v=>B-v/ymax*(B-T), slot=(R-L)/6;
+    svg.innerHTML='';
+    for(let t=0;t<=ymax+1e-9;t+=0.1){
+      const y=py(t);
+      el(svg,'line',{x1:L,y1:y,x2:R,y2:y,stroke:'var(--line)'});
+      el(svg,'text',{x:L-6,y:y+4,'font-size':13,'text-anchor':'end',fill:'var(--muted)'},t.toFixed(1));
+    }
+    el(svg,'line',{x1:L,y1:B,x2:R,y2:B,stroke:'var(--muted)'});
+    for(let f=0;f<6;f++){
+      const cx=L+slot*(f+.5), bw=slot*.56;
+      if(share[f]>0) el(svg,'rect',{x:cx-bw/2,y:py(share[f]),width:bw,height:B-py(share[f]),fill:'var(--accent)',rx:3});
+      el(svg,'line',{x1:cx-slot*.42,y1:py(probs[f]),x2:cx+slot*.42,y2:py(probs[f]),stroke:'var(--amber)','stroke-width':2.5,'stroke-dasharray':'6 4'});
+      el(svg,'text',{x:cx,y:B+20,'font-size':14,'text-anchor':'middle',fill:'currentColor'},String(f+1));
+      if(total) el(svg,'text',{x:cx,y:Math.min(py(share[f]),py(probs[f]))-6,'font-size':12,'text-anchor':'middle',fill:'var(--accent)','font-weight':600},share[f].toFixed(3));
+    }
+    el(svg,'text',{x:R,y:B+38,'font-size':12,'text-anchor':'end',fill:'var(--muted)'},'face');
+    el(svg,'text',{x:L,y:B+38,'font-size':12,'text-anchor':'start',fill:'var(--muted)'},'share of rolls');
+    const ev=probs.reduce((s,p,i)=>s+p*(i+1),0);
+    $('nroll').textContent=total.toLocaleString('en-US');
+    $('avg').textContent=total?(sum/total).toFixed(3):'–';
+    $('ev').textContent=fmt(ev);
+    const gap=total?Math.max(...share.map((s,i)=>Math.abs(s-probs[i]))):null;
+    $('gap').textContent=gap==null?'–':gap.toFixed(3);
+    $('seq').textContent=recent.length?'last rolls: '+recent.join(' '):'No rolls yet.';
+    $('dmsg').textContent= !total ? `Expected value = Σ face × P(face) = ${fmt(ev)}. Press a roll button.`
+      : total<50 ? 'With this few rolls the shares jump around a lot. Keep rolling.'
+      : total<2000 ? 'The bars are drifting towards the dashed marks, and the average towards the expected value.'
+      : 'Thousands of rolls in: each share sits close to its probability, and the average sits close to the expected value.';
+  }
+  document.querySelectorAll('#lab2 button[data-n]').forEach(b=>b.addEventListener('click',()=>roll(+b.dataset.n)));
+  $('dreset').addEventListener('click',reset);
+  $('die').addEventListener('change',reset);
+  reset();
+})();
+</script>
+</body>
+</html>

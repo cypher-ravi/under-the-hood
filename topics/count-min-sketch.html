@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Count-Min Sketch and Top K</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .canvas-panel { display: grid; gap: 14px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .sketch { display: grid; gap: 4px; }
+  .srow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 6px; align-items: center; }
+  .srow > span { font: 600 11px/1 var(--mono); color: var(--muted); }
+  .cells { display: grid; gap: 2px; }
+  .cell {
+    position: relative; height: 30px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel);
+    display: grid; place-items: center; overflow: hidden; font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .cell i { position: absolute; inset: 0; background: var(--accent); }
+  .cell b { position: relative; font-weight: 600; }
+  .cell.hot b { color: var(--panel); }
+  .cell.pick { border: 2px solid var(--amber); }
+  .cell.min { border: 3px solid var(--ok); }
+  .dense .cell { font-size: 8px; letter-spacing: -0.04em; }
+  .nonum .cell b { display: none; }
+  .colnums { display: grid; gap: 2px; font: 500 9px/1 var(--mono); color: var(--muted); text-align: center; }
+  .nonum .colnums { visibility: hidden; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.exact b { color: var(--ok); }
+  .verdict-box.over b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .ticker { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
+  .ticker span { font: 500 11px/1 var(--mono); padding: 5px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .ticker span.sel { border-color: var(--amber); color: var(--ink); background: var(--amber-soft); }
+  select { font: 500 14px/1.2 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; min-width: 0; }
+  .compare b { font: 600 1.3rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-wrap: anywhere; }
+  .topk { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .topk h3 { font-size: 14px; margin-bottom: 6px; }
+  .heaparr { display: flex; flex-wrap: wrap; gap: 4px; }
+  .heaparr span { font: 500 12px/1 var(--mono); padding: 6px 7px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--paper); }
+  .heaparr span:first-child { border-color: var(--accent); color: var(--accent); }
+  table.data tr.clk { cursor: pointer; }
+  table.data tr.clk:hover td { background: var(--accent-soft); }
+  table.data tr.sel td { background: var(--amber-soft); }
+  .grid2 { font: 600 14px/1.5 var(--mono); display: grid; gap: 2px; }
+  .grid2 .on { color: var(--accent); }
+  .grid2 .hit { color: var(--amber); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Big data</span>
+  </div>
+
+  <header class="intro">
+    <h1>Count-Min Sketch and Top K</h1>
+    <p class="lede">A few rows of counters, one hash function per row, that count how often each item appears in a stream without keeping a counter per item. An estimate can be <b>too high but never too low</b>, and the width of the grid sets how far off it can be. Put a small min-heap on top and you have a running list of the most viewed videos.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="gridLabel"></span><span class="eyebrow" id="nLabel"></span></div>
+      <div class="sketch" id="sketch" aria-label="Grid of sketch counters"></div>
+      <div class="verdict-box" id="verdict"></div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Row</th><th>Column</th><th>Counter</th><th>Also hashed here</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div><span class="eyebrow">Last views in the stream · amber = selected video</span><div class="ticker" id="ticker" style="margin-top:8px"></div></div>
+    </div>
+
+    <div class="panel">
+      <label class="field" for="video"><span class="row"><span>Inspect a video</span></span>
+        <select id="video"></select>
+      </label>
+      <div class="controls">
+        <button class="primary" id="more">Stream 200 views</button>
+        <button id="one">+1 view</button>
+        <button id="burst">Viral burst: +100</button>
+        <button id="reset">Reset</button>
+      </div>
+      <label class="field" for="w">
+        <span class="row"><span>Width w (counters per row) · replays the stream</span><b class="mono num" id="wOut"></b></span>
+        <input type="range" id="w" min="4" max="64" step="4" value="16">
+      </label>
+      <label class="field" for="d">
+        <span class="row"><span>Depth d (rows, one hash each) · replays</span><b class="mono num" id="dOut"></b></span>
+        <input type="range" id="d" min="1" max="6" step="1" value="3">
+      </label>
+      <label class="field" for="k">
+        <span class="row"><span>K (heap size) · replays</span><b class="mono num" id="kOut"></b></span>
+        <input type="range" id="k" min="3" max="10" step="1" value="5">
+      </label>
+      <label class="check" for="cu"><input type="checkbox" id="cu"> Conservative update (only raise the counters that are at the minimum)</label>
+      <div class="compare">
+        <div><span>Error per unit of N</span><b id="eps">–</b><span>ε = e / w</span></div>
+        <div><span>Chance of exceeding it</span><b id="delta">–</b><span>δ = e<sup>−d</sup></span></div>
+      </div>
+      <div class="stat-row"><span>Total views N</span><b id="nOut">–</b></div>
+      <div class="stat-row"><span>Bound: estimate ≤ true + εN</span><b id="bound">–</b></div>
+      <div class="stat-row"><span>Largest overestimate (all videos)</span><b id="maxErr">–</b></div>
+      <div class="stat-row"><span>Average overestimate</span><b id="avgErr">–</b></div>
+      <div class="stat-row"><span>Videos past the bound</span><b id="past">–</b></div>
+      <div class="stat-row"><span>Memory: sketch vs exact map</span><b id="mem">–</b></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <span class="eyebrow">Heavy hitters</span>
+    <h2>Top K from the sketch and a min-heap, against the exact answer</h2>
+    <p class="kicker" id="topkKicker"></p>
+    <div class="topk">
+      <div>
+        <h3>Sketch + heap (what you would ship)</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>#</th><th>Video</th><th>Est. at last view</th><th>True</th></tr></thead>
+          <tbody id="heapTable"></tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3>Exact counts (a map entry per video)</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>#</th><th>Video</th><th>True</th><th>In heap?</th></tr></thead>
+          <tbody id="trueTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+    <div><span class="eyebrow">Heap array, root (the smallest estimate) first</span><div class="heaparr" id="heapArr" style="margin-top:8px"></div></div>
+    <p id="topkNote"></p>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Two rows, four counters, two wrong answers</h2>
+    <p class="kicker">Here d = 2 rows and w = 4 columns (numbered 0–3). The hash outputs below are chosen by hand to keep the trace short. In the simulation they come from mixing the bytes of the video ID with a different seed per row.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>The hash table</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Video</th><th>h1 (row 1)</th><th>h2 (row 2)</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">A</td><td class="mono">0</td><td class="mono">1</td></tr>
+            <tr><td class="mono">B</td><td class="mono">2</td><td class="mono">2</td></tr>
+            <tr><td class="mono">C</td><td class="mono">0</td><td class="mono">3</td></tr>
+            <tr><td class="mono">D</td><td class="mono">2</td><td class="mono">3</td></tr>
+            <tr><td class="mono">E</td><td class="mono">1</td><td class="mono">0</td></tr>
+          </tbody>
+        </table></div>
+      </div></li>
+      <li><div>
+        <h3>Stream A, B, A, C, A, D</h3>
+        <p>Each view adds 1 to one counter in each row. A lands in row 1 column 0 and row 2 column 1, three times. B, C and D land once each.</p>
+        <div class="grid2"><span>row 1: <span class="on">4</span> 0 <span class="on">2</span> 0</span><span>row 2: 0 <span class="on">3</span> <span class="on">1</span> <span class="on">2</span></span></div>
+        <p>Row 1 column 0 holds A's 3 plus C's 1. Row 1 column 2 holds B and D. Row 2 column 3 holds C and D. Six views went in, and every row still sums to 6.</p>
+      </div></li>
+      <li><div>
+        <h3>Query A: exact, thanks to row 2</h3>
+        <p>Row 1 says 4, because C shares that counter. Row 2 says 3, and nobody else hashed there. The estimate is min(4, 3) = <b>3</b>, the true count. One clean row is enough.</p>
+      </div></li>
+      <li><div>
+        <h3>Query C: overestimated</h3>
+        <p>Row 1 column 0 is 4 (A's views), row 2 column 3 is 2 (D's view). The estimate is min(4, 2) = <b>2</b>, but C was viewed once. C collided in <i>every</i> row, so the minimum cannot remove the extra.</p>
+      </div></li>
+      <li><div>
+        <h3>Query D and E</h3>
+        <p>D reads row 1 column 2 = 2 (with B) and row 2 column 3 = 2 (with C): estimate 2, true 1. E was never viewed: row 1 column 1 = 0, row 2 column 0 = 0, estimate 0. A counter only ever holds the item's own views plus other items' views, so no estimate is ever below the truth.</p>
+      </div></li>
+      <li><div>
+        <h3>What the bound promised</h3>
+        <p class="formula">ε = e / w = 2.718 / 4 ≈ 0.68 · εN = 0.68 × 6 ≈ 4.1 · δ = e<sup>−2</sup> ≈ 0.135</p>
+        <p>So each estimate should be at most about 4 too high, with at least 86% probability. The real errors were 0 and 1. The bound is a worst-case guarantee, and with a skewed stream the typical error is much smaller.</p>
+      </div></li>
+      <li><div>
+        <h3>Sizing a real one</h3>
+        <p>Pick the error you can accept as a share of the stream, ε, and the failure chance δ. Then w = ⌈e / ε⌉ and d = ⌈ln(1/δ)⌉.</p>
+        <p class="formula">ε = 1%, δ = 1% → w = 272, d = 5 → 1,360 counters × 4 B ≈ 5.4 KB</p>
+        <p class="formula">ε = 0.1%, δ = 0.1% → w = 2,719, d = 7 → 19,033 counters × 4 B ≈ 76 KB</p>
+        <p>Neither size depends on how many distinct videos there are. An exact map with a hundred million videos at around 16 bytes an entry would be more than a gigabyte.</p>
+      </div></li>
+      <li><div>
+        <h3>Check it against the simulation</h3>
+        <p id="simCheck"></p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>Conservative update on the same stream.</b> Instead of adding 1 to every row, raise each of the item's counters only up to (current minimum + 1). When C arrives, row 1 column 0 already holds 2, which is more than C's minimum of 0 + 1, so it is left alone. Row 1 column 0 ends at 3 instead of 4. Estimates stay at or above the truth, and are often lower than with the plain update, but the sketch can no longer handle deletions or negative updates.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>Counting a stream you can't store</h2>
+    <p>Around 2000, routers and telephone switches were producing more records per second than anyone could keep. Network operators wanted simple answers anyway: which flows are using the most bandwidth, which destinations get the most packets. Researchers began to treat this as a problem in its own right, the data stream model: see each item once, in order, and keep a summary far smaller than the input.</p>
+    <p>Two ideas from 2002 came close to what we use now. Moses Charikar, Kevin Chen and Martin Farach-Colton described the Count Sketch at ICALP: rows of counters, where each item adds +1 or −1 to one counter per row and the median of the rows estimates its count. The same year, Cristian Estan and George Varghese's SIGCOMM paper on traffic measurement used several parallel arrays of counters (multistage filters) to catch the largest flows, and introduced "conservative update" to make them more accurate.</p>
+    <p>Graham Cormode and S. Muthukrishnan simplified the design. In their 2003 technical report, presented at LATIN in 2004 and published in the Journal of Algorithms in 2005, every update only adds, and the estimate is the minimum across rows. Because counts never go below the truth, the analysis is short, and the space needed for error ε drops from a factor of 1/ε² for earlier sketches to 1/ε. The name is the whole recipe: count, then take the min.</p>
+    <blockquote class="pull">Every counter is the item's own count plus some noise from other items. The noise is never negative, so the quietest counter is the closest to the truth.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">2002</span><p>Charikar, Chen and Farach-Colton, "Finding Frequent Items in Data Streams" (ICALP), introduce the Count Sketch.</p></li>
+      <li><span class="year">2002</span><p>Estan and Varghese, "New Directions in Traffic Measurement and Accounting" (SIGCOMM): multistage filters and conservative update.</p></li>
+      <li><span class="year">2003</span><p>Cormode and Muthukrishnan release the Count-Min Sketch as DIMACS technical report 2003-20.</p></li>
+      <li><span class="year">2004</span><p>"An Improved Data Stream Summary: The Count-Min Sketch and its Applications" appears at LATIN 2004.</p></li>
+      <li><span class="year">2005</span><p>The journal version appears in the Journal of Algorithms, volume 55.</p></li>
+      <li><span class="year">Today</span><p>Redis offers CMS.INCRBY and CMS.QUERY commands, Spark builds one over a DataFrame column with countMinSketch, and Twitter's Algebird library ships a CMS type for streaming jobs. Redis's own Top-K type uses a related sketch, HeavyKeeper.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A d × w grid of counters and d hash functions. Adding an item increments one counter per row. Its estimate is the smallest of those d counters.</p></div>
+      <div><span class="q">Why</span><p>An exact count per item needs memory for every distinct item, and a stream of video IDs, search terms or IP addresses has hundreds of millions. Most of those items are rare, and for "what is popular" you only need the big counts to be right.</p></div>
+      <div><span class="q">When</span><p>2003 to 2005, as streaming algorithms grew out of network monitoring and database research.</p></div>
+      <div><span class="q">Where</span><p>Graham Cormode and S. Muthukrishnan: a DIMACS technical report (DIMACS is a research center hosted at Rutgers University), then LATIN 2004, then the Journal of Algorithms.</p></div>
+      <div><span class="q">How</span><p>Collisions only ever add to a counter, so every row overestimates or is exact. Taking the minimum keeps the least-polluted row. A wider grid means less pollution per counter (error about N/w), and more rows make it unlikely that every row is badly polluted at once.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> you can afford to be wrong about rare items, because a rare item's count is small and the error is a share of the whole stream.</p>
+      <p><b>The sibling:</b> a <a href="bloom-filter.html">Bloom filter</a> hashes an item into bits and answers "seen it?". A Count-Min Sketch hashes into counters and answers "how many times?". Both can be wrong in only one direction.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>The estimate is never below the true count, whatever you do. The verdict box shows "over by" or "exact", never "under".</li>
+        <li>Popular videos are almost always exact or close in relative terms. Rare videos that share cells with popular ones get the largest relative error.</li>
+        <li>Drag w from 16 down to 4. The bound εN and the measured errors climb, and junk videos start to appear in the heap's top K.</li>
+        <li>Set d = 1 and then 3 at the same width. One row has nothing to compare against; extra rows let the minimum dodge bad collisions.</li>
+        <li>Turn on conservative update. With the defaults the average overestimate falls from 13.22 to 7.47. With d = 1 it changes nothing, because there is only one counter to raise.</li>
+        <li>Pick a cold video and press "Viral burst". It enters the heap as soon as its estimate passes the heap's root.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Why a heap on top?</b> The sketch can only answer "how many for this ID?". It cannot list items. So on each arrival, estimate the item and keep a min-heap of the K best estimates: replace the root when a new estimate beats it. That is O(d + log K) per event.</p>
+        <p><b>Can you merge sketches?</b> Yes, if they share w, d and hash seeds: add the grids cell by cell. That is how per-shard or per-minute sketches roll up into one, as in the <a href="../questions/top-k.html">YouTube Top K design</a>.</p>
+        <p><b>When not to use one:</b> when exact counts matter (billing), or when the distinct set fits in memory anyway. A common pattern: the sketch picks candidates, then those few hundred are counted exactly or reconciled by a batch job.</p>
+        <p><b>Alternatives:</b> Misra-Gries and Space-Saving keep K explicit counters and list the heavy hitters directly; the Count Sketch gives unbiased estimates that can be low as well as high.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString("en-US");
+
+  // ---------- seeded randomness and hashing ----------
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function hash(str, seed) {
+    let h = 0x811c9dc5 ^ seed;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+    return h >>> 0;
+  }
+  const rowSeed = r => Math.imul(r + 1, 0x9e3779b9);
+
+  // ---------- the real data structure ----------
+  class CountMinSketch {
+    constructor(w, d, conservative) {
+      this.w = w; this.d = d; this.cu = conservative; this.n = 0;
+      this.rows = Array.from({ length: d }, () => new Array(w).fill(0));
+    }
+    cols(x) { return this.rows.map((_, r) => hash(x, rowSeed(r)) % this.w); }
+    add(x, c = 1) {
+      const cs = this.cols(x); this.n += c;
+      if (!this.cu) { cs.forEach((col, r) => { this.rows[r][col] += c; }); return; }
+      const m = Math.min(...cs.map((col, r) => this.rows[r][col]));
+      cs.forEach((col, r) => { this.rows[r][col] = Math.max(this.rows[r][col], m + c); });
+    }
+    query(x) { return Math.min(...this.cols(x).map((col, r) => this.rows[r][col])); }
+  }
+
+  // min-heap of {id, est} with a position map so an item already inside can be updated
+  class TopK {
+    constructor(k) { this.k = k; this.a = []; this.pos = new Map(); }
+    swap(i, j) { const t = this.a[i]; this.a[i] = this.a[j]; this.a[j] = t; this.pos.set(this.a[i].id, i); this.pos.set(this.a[j].id, j); }
+    up(i) { while (i > 0) { const p = (i - 1) >> 1; if (this.a[p].est <= this.a[i].est) break; this.swap(i, p); i = p; } }
+    down(i) {
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1; let s = i;
+        if (l < this.a.length && this.a[l].est < this.a[s].est) s = l;
+        if (r < this.a.length && this.a[r].est < this.a[s].est) s = r;
+        if (s === i) return; this.swap(i, s); i = s;
+      }
+    }
+    offer(id, est) {
+      if (this.pos.has(id)) { const i = this.pos.get(id); this.a[i].est = est; this.down(i); return; } // estimates only grow
+      if (this.a.length < this.k) { this.a.push({ id, est }); this.pos.set(id, this.a.length - 1); this.up(this.a.length - 1); return; }
+      if (est > this.a[0].est) { this.pos.delete(this.a[0].id); this.a[0] = { id, est }; this.pos.set(id, 0); this.down(0); }
+    }
+  }
+
+  // ---------- the stream: 60 videos, Zipf-like popularity, fixed seed ----------
+  const VIDEOS = Array.from({ length: 60 }, (_, i) => "v" + (101 + i));
+  const INITIAL = 800, SKEW = 1.1;
+  let rand, popOrder, cum, log, sketch, heap, truth, sel, lastAdd = [];
+
+  function makeSource() {
+    rand = rng(20240607);
+    popOrder = VIDEOS.slice();
+    for (let i = popOrder.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [popOrder[i], popOrder[j]] = [popOrder[j], popOrder[i]]; }
+    let t = 0; cum = popOrder.map((_, r) => (t += 1 / Math.pow(r + 1, SKEW)));
+  }
+  function draw1() {
+    const x = rand() * cum[cum.length - 1];
+    let lo = 0, hi = cum.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < x) lo = mid + 1; else hi = mid; }
+    return popOrder[lo];
+  }
+
+  function feed(id) {
+    sketch.add(id);
+    truth.set(id, (truth.get(id) || 0) + 1);
+    heap.offer(id, sketch.query(id));
+    log.push(id);
+  }
+  // rebuild the sketch and heap with the current settings and replay the same log
+  function replay() {
+    const w = +$("w").value, d = +$("d").value, k = +$("k").value;
+    const old = log; log = [];
+    sketch = new CountMinSketch(w, d, $("cu").checked); heap = new TopK(k); truth = new Map();
+    old.forEach(feed);
+  }
+  function reset() {
+    makeSource(); log = [];
+    for (let i = 0; i < INITIAL; i++) log.push(draw1());
+    replay();
+  }
+
+  // ---------- drawing ----------
+  function render() {
+    const w = sketch.w, d = sketch.d, N = sketch.n;
+    $("wOut").textContent = w; $("dOut").textContent = d; $("kOut").textContent = heap.k;
+    const cols = sketch.cols(sel), counters = cols.map((c, r) => sketch.rows[r][c]);
+    const est = Math.min(...counters), tru = truth.get(sel) || 0, minRow = counters.indexOf(est);
+    const maxCell = Math.max(1, ...sketch.rows.flat());
+
+    // grid
+    const tmpl = `repeat(${w}, minmax(0, 1fr))`;
+    let g = `<div class="srow"><span></span><div class="colnums" style="grid-template-columns:${tmpl}">${Array.from({ length: w }, (_, c) => `<span>${c}</span>`).join("")}</div></div>`;
+    sketch.rows.forEach((row, r) => {
+      g += `<div class="srow"><span>h${r + 1}</span><div class="cells" style="grid-template-columns:${tmpl}">`;
+      row.forEach((v, c) => {
+        const op = v / maxCell, pick = cols[r] === c;
+        g += `<div class="cell${op > .5 ? " hot" : ""}${pick ? (r === minRow ? " min" : " pick") : ""}" title="row ${r + 1}, column ${c}: ${v}"><i style="opacity:${(op * 0.85).toFixed(3)}"></i><b>${v}</b></div>`;
+      });
+      g += `</div></div>`;
+    });
+    const box = $("sketch"); box.innerHTML = g;
+    const cellW = (box.clientWidth - 36) / w;
+    box.classList.toggle("dense", box.clientWidth > 0 && cellW < 26);
+    box.classList.toggle("nonum", box.clientWidth > 0 && cellW < 16);
+
+    $("gridLabel").textContent = `Sketch · d = ${d} rows × w = ${w} columns${sketch.cu ? " · conservative" : ""}`;
+    $("nLabel").textContent = `N = ${fmt(N)} views`;
+
+    // verdict for the selected video
+    const err = est - tru, eps = Math.E / w, bound = eps * N;
+    const v = $("verdict");
+    v.className = "verdict-box " + (err === 0 ? "exact" : err > bound ? "over bad" : "over");
+    v.innerHTML = `<b>${sel}: estimate ${fmt(est)} · true ${fmt(tru)} · ${err === 0 ? "exact" : "over by " + fmt(err)}</b>` +
+      `<p>min(${counters.map(fmt).join(", ")}) = ${fmt(est)}, from row ${minRow + 1} (green). ${err > bound ? `That is past the bound εN = ${bound.toFixed(1)}, which the math allows with probability up to δ.` : err > 0 ? `Every row shares its counter with other videos, so even the smallest is too high. Still within εN = ${bound.toFixed(1)}.` : "At least one row's counter holds only this video's views."}</p>`;
+
+    // per-row table: who else hashes into the same cell
+    let rows = "";
+    cols.forEach((c, r) => {
+      const others = [...truth.keys()].filter(id => id !== sel && sketch.cols(id)[r] === c);
+      const otherViews = others.reduce((s, id) => s + truth.get(id), 0);
+      const list = others.length ? others.slice(0, 4).map(id => `${id} (${truth.get(id)})`).join(", ") + (others.length > 4 ? ` +${others.length - 4} more` : "") : "nobody";
+      rows += `<tr><td class="mono">${r + 1}</td><td class="mono">${c}</td><td class="mono ${r === minRow ? "okc" : ""}">${fmt(counters[r])}</td><td class="mono" style="white-space:normal">${list}${others.length ? ` · ${fmt(otherViews)} views` : ""}</td></tr>`;
+    });
+    $("rows").innerHTML = rows;
+
+    // stats over every video seen
+    let maxE = 0, sumE = 0, pastN = 0, maxId = "–";
+    truth.forEach((t, id) => { const e = sketch.query(id) - t; sumE += e; if (e > maxE) { maxE = e; maxId = id; } if (e > bound) pastN++; });
+    const seen = truth.size;
+    $("eps").textContent = eps.toFixed(3);
+    $("delta").textContent = Math.exp(-d).toFixed(3);
+    $("nOut").textContent = fmt(N);
+    $("bound").textContent = bound.toFixed(1);
+    $("maxErr").textContent = maxE ? `${fmt(maxE)} (${maxId})` : "0";
+    $("avgErr").textContent = seen ? (sumE / seen).toFixed(2) : "0";
+    $("past").textContent = `${pastN} of ${seen} (δ allows ${(Math.exp(-d) * 100).toFixed(1)}%)`;
+    $("mem").textContent = `${fmt(w * d * 4)} B vs ${seen} entries`;
+
+    // top K
+    const exact = [...truth.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, heap.k);
+    const exactIds = new Set(exact.map(e => e[0]));
+    const heapSorted = heap.a.slice().sort((a, b) => b.est - a.est || (a.id < b.id ? -1 : 1));
+    const inHeap = new Set(heap.a.map(e => e.id));
+    $("heapTable").innerHTML = heapSorted.map((e, i) => `<tr class="clk${e.id === sel ? " sel" : ""}" data-id="${e.id}"><td class="mono">${i + 1}</td><td class="mono ${exactIds.has(e.id) ? "" : "warn"}">${e.id}</td><td class="mono">${fmt(e.est)}</td><td class="mono">${fmt(truth.get(e.id))}</td></tr>`).join("");
+    $("trueTable").innerHTML = exact.map(([id, t], i) => `<tr class="clk${id === sel ? " sel" : ""}" data-id="${id}"><td class="mono">${i + 1}</td><td class="mono">${id}</td><td class="mono">${fmt(t)}</td><td class="mono ${inHeap.has(id) ? "okc" : "warn"}">${inHeap.has(id) ? "yes" : "missed"}</td></tr>`).join("");
+    $("heapArr").innerHTML = heap.a.map(e => `<span>${e.id}:${e.est}</span>`).join("");
+    const hits = exact.filter(([id]) => inHeap.has(id)).length;
+    $("topkKicker").textContent = `On every view the sketch estimates that video, and a min-heap of size ${heap.k} keeps the best estimates seen so far: an item already inside gets its estimate refreshed, and a new one replaces the root only if it beats it. A heap entry is updated only when that video is viewed again, so its stored estimate can lag the sketch's current answer. The exact column keeps a counter per video, which is what the sketch avoids.`;
+    $("topkNote").innerHTML = `The heap found <b>${hits} of ${heap.k}</b> true top-${heap.k} videos.` + (hits < heap.k ? ` Red IDs are in the heap only because their counters are inflated by collisions; widen the sketch to push them out.` : ` The heap's root, ${heap.a[0] ? heap.a[0].id + " at " + heap.a[0].est : "–"}, is the bar a new video has to clear.`);
+
+    // ticker
+    $("ticker").innerHTML = log.slice(-14).map(id => `<span class="${id === sel ? "sel" : ""}">${id}</span>`).join("");
+
+    // select options, ordered by true count
+    const opts = VIDEOS.slice().sort((a, b) => (truth.get(b) || 0) - (truth.get(a) || 0) || (a < b ? -1 : 1));
+    $("video").innerHTML = opts.map(id => `<option value="${id}"${id === sel ? " selected" : ""}>${id} · ${fmt(truth.get(id) || 0)} true views</option>`).join("");
+
+    // the worked example quotes the default state
+    if (!$("simCheck").dataset.done) {
+      $("simCheck").dataset.done = 1;
+      $("simCheck").innerHTML = `With the defaults (w = ${w}, d = ${d}, ${fmt(N)} views from a fixed seed), the bound is εN = ${bound.toFixed(1)}. The largest overestimate over all ${seen} videos is ${fmt(maxE)}, on ${maxId}, and the average is ${(sumE / seen).toFixed(2)}. The page opens on ${sel}: estimate ${fmt(est)}, true ${fmt(tru)}. The heap finds ${hits} of the true top ${heap.k}.`;
+    }
+  }
+
+  // ---------- controls ----------
+  $("more").onclick = () => { for (let i = 0; i < 200; i++) feed(draw1()); render(); };
+  $("one").onclick = () => { feed(sel); render(); };
+  $("burst").onclick = () => { for (let i = 0; i < 100; i++) feed(sel); render(); };
+  $("reset").onclick = () => { reset(); render(); };
+  ["w", "d", "k"].forEach(id => { $(id).oninput = () => { replay(); render(); }; });
+  $("cu").onchange = () => { replay(); render(); };
+  $("video").onchange = e => { sel = e.target.value; render(); };
+  document.querySelector(".topk").onclick = e => { const tr = e.target.closest("[data-id]"); if (tr) { sel = tr.dataset.id; render(); } };
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 120); });
+
+  // open on the video with the largest overestimate under the defaults
+  reset();
+  sel = [...truth.keys()].reduce((best, id) => (sketch.query(id) - truth.get(id) > sketch.query(best) - truth.get(best) ? id : best));
+  render();
+</script>
+</body>
+</html>

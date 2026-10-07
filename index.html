@@ -196,6 +196,14 @@
       [[100, 150], [190, 150], [280, 150]].forEach(([x, y], i) => { s += `<rect x="${x}" y="${y}" width="${i === 1 ? 20 : 20}" height="20" rx="4" fill="${i === 1 ? "var(--ok)" : "none"}" stroke="${i === 1 ? "var(--ok)" : "var(--line)"}" stroke-width="1.5"/>`; });
       return s;
     },
+    sketch() {
+      const w = 8, cw = 30, gap = 4, x0 = 200 - (w * cw + (w - 1) * gap) / 2, pick = [2, 5, 1], vals = [[2,5,1,3,0,2,4,1],[1,0,3,2,1,4,0,2],[3,2,4,0,2,1,1,3]];
+      let s = `<rect x="168" y="14" width="64" height="22" rx="11" fill="var(--accent)"/>`;
+      pick.forEach((c, r) => { const x = x0 + c * (cw + gap) + cw / 2, y = 52 + r * (cw + 12); s += `<path d="M200 36 C 200 44, ${x} ${y - 14}, ${x} ${y}" fill="none" stroke="var(--amber)" stroke-width="1.5"/>`; });
+      vals.forEach((row, r) => row.forEach((v, c) => { const x = x0 + c * (cw + gap), y = 52 + r * (cw + 12), p = pick[r] === c, m = r === 2 && p;
+        s += `<rect x="${x}" y="${y}" width="${cw}" height="${cw}" rx="4" fill="var(--accent)" fill-opacity="${(v / 5 * 0.8).toFixed(2)}" stroke="${m ? "var(--ok)" : p ? "var(--amber)" : "var(--line)"}" stroke-width="${p ? 2.5 : 1.2}"/>`; }));
+      return s;
+    },
     kafka() {
       let s = "";
       [0, 1, 2].forEach(r => {

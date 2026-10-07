@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Binary Search on the Answer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 8px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
+  .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .note { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="binary-search" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Binary Search</span>
+  </div>
+
+  <header class="intro">
+    <h1>Binary Search on the Answer</h1>
+    <p class="lede">Keep a range that is guaranteed to contain the answer, look at its middle, and use one comparison to throw away half of it. The range can be positions in a sorted array, or it can be every value the answer could possibly take, like every eating speed from 1 to the biggest pile. As long as a single yes/no question splits the range cleanly into "no" then "yes", halving finds the boundary in O(log n) checks.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>Every look rules out half of what's left</h2>
+    <p>Looking for 56 in a sorted list of 15 numbers, you could check them one by one: up to 15 looks. But one look at the middle tells you much more than "is this it?". If the middle value is 37, then 56 can't be at or before it, because everything there is at most 37. Eight positions vanish in one comparison. Look at the middle of what's left, and repeat.</p>
+    <p>After k looks at most n / 2<sup>k</sup> positions remain, so 15 positions take at most 4 looks and a million take at most 20. The only thing that matters is that one comparison at the middle tells you <b>which side</b> the answer must be on. Sorted order gives you that for free. So does any yes/no question whose answers go "no, no, no, yes, yes" as the value grows, which is how the same loop ends up searching over answers instead of array positions.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Exact match</h3><p>Compare the middle with the target and keep the half it must be in. Stop when you hit it or the range is empty.</p><a href="#p1">Problem 1: Find a target</a></div>
+      <div><h3>First true (boundary)</h3><p>Turn the question into a predicate that is false, then true. Halve until the range is a single position: the first true.</p><a href="#p2">Problem 2: Insert position</a><a href="#p3">Problem 3: Rotated sorted array</a></div>
+      <div><h3>Search the answer space</h3><p>The array isn't what you search. You search the possible answers, and each guess is tested by a feasibility check.</p><a href="#p4">Problem 4: Slowest speed that finishes</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is <b>sorted</b> (or sorted and then rotated), and you need a position, a count, or a nearest value.</li>
+      <li>The constraints hint at O(log n): n up to 10<sup>9</sup>, or "do better than linear".</li>
+      <li>The question asks for the <b>minimum</b> value that works or the <b>maximum</b> value that still works: smallest speed, least capacity, largest minimum distance.</li>
+      <li>If you guess an answer x, you can <b>check</b> whether x is good enough in roughly linear time, and anything bigger than a good x is also good (or anything smaller is).</li>
+      <li>Phrases like "first", "last", "earliest day", "insert position", "first bad version".</li>
+    </ul>
+    <div class="aside"><p><b>Counter-signal:</b> binary search needs monotonic answers. If "x works" doesn't imply "x + 1 works" (for example the check can flip back and forth), halving can jump past the answer. Then you need a scan, a DP, or a different structure. And on an unsorted array, sorting first costs O(n log n), which only pays off if you will search many times.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>Two skeletons, one invariant each</h2>
+    <div class="tmpl-pair">
+      <div>
+        <h3>Exact match (closed range)</h3>
+<pre class="tmpl">lo, hi = 0, len(a) - 1
+<span class="c"># invariant: if target is in a,</span>
+<span class="c"># it is somewhere in a[lo..hi]</span>
+while lo &lt;= hi:
+    mid = (lo + hi) // 2
+    if a[mid] == target:
+        return mid
+    if a[mid] &lt; target:
+        lo = mid + 1   <span class="c"># mid and left: too small</span>
+    else:
+        hi = mid - 1   <span class="c"># mid and right: too big</span>
+return -1          <span class="c"># range is empty</span></pre>
+      </div>
+      <div>
+        <h3>First true (lower bound)</h3>
+<pre class="tmpl">lo, hi = 0, n      <span class="c"># n means "none is true"</span>
+<span class="c"># invariant: ok(i) is false for i &lt; lo</span>
+<span class="c">#            ok(i) is true  for i &gt;= hi</span>
+while lo &lt; hi:
+    mid = (lo + hi) // 2
+    if ok(mid):
+        hi = mid       <span class="c"># mid may be the first true</span>
+    else:
+        lo = mid + 1   <span class="c"># mid is false, skip it</span>
+return lo          <span class="c"># lo == hi: the boundary</span></pre>
+      </div>
+    </div>
+    <p>The exact version is for "is it here?". The first-true version is the one to memorise, because almost every harder problem reduces to it: pick a predicate <span class="mono">ok</span> that is false, false, …, true, true over the range, and the loop finds where it flips. <span class="mono">ok(i) = a[i] &gt;= target</span> gives the insert position; <span class="mono">ok(k) = "speed k finishes in time"</span> gives the slowest speed that works.</p>
+    <p>Two habits prevent most bugs. Write the invariant down before the loop, then check that each update keeps it true: <span class="mono">hi = mid</span> (not <span class="mono">mid - 1</span>) when mid might be the answer. And make sure every update shrinks the range: with <span class="mono">mid = (lo + hi) // 2</span> and <span class="mono">lo &lt; hi</span>, mid is always below hi, so both branches make progress. In languages with fixed-size integers, write <span class="mono">lo + (hi - lo) / 2</span> to avoid overflow.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Find a target" data-num="P1">
+    <span class="eyebrow">Problem 1 · Exact match</span>
+    <h2>Find a target in a sorted array</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You get an array of integers in non-decreasing order and a target value. Return an index where the target appears, or −1 if it isn't in the array. Use O(log n) comparisons.</p>
+      <div class="io"><div><span>Input</span>[3, 8, 12, 17, 21, 26, 30, 34, 41], target 26</div><div><span>Output</span>5</div></div>
+    </div>
+    <details class="hint"><summary>Think first: the middle is 21 and you want 26. What's ruled out?</summary><p>Everything at or left of the middle is at most 21, so none of it can be 26. Move <span class="mono">lo</span> to <span class="mono">mid + 1</span>. If the middle were bigger than the target, the right side would go instead. If the range ever becomes empty (<span class="mono">lo &gt; hi</span>), the target isn't there.</p></details>
+    <div id="viz1"></div>
+    <p class="legend">L = lo, R = hi, mid = the middle being checked. Grey cells are ruled out.</p>
+    <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Linear scan: O(n)</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Insert position" data-num="P2">
+    <span class="eyebrow">Problem 2 · First true</span>
+    <h2>Where would the target go?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You get an array in non-decreasing order and a target. Return the smallest index i with <span class="mono">a[i] ≥ target</span>. That is where the target should be inserted to keep the array sorted, and if the target is already present it is its first occurrence. If every element is smaller, return the length of the array.</p>
+      <div class="io"><div><span>Input</span>[1, 3, 3, 3, 5, 8, 9], target 3</div><div><span>Output</span>1 (the first 3)</div><div><span>Target 6</span>5 (between 5 and 8)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: why can't you stop as soon as a[mid] equals the target?</summary><p>There may be more copies to the left. Instead, ask a yes/no question at every index: "is <span class="mono">a[i] ≥ target</span>?". Along a sorted array the answers go F, F, T, T, T. You want the first T. If mid says T, it could be the first one, so keep it: <span class="mono">hi = mid</span>. If it says F, it and everything left of it are F: <span class="mono">lo = mid + 1</span>.</p></details>
+    <div id="viz2"></div>
+    <div class="aside"><p><b>Same shape, different story:</b> "versions 1 to n, and from some version on every build is broken; find the first broken one with few checks" is this problem with <span class="mono">ok(v) = is_bad(v)</span>. The second row of the picture is the predicate: F cells are proven false (left of lo), T cells are proven true (from hi on), and ? cells haven't been decided yet.</p></div>
+    <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Scan from the left: O(n)</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Rotated sorted array" data-num="P3">
+    <span class="eyebrow">Problem 3 · Halve with a twist</span>
+    <h2>Search in a rotated sorted array</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>An array of distinct integers was sorted in increasing order and then rotated: some prefix was cut off and moved to the end, so <span class="mono">[2, 5, 9, 14, 20]</span> might now read <span class="mono">[14, 20, 2, 5, 9]</span>. Given the rotated array and a target, return the target's index or −1, in O(log n) time.</p>
+      <div class="io"><div><span>Input</span>[15, 18, 22, 27, 3, 6, 9, 11], target 6</div><div><span>Output</span>5</div></div>
+    </div>
+    <details class="hint"><summary>Think first: cut the range at mid. What is always true of the two halves?</summary><p>The rotation point can only be on one side, so <b>at least one half is sorted</b>. Compare <span class="mono">a[lo]</span> with <span class="mono">a[mid]</span> to see which. For the sorted half you can tell from its two ends whether the target could be inside it. If it could, keep that half; if not, the target can only be in the other half.</p></details>
+    <div id="viz3"></div>
+    <p class="legend">Amber outline = the half that is known to be sorted at this step. Grey = ruled out.</p>
+    <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Linear scan: O(n)</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Slowest speed that finishes" data-num="P4">
+    <span class="eyebrow">Problem 4 · Search the answer space</span>
+    <h2>The slowest eating speed that still finishes in time</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>There are several piles of bananas and a guard returns in h hours. Each hour you pick one pile and eat up to k bananas from it; if the pile has fewer than k left, you finish it and wait out the rest of that hour. Find the smallest whole number k that lets you finish every pile within h hours. (h is at least the number of piles, so some speed always works.)</p>
+      <div class="io"><div><span>Input</span>piles [3, 6, 7, 11], h = 8</div><div><span>Output</span>4</div><div><span>Why</span>at k = 4: 1 + 2 + 2 + 3 = 8 hours; at k = 3: 1 + 2 + 3 + 4 = 10</div></div>
+    </div>
+    <details class="hint"><summary>Think first: if speed k finishes in time, what about k + 1?</summary><p>Eating faster never takes more hours, so once a speed works, every faster speed works too. The question "does speed k finish?" goes no, no, …, yes, yes as k runs from 1 to the largest pile (at that speed each pile takes one hour). That's a first-true search over speeds, not over the array. Checking one speed costs one pass: <span class="mono">sum(ceil(p / k))</span>.</p></details>
+    <div id="viz4"></div>
+    <div class="aside"><p><b>Read the picture:</b> the top line is every possible speed. The shaded band is the range [lo, hi] that still contains the answer, and the dot marks the guessed k. Green ticks are speeds proven fast enough, red ticks are proven too slow. Below, each pile shows how many hours it takes at speed k.</p></div>
+    <div class="cx"><span class="good">Time O(n log max)</span><span class="good">Space O(1)</span><span class="meh">Try every speed: O(n · max)</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why halving is safe, why it stops, and why it's fast</h2>
+    <div class="qa">
+      <div><span class="q">Invariant</span><p>For first true: every index below lo is known false, and every index from hi on is known true (with hi = n standing for "nothing true yet"). At the start nothing is below lo = 0 and nothing is at or above hi = n, so it holds trivially. If <span class="mono">ok(mid)</span> is true, setting hi = mid keeps "from hi on is true" because the predicate is monotonic. If it's false, everything up to mid is false, so lo = mid + 1 keeps "below lo is false".</p></div>
+      <div><span class="q">Termination</span><p>While lo &lt; hi, the floor of the average satisfies lo ≤ mid &lt; hi. So hi = mid strictly lowers hi and lo = mid + 1 strictly raises lo: the range shrinks every round and the loop must end. The classic exact search shrinks too, because both updates skip mid itself.</p></div>
+      <div><span class="q">The answer</span><p>The loop ends with lo = hi. Everything below is false and everything from there on is true, so lo is exactly the first true position, or n if there is none. No final check is needed.</p></div>
+      <div><span class="q">O(log n)</span><p>Each round keeps at most half of the range (rounded up), so after k rounds at most n / 2<sup>k</sup> + 1 positions remain. The range hits size one after about log₂ n rounds. For answer-space searches the "n" is the size of the answer range, and each round also pays for one feasibility check.</p></div>
+      <div><span class="q">In an interview</span><p>Say what the range means ("the answer is always inside [lo, hi]") and what the predicate is, then show that both branches keep that true and shrink the range. For answer-space problems, argue monotonicity out loud ("faster never takes longer") before writing the loop.</p></div>
+    </div>
+    <p class="formula">size after k rounds ≤ n / 2^k  ⇒  rounds ≈ log₂ n  (10⁶ → 20, 10⁹ → 30)</p>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const dash = v => (v === null || v === undefined) ? "–" : v;
+
+  // parse one whole number from a text field
+  function parseOne(text, name, lo = -999, hi = 999) {
+    const t = String(text).trim();
+    if (!/^-?\d+$/.test(t)) return { error: `${name} must be a single whole number.` };
+    const v = Number(t);
+    if (v < lo || v > hi) return { error: `Keep ${name.toLowerCase()} between ${lo} and ${hi}.` };
+    return { value: v };
+  }
+  function sortedCheck(a) {
+    for (let k = 1; k < a.length; k++) if (a[k] < a[k - 1]) return { error: `The array must be sorted: ${a[k - 1]} comes before ${a[k]}.` };
+    return null;
+  }
+  // grey out everything outside [lo, hi]
+  function rangeMarks(n, lo, hi) {
+    const m = {};
+    for (let k = 0; k < n; k++) if (k < lo || k > hi) m[k] = "done";
+    return m;
+  }
+
+  // ---------- The idea: run the classic search and draw the range at each look ----------
+  (function () {
+    const a = [2, 5, 8, 12, 16, 23, 29, 37, 41, 50, 56, 63, 71, 80, 94], t = 56;
+    let lo = 0, hi = a.length - 1, html = "", look = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1, m = rangeMarks(a.length, lo, hi);
+      look++;
+      m[mid] = a[mid] === t ? "hit" : "active";
+      const verdict = a[mid] === t ? `found ${t} at index ${mid}` : a[mid] < t ? `${a[mid]} < ${t}, drop the left half` : `${a[mid]} > ${t}, drop the right half`;
+      html += `<span class="stage-label">Look ${look}: ${hi - lo + 1} left · ${verdict}</span>${drawArray(a, { ptr: { L: lo, R: hi, mid }, mark: m })}`;
+      if (a[mid] === t) break;
+      if (a[mid] < t) lo = mid + 1; else hi = mid - 1;
+    }
+    document.getElementById("ideaViz").innerHTML = `<div class="st-stage"><div class="stage-row">${html}</div>
+      <p class="note">Searching for ${t} among ${a.length} sorted numbers: ${a.length} candidates, then ${look} looks. A linear scan would need ${a.indexOf(t) + 1}.</p></div>`;
+  })();
+
+  // ---------- Problem 1: exact match ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def search(a, target):",
+      "  lo, hi = 0, len(a) - 1",
+      "  while lo <= hi:",
+      "    mid = (lo + hi) // 2",
+      "    if a[mid] == target:",
+      "      return mid",
+      "    if a[mid] < target:",
+      "      lo = mid + 1",
+      "    else:",
+      "      hi = mid - 1",
+      "  return -1"
+    ],
+    inputs: [{ key: "a", label: "Sorted array", value: "3, 8, 12, 17, 21, 26, 30, 34, 41" }, { key: "t", label: "Target", value: "26" }],
+    presets: [
+      { label: "Found on the right", values: { a: "3, 8, 12, 17, 21, 26, 30, 34, 41", t: "26" } },
+      { label: "Found at the start", values: { a: "4, 9, 15, 22, 28, 33, 40, 47, 52, 61, 70, 88", t: "4" } },
+      { label: "Not present", values: { a: "1, 4, 6, 10, 13, 19, 25", t: "11" } },
+      { label: "Bigger than all", values: { a: "2, 4, 6, 8, 10", t: "50" } }
+    ],
+    build({ a, t }) {
+      const p = parseNums(a, { min: 1, max: 14 }); if (p.error) return p;
+      const v = p.nums, bad = sortedCheck(v); if (bad) return bad;
+      const q = parseOne(t, "Target"); if (q.error) return q;
+      const target = q.value, n = v.length, frames = [];
+      let lo = 0, hi = n - 1, mid = null, looks = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, a: v, lo, hi, mid, ...extra,
+        vars: { lo, hi, mid: dash(mid), "a[mid]": mid === null ? "–" : v[mid], target, "range size": Math.max(0, hi - lo + 1), looks } });
+      snap(1, `The target, if present, is somewhere in a[0..${n - 1}]: ${n} candidate${n > 1 ? "s" : ""}.`);
+      while (true) {
+        if (!(lo <= hi)) { snap(2, `lo = ${lo} > hi = ${hi}: the range is empty, so ${target} is not in the array.`); break; }
+        snap(2, `lo = ${lo} ≤ hi = ${hi}: ${hi - lo + 1} candidate${hi - lo ? "s" : ""} left.`);
+        mid = (lo + hi) >> 1; looks++;
+        snap(3, `mid = (${lo} + ${hi}) // 2 = ${mid}. Look at a[${mid}] = ${v[mid]}.`);
+        if (v[mid] === target) {
+          snap(4, `a[${mid}] = ${v[mid]} equals the target.`, { found: true });
+          snap(5, `<b class="ok">Return ${mid}</b> after ${looks} look${looks > 1 ? "s" : ""} (n = ${n}).`, { found: true, done: true });
+          return { frames };
+        }
+        if (v[mid] < target) {
+          snap(6, `${v[mid]} < ${target}: a[${mid}] and everything left of it are too small.`);
+          lo = mid + 1;
+          snap(7, `lo = ${lo}. The range is now a[${lo}..${hi}].`);
+        } else {
+          snap(8, `${v[mid]} > ${target}: a[${mid}] and everything right of it are too big.`);
+          hi = mid - 1;
+          snap(9, `hi = ${hi}. The range is now a[${lo}..${hi}].`);
+        }
+      }
+      mid = null;
+      snap(10, `<b class="bad">Return −1</b>: not found after ${looks} look${looks > 1 ? "s" : ""} (n = ${n}).`, { done: true, result: -1 });
+      return { frames };
+    },
+    draw(f) {
+      const m = rangeMarks(f.a.length, f.lo, f.hi);
+      if (f.mid !== null && f.mid >= 0) m[f.mid] = f.found ? "hit" : "active";
+      return `<div class="stage-row"><span class="stage-label">Array · live range a[${f.lo}..${f.hi}]</span>${drawArray(f.a, { ptr: { L: f.lo, R: f.hi, mid: f.mid }, mark: m })}</div>`;
+    }
+  });
+
+  // ---------- Problem 2: lower bound (first a[i] >= target) ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def lower_bound(a, target):",
+      "  lo, hi = 0, len(a)",
+      "  while lo < hi:",
+      "    mid = (lo + hi) // 2",
+      "    if a[mid] >= target:",
+      "      hi = mid      # mid may be the first",
+      "    else:",
+      "      lo = mid + 1  # mid is too small",
+      "  return lo"
+    ],
+    inputs: [{ key: "a", label: "Sorted array", value: "1, 3, 3, 3, 5, 8, 9" }, { key: "t", label: "Target", value: "3" }],
+    presets: [
+      { label: "Duplicates", values: { a: "1, 3, 3, 3, 5, 8, 9", t: "3" } },
+      { label: "Not present", values: { a: "1, 3, 3, 3, 5, 8, 9", t: "6" } },
+      { label: "Smaller than all", values: { a: "10, 20, 30, 40, 50, 60", t: "4" } },
+      { label: "Bigger than all", values: { a: "2, 4, 7, 9, 11, 15, 18, 21", t: "30" } }
+    ],
+    build({ a, t }) {
+      const p = parseNums(a, { min: 1, max: 13 }); if (p.error) return p;
+      const v = p.nums, bad = sortedCheck(v); if (bad) return bad;
+      const q = parseOne(t, "Target"); if (q.error) return q;
+      const target = q.value, n = v.length, frames = [];
+      let lo = 0, hi = n, mid = null, looks = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, a: v, target, lo, hi, mid, ...extra,
+        vars: { lo, hi, mid: dash(mid), "a[mid]": mid === null ? "–" : v[mid], target, looks } });
+      snap(1, `Ask "a[i] ≥ ${target}?" at every index. The first yes is somewhere in [0, ${n}], where ${n} means "after the end".`);
+      while (lo < hi) {
+        snap(2, `lo = ${lo} < hi = ${hi}: ${hi - lo + 1} possible answers left.`);
+        mid = (lo + hi) >> 1; looks++;
+        snap(3, `mid = (${lo} + ${hi}) // 2 = ${mid}. Look at a[${mid}] = ${v[mid]}.`);
+        if (v[mid] >= target) {
+          snap(4, `${v[mid]} ≥ ${target}: true at ${mid}, so it is true from ${mid} on. The first true is at ${mid} or earlier.`, { verdict: "T" });
+          hi = mid;
+          snap(5, `hi = ${mid}. Keep mid, it might be the answer.`);
+        } else {
+          snap(6, `${v[mid]} < ${target}: false at ${mid}, so false at every index up to ${mid}.`, { verdict: "F" });
+          lo = mid + 1;
+          snap(7, `lo = ${lo}. Indices 0..${mid} are ruled out.`);
+        }
+      }
+      mid = null;
+      snap(2, `lo = hi = ${lo}: one possible answer left. Stop.`);
+      const why = lo === n ? `every element is smaller than ${target}, so it goes at the end` : lo > 0 ? `a[${lo - 1}] = ${v[lo - 1]} < ${target} ≤ a[${lo}] = ${v[lo]}` : `${target} ≤ a[0] = ${v[0]}, so it goes first`;
+      snap(8, `<b class="ok">Return ${lo}</b>: ${why}. ${looks} look${looks === 1 ? "" : "s"} for n = ${n}.`, { done: true });
+      return { frames };
+    },
+    draw(f) {
+      const n = f.a.length, cells = f.a.concat(["end"]), m = {}, pm = {};
+      const pred = cells.map((_, k) => k < f.lo ? "F" : k >= f.hi ? "T" : "?");
+      for (let k = 0; k <= n; k++) {
+        if (k < f.lo || k > f.hi) m[k] = "done";
+        if (k < f.lo) pm[k] = "miss";
+        if (k >= f.hi) pm[k] = "hit";
+      }
+      if (f.done) m[f.lo] = "hit";
+      if (f.mid !== null) { m[f.mid] = "active"; if (f.verdict) { pred[f.mid] = f.verdict; pm[f.mid] = "active"; } }
+      return `<div class="stage-row"><span class="stage-label">Array (end = past the last element)</span>${drawArray(cells, { ptr: { L: f.lo, R: f.hi, mid: f.mid }, mark: m })}
+        <span class="stage-label">Predicate a[i] ≥ ${f.target}: F proven false, T proven true, ? undecided</span>${drawArray(pred, { mark: pm })}</div>`;
+    }
+  });
+
+  // ---------- Problem 3: rotated sorted array ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def search_rotated(a, target):",
+      "  lo, hi = 0, len(a) - 1",
+      "  while lo <= hi:",
+      "    mid = (lo + hi) // 2",
+      "    if a[mid] == target: return mid",
+      "    if a[lo] <= a[mid]:        # left half sorted",
+      "      if a[lo] <= target < a[mid]: hi = mid - 1",
+      "      else: lo = mid + 1",
+      "    else:                      # right half sorted",
+      "      if a[mid] < target <= a[hi]: lo = mid + 1",
+      "      else: hi = mid - 1",
+      "  return -1"
+    ],
+    inputs: [{ key: "a", label: "Rotated array", value: "15, 18, 22, 27, 3, 6, 9, 11" }, { key: "t", label: "Target", value: "6" }],
+    presets: [
+      { label: "Target after the drop", values: { a: "15, 18, 22, 27, 3, 6, 9, 11", t: "6" } },
+      { label: "Target before the drop", values: { a: "40, 45, 52, 60, 71, 2, 9, 14, 25", t: "52" } },
+      { label: "Not present", values: { a: "8, 11, 13, 1, 3, 5, 7", t: "6" } },
+      { label: "Not rotated", values: { a: "1, 4, 7, 10, 13, 16, 19", t: "16" } }
+    ],
+    build({ a, t }) {
+      const p = parseNums(a, { min: 1, max: 13 }); if (p.error) return p;
+      const v = p.nums, n = v.length;
+      if (new Set(v).size !== n) return { error: "Use distinct values: with repeats, a[lo] ≤ a[mid] no longer tells you which half is sorted." };
+      let drops = 0;
+      for (let k = 0; k < n; k++) if (v[k] > v[(k + 1) % n]) drops++;
+      if (n > 1 && drops !== 1) return { error: "That isn't a rotated sorted array. It should rise, drop once at most, then rise again to below the first value, e.g. 9, 12, 2, 5, 7." };
+      const q = parseOne(t, "Target"); if (q.error) return q;
+      const target = q.value, frames = [];
+      let lo = 0, hi = n - 1, mid = null, looks = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, a: v, lo, hi, mid, ...extra,
+        vars: { lo, hi, mid: dash(mid), "a[lo]": lo <= hi ? v[lo] : "–", "a[mid]": mid === null ? "–" : v[mid], "a[hi]": lo <= hi ? v[hi] : "–", target, looks } });
+      snap(1, `The target, if present, is in a[0..${n - 1}].`);
+      while (true) {
+        if (!(lo <= hi)) { snap(2, `lo = ${lo} > hi = ${hi}: the range is empty.`); break; }
+        snap(2, `lo = ${lo} ≤ hi = ${hi}: ${hi - lo + 1} candidate${hi - lo ? "s" : ""} left.`);
+        mid = (lo + hi) >> 1; looks++;
+        snap(3, `mid = (${lo} + ${hi}) // 2 = ${mid}, a[${mid}] = ${v[mid]}.`);
+        if (v[mid] === target) {
+          snap(4, `<b class="ok">a[${mid}] = ${target}. Return ${mid}</b> after ${looks} look${looks > 1 ? "s" : ""}.`, { found: true, done: true });
+          return { frames };
+        }
+        if (v[lo] <= v[mid]) {
+          const sorted = [lo, mid];
+          snap(5, `a[lo] = ${v[lo]} ≤ a[mid] = ${v[mid]}: no drop between them, so a[${lo}..${mid}] is sorted.`, { sorted });
+          if (v[lo] <= target && target < v[mid]) {
+            hi = mid - 1;
+            snap(6, `${v[sorted[0]]} ≤ ${target} < ${v[mid]}: the target can only be in the sorted left half. hi = ${hi}.`, { sorted });
+          } else {
+            lo = mid + 1;
+            snap(7, `${target} is outside [${v[sorted[0]]}, ${v[mid]}), so it isn't in the sorted left half. lo = ${lo}.`, { sorted });
+          }
+        } else {
+          const sorted = [mid, hi];
+          snap(8, `a[lo] = ${v[lo]} > a[mid] = ${v[mid]}: the drop is in the left half, so a[${mid}..${hi}] is sorted.`, { sorted });
+          if (v[mid] < target && target <= v[hi]) {
+            lo = mid + 1;
+            snap(9, `${v[mid]} < ${target} ≤ ${v[sorted[1]]}: the target can only be in the sorted right half. lo = ${lo}.`, { sorted });
+          } else {
+            hi = mid - 1;
+            snap(10, `${target} is outside (${v[mid]}, ${v[sorted[1]]}], so it isn't in the sorted right half. hi = ${hi}.`, { sorted });
+          }
+        }
+      }
+      mid = null;
+      snap(11, `<b class="bad">Return −1</b>: ${target} is not in the array (${looks} look${looks > 1 ? "s" : ""}, n = ${n}).`, { done: true });
+      return { frames };
+    },
+    draw(f) {
+      const m = rangeMarks(f.a.length, f.lo, f.hi);
+      if (f.sorted) for (let k = f.sorted[0]; k <= f.sorted[1]; k++) if (m[k] !== "done") m[k] = "skip";
+      if (f.mid !== null) m[f.mid] = f.found ? "hit" : "active";
+      return `<div class="stage-row"><span class="stage-label">Array · live range a[${f.lo}..${f.hi}]</span>${drawArray(f.a, { ptr: { L: f.lo, R: f.hi, mid: f.mid }, mark: m })}</div>`;
+    }
+  });
+
+  // ---------- Problem 4: slowest eating speed (binary search over answers) ----------
+  function drawSpeeds(f) {
+    const W = 380, H = 96, x0 = 22, x1 = W - 22, max = f.max, y = 46;
+    const X = v => max === 1 ? (x0 + x1) / 2 : x0 + (v - 1) / (max - 1) * (x1 - x0);
+    let s = `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>`;
+    if (f.lo <= f.hi) {
+      const a = X(f.lo) - 6, b = X(f.hi) + 6;
+      s += `<rect x="${a}" y="${y - 12}" width="${b - a}" height="24" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>`;
+    }
+    f.tested.forEach(([k, ok]) => {
+      s += `<line x1="${X(k)}" y1="${y - 16}" x2="${X(k)}" y2="${y + 16}" stroke="${ok ? "var(--ok)" : "var(--bad)"}" stroke-width="2.5"/>`;
+    });
+    if (f.k !== null) s += `<circle cx="${X(f.k)}" cy="${y}" r="7" fill="${f.ok === undefined ? "var(--ink)" : f.ok ? "var(--ok)" : "var(--bad)"}" stroke="var(--panel)" stroke-width="2"/>`;
+    // labels: ends of the scale, lo/hi above, k below
+    s += `<text x="${x0}" y="${H - 4}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">1</text>`;
+    s += `<text x="${x1}" y="${H - 4}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${max}</text>`;
+    const top = [["lo", f.lo, "var(--accent)"], ["hi", f.hi, "var(--amber)"]];
+    if (f.lo === f.hi) top.splice(0, 2, [`lo = hi`, f.lo, "var(--accent)"]);
+    top.forEach(([lab, v], idx) => {
+      const c = top[idx][2], dx = top.length === 2 && Math.abs(X(f.lo) - X(f.hi)) < 60 ? (idx === 0 ? -26 : 26) : 0;
+      s += `<text x="${X(v) + dx}" y="${y - 22}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${lab}=${v}</text>`;
+    });
+    if (f.k !== null) s += `<text x="${X(f.k)}" y="${y + 32}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="var(--ink)">k=${f.k}</text>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Range of possible speeds from 1 to the largest pile">${s}</svg></div>`;
+  }
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def min_speed(piles, h):",
+      "  lo, hi = 1, max(piles)",
+      "  while lo < hi:",
+      "    k = (lo + hi) // 2",
+      "    hours = sum(ceil(p / k) for p in piles)",
+      "    if hours <= h:   # fast enough",
+      "      hi = k",
+      "    else:            # too slow",
+      "      lo = k + 1",
+      "  return lo"
+    ],
+    inputs: [{ key: "p", label: "Piles", value: "3, 6, 7, 11" }, { key: "h", label: "Hours h", value: "8" }],
+    presets: [
+      { label: "Four piles, 8 hours", values: { p: "3, 6, 7, 11", h: "8" } },
+      { label: "One hour per pile", values: { p: "30, 11, 23, 4, 20", h: "5" } },
+      { label: "One spare hour", values: { p: "30, 11, 23, 4, 20", h: "6" } },
+      { label: "Plenty of time", values: { p: "312, 884, 50, 97", h: "40" } }
+    ],
+    build({ p, h }) {
+      const r = parseNums(p, { min: 1, max: 10 }); if (r.error) return r;
+      const piles = r.nums;
+      if (piles.some(x => x < 1)) return { error: "Every pile needs at least 1 banana." };
+      const q = parseOne(h, "Hours", 1, 9999); if (q.error) return q;
+      const H = q.value, n = piles.length;
+      if (H < n) return { error: `With ${n} piles you need at least ${n} hours: each pile takes at least one hour.` };
+      const max = Math.max(...piles), frames = [], tested = [];
+      let lo = 1, hi = max, k = null, hours = null, checks = 0;
+      const snap = (line, msg, extra = {}) => frames.push({ line, msg, piles, max, lo, hi, k, tested: tested.slice(), ...extra,
+        vars: { lo, hi, k: dash(k), hours: dash(hours), h: H, checks } });
+      snap(1, `Speeds below 1 make no progress, and at speed ${max} every pile takes one hour, which fits since h ≥ ${n}. So the answer is in [1, ${max}].`);
+      while (lo < hi) {
+        snap(2, `lo = ${lo} < hi = ${hi}: ${hi - lo + 1} speeds still possible.`);
+        k = (lo + hi) >> 1; hours = null;
+        snap(3, `Guess the middle speed: k = (${lo} + ${hi}) // 2 = ${k}.`);
+        const per = piles.map(x => Math.ceil(x / k));
+        hours = per.reduce((s, x) => s + x, 0); checks++;
+        snap(4, `Feasibility check at k = ${k}: ${per.join(" + ")} = ${hours} hours.`, { per });
+        if (hours <= H) {
+          tested.push([k, true]);
+          snap(5, `${hours} ≤ ${H}: speed ${k} is fast enough, and so is every faster speed.`, { per, ok: true });
+          hi = k;
+          snap(6, `hi = ${k}. The slowest working speed is ${k} or lower.`, { per, ok: true });
+        } else {
+          tested.push([k, false]);
+          snap(7, `${hours} > ${H}: speed ${k} is too slow, and so is every slower speed.`, { per, ok: false });
+          lo = k + 1;
+          snap(8, `lo = ${lo}. Speeds 1..${k} are ruled out.`, { per, ok: false });
+        }
+      }
+      k = lo;
+      const per = piles.map(x => Math.ceil(x / lo)); hours = per.reduce((s, x) => s + x, 0);
+      snap(2, `lo = hi = ${lo}: only one speed is left.`, { per });
+      snap(9, `<b class="ok">Return ${lo}</b>: it takes ${per.join(" + ")} = ${hours} ≤ ${H} hours${lo > 1 ? `, while speed ${lo - 1} takes ${piles.map(x => Math.ceil(x / (lo - 1))).reduce((s, x) => s + x, 0)}` : ""}. ${checks} feasibility check${checks === 1 ? "" : "s"} instead of up to ${max}.`, { per, ok: true, done: true });
+      return { frames };
+    },
+    draw(f) {
+      const pm = {};
+      if (f.per && f.ok !== undefined) f.piles.forEach((_, k) => { pm[k] = f.ok ? "hit" : "miss"; });
+      return `<div class="stage-row"><span class="stage-label">Possible speeds 1..${f.max} · band = [lo, hi]</span>${drawSpeeds(f)}
+        <span class="stage-label">Piles</span>${drawArray(f.piles, {})}
+        <span class="stage-label">Hours per pile at k = ${dash(f.k)}${f.per ? ` · total ${f.per.reduce((s, x) => s + x, 0)}` : ""}</span>${drawArray(f.per || f.piles.map(() => "·"), { mark: pm })}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

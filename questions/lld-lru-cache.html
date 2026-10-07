@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design an LRU Cache (classes)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=7">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #uml { width: 100%; height: auto; display: block; }
+  .diagram-wrap.zoomed #uml { min-width: 680px; }
+  .zoom-row { display: none; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+  .zoom-row button { white-space: nowrap; flex: none; }
+  @media (max-width: 700px) { .zoom-row { display: flex; } }
+  #uml .cls rect { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+  #uml .cls line { stroke: var(--line); stroke-width: 1.2; }
+  #uml .nm { font: 700 13px var(--display); fill: var(--ink); }
+  #uml .nm.ab { font-style: italic; }
+  #uml .st { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .st2 { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .mb { font: 500 11px var(--mono); fill: var(--ink); }
+  #uml .mult { font: 600 11px var(--mono); fill: var(--accent); }
+  #uml .rel { fill: none; stroke: var(--ink); stroke-width: 1.3; }
+  #uml .rel.dash { stroke-dasharray: 5 4; }
+  .legend-uml { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .legend-uml span { display: flex; gap: 8px; align-items: center; }
+  .legend-uml svg { flex: none; }
+  .pats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .pat { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; background: var(--paper); align-content: start; }
+  .pat h3 { font-size: 15px; }
+  .pat p { font-size: 14px; }
+  .pat .no { color: var(--muted); }
+  .pat .no b { color: var(--bad); }
+  pre.log { margin: 0; font: 500 12px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; max-height: 260px; overflow-y: auto; }
+  pre.log .last { color: var(--accent); font-weight: 600; }
+  pre.code { margin: 0; font: 500 12.5px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; max-height: 560px; overflow-y: auto; }
+  pre.code .c { color: var(--muted); }
+  .polbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .polbar button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .wk-cap { font: 500 11px/1.4 var(--mono); color: var(--muted); margin: 0; }
+  .wk-map { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wk-map span { font: 500 12px/1 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+  .wk-map span.hit { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+  .wk-map span.nw { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .wk-map span.ev { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+  .wk-map span.miss { border-style: dashed; border-color: var(--bad); color: var(--bad); }
+  .wk-map span.empty { color: var(--muted); border-style: dashed; }
+  .wk-h { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .wk-out { margin: 0; font: 500 11.5px/1.5 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; overflow-x: auto; max-height: 220px; overflow-y: auto; white-space: pre; }
+  .wk-out .last { color: var(--accent); font-weight: 600; }
+  .planned-link { font: 500 12px/1 var(--mono); padding: 8px 10px; border-radius: 999px; border: 1px dashed var(--line); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="lld-lru-cache" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Low-level design</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design an LRU Cache (classes)</h1>
+    <p class="lede">A fixed-size key-value store that, when it runs out of room, throws away the entry nobody has touched for the longest time. The algorithm fits on a napkin: a hash map for finding keys, a doubly linked list for remembering the order they were used. The interview is about everything around it: which class owns the list, how a second eviction rule slots in without a rewrite, who hears about evictions, and what happens when eight threads call <span class="mono">get</span> at once.</p>
+    <p class="sources">The interview flow is adapted from Hello Interview's delivery framework for a 45-minute round. The breakdown, diagram and code on this page are our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Pin down the contract before drawing a box. A cache spread across machines, persistence and cache-aside wiring belong to the high-level version of this question, not this one.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the cache should</h3>
+        <ul>
+          <li><b>get(key)</b>: return the value, or report a miss. A hit counts as a use of that key.</li>
+          <li><b>put(key, value)</b>: insert a new key or overwrite an existing one. An overwrite also counts as a use.</li>
+          <li>Hold at most <b>capacity</b> entries, fixed when the cache is built.</li>
+          <li>When a new key arrives and the cache is full, <b>evict the least recently used</b> entry first.</li>
+          <li><i>Stretch:</i> a per-entry <b>TTL</b>, an <b>eviction listener</b> (log or metrics), and hit/miss counters.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the code should</h3>
+        <ul>
+          <li>Run <b>get</b> and <b>put</b> in <b>O(1)</b> time, average case, at any size.</li>
+          <li>Be <b>thread-safe</b>: many threads share one cache and its size and order never go wrong.</li>
+          <li>Be <b>extensible</b>: a second eviction rule (LFU, size-based) is a new class, not an edit to the cache.</li>
+          <li>Use O(capacity) memory: one map entry and one list node per key, nothing that grows with traffic.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>Ask this early:</b> does <span class="mono">get</span> count as a use? In an LRU cache it does, and that single answer decides most of the concurrency story later: a read changes shared state, so reads can't simply run in parallel.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="3m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities and their responsibilities</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">On the whiteboard most people start with one <span class="mono">LRUCache</span> class holding a map and a list. That's fine for the first five minutes. The moment the interviewer says "now support LFU", the list has to move behind an interface, because LFU orders keys differently. Plan for that split from the start.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>Cache</h3><code>owns the key→node map and
+the capacity; runs get/put;
+asks the policy who to evict;
+tells listeners afterwards</code></div>
+      <div class="entity"><h3>Node</h3><code>one entry: key, value,
+use count, prev and next
+links</code></div>
+      <div class="entity"><h3>DoublyLinkedList</h3><code>sentinel head and tail;
+push to front, unlink,
+peek at the back, all O(1)</code></div>
+      <div class="entity"><h3>EvictionPolicy</h3><code>interface: hears about
+adds, uses and removals;
+names the next victim</code></div>
+      <div class="entity"><h3>LRUPolicy / LFUPolicy</h3><code>one list by recency, or
+one list per use count
+plus the lowest count</code></div>
+      <div class="entity"><h3>EvictionListener</h3><code>interface: told the key
+and value of each eviction</code></div>
+      <div class="entity"><h3>CacheStats</h3><code>hits, misses and
+evictions counters</code></div>
+      <div class="entity"><h3>ThreadSafeCache</h3><code>wraps any cache, same
+get/put, one lock around
+each call</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="classes" data-nav="Class diagram" data-num="3" data-time="6m">
+    <div class="step-head"><span class="step-num">3</span><h2>Class diagram</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">The cache <i>owns</i> its policy and its stats (composition, filled diamond): each cache gets its own instances, and they die with it. The policy owns the list, or one list per use count for LFU. The map only <i>points at</i> nodes (association), from zero up to capacity of them. Both the cache and the thread-safe wrapper implement the same small interface, which is what lets one wrap the other.</p>
+    <div class="zoom-row"><button id="zoomUml" aria-pressed="false">Zoom in</button><span id="zoomHint">The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.</span></div>
+    <div class="diagram-wrap" id="umlWrap"><svg id="uml" viewBox="0 0 761 620" role="img" aria-label="Class diagram of the cache"><defs>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></marker>
+<marker id="dia" viewBox="0 0 18 12" refX="1" refY="6" markerWidth="18" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,6 L9,1 L17,6 L9,11 z" fill="var(--ink)"/></marker>
+<marker id="arr" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="var(--ink)" stroke-width="1.3"/></marker>
+</defs><g class="cls"><rect x="16" y="16" width="210" height="76" rx="3"/><text class="st" x="121.0" y="32" text-anchor="middle">«interface»</text><text class="nm ab" x="121.0" y="46" text-anchor="middle">KeyValueCache</text><line x1="16" y1="54" x2="226" y2="54"/><text class="mb" x="24" y="70">get(key): value | None</text><text class="mb" x="24" y="85">put(key, value)</text></g><g class="cls"><rect x="275" y="16" width="220" height="102" rx="3"/><text class="nm" x="385.0" y="34" text-anchor="middle">ThreadSafeCache</text><line x1="275" y1="42" x2="495" y2="42"/><text class="mb" x="283" y="58">inner: KeyValueCache</text><text class="mb" x="283" y="73">lock: Lock</text><line x1="275" y1="80" x2="495" y2="80"/><text class="mb" x="283" y="96">get(key): value | None</text><text class="mb" x="283" y="111">put(key, value)</text></g><g class="cls"><rect x="545" y="16" width="200" height="61" rx="3"/><text class="st" x="645.0" y="32" text-anchor="middle">«interface»</text><text class="nm ab" x="645.0" y="46" text-anchor="middle">EvictionListener</text><line x1="545" y1="54" x2="745" y2="54"/><text class="mb" x="553" y="70">on_evict(key, value)</text></g><g class="cls"><rect x="545" y="118" width="200" height="72" rx="3"/><text class="nm" x="645.0" y="136" text-anchor="middle">EvictionLog</text><line x1="545" y1="144" x2="745" y2="144"/><text class="mb" x="553" y="160">last: str | None</text><line x1="545" y1="167" x2="745" y2="167"/><text class="mb" x="553" y="183">on_evict(key, value)</text></g><g class="cls"><rect x="16" y="160" width="210" height="177" rx="3"/><text class="nm" x="121.0" y="178" text-anchor="middle">Cache</text><line x1="16" y1="186" x2="226" y2="186"/><text class="mb" x="24" y="202">capacity: int</text><text class="mb" x="24" y="217">map: {key: Node}</text><text class="mb" x="24" y="232">policy: EvictionPolicy</text><text class="mb" x="24" y="247">stats: CacheStats</text><text class="mb" x="24" y="262">listeners: list</text><line x1="16" y1="269" x2="226" y2="269"/><text class="mb" x="24" y="285">get(key): value | None</text><text class="mb" x="24" y="300">put(key, value)</text><text class="mb" x="24" y="315">subscribe(listener)</text><text class="mb" x="24" y="330">_evict()</text></g><g class="cls"><rect x="275" y="196" width="220" height="64" rx="3"/><text class="nm" x="385.0" y="214" text-anchor="middle">CacheStats</text><line x1="275" y1="222" x2="495" y2="222"/><text class="mb" x="283" y="238">hits, misses: int</text><text class="mb" x="283" y="253">evictions: int</text></g><g class="cls"><rect x="545" y="300" width="200" height="106" rx="3"/><text class="st" x="645.0" y="316" text-anchor="middle">«interface»</text><text class="nm ab" x="645.0" y="330" text-anchor="middle">EvictionPolicy</text><line x1="545" y1="338" x2="745" y2="338"/><text class="mb" x="553" y="354">added(node)</text><text class="mb" x="553" y="369">touched(node)</text><text class="mb" x="553" y="384">removed(node)</text><text class="mb" x="553" y="399">victim(): Node</text></g><g class="cls"><rect x="16" y="440" width="210" height="79" rx="3"/><text class="nm" x="121.0" y="458" text-anchor="middle">Node</text><line x1="16" y1="466" x2="226" y2="466"/><text class="mb" x="24" y="482">key, value</text><text class="mb" x="24" y="497">freq: int</text><text class="mb" x="24" y="512">prev, next: Node</text></g><g class="cls"><rect x="275" y="440" width="220" height="117" rx="3"/><text class="nm" x="385.0" y="458" text-anchor="middle">DoublyLinkedList</text><line x1="275" y1="466" x2="495" y2="466"/><text class="mb" x="283" y="482">head, tail: Node</text><text class="mb" x="283" y="497">size: int</text><line x1="275" y1="504" x2="495" y2="504"/><text class="mb" x="283" y="520">push_front(node)</text><text class="mb" x="283" y="535">unlink(node)</text><text class="mb" x="283" y="550">last(): Node | None</text></g><g class="cls"><rect x="545" y="470" width="96" height="41" rx="3"/><text class="nm" x="593.0" y="488" text-anchor="middle">LRUPolicy</text><text class="mb" x="593.0" y="506" text-anchor="middle">order: 1 list</text></g><g class="cls"><rect x="649" y="470" width="96" height="41" rx="3"/><text class="nm" x="697.0" y="488" text-anchor="middle">LFUPolicy</text><text class="mb" x="697.0" y="506" text-anchor="middle">list per freq</text></g><path class="rel dash" d="M121,160 L121,92" marker-end="url(#tri)"/><path class="rel dash" d="M275,40 L226,40" marker-end="url(#tri)"/><path class="rel " d="M275,78 L226,78" marker-end="url(#arr)"/><text class="mult" x="231" y="72" text-anchor="start">1</text><text class="st2" x="250" y="92" text-anchor="middle">inner</text><path class="rel dash" d="M645,118 L645,77" marker-end="url(#tri)"/><path class="rel " d="M226,176 L520,176 L520,52 L545,52" marker-end="url(#arr)"/><text class="mult" x="540" y="46" text-anchor="end">0..*</text><text class="st2" x="300" y="170" text-anchor="start">listeners</text><path class="rel " d="M226,228 L275,228" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="270" y="222" text-anchor="end">1</text><path class="rel " d="M226,320 L545,320" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="540" y="314" text-anchor="end">1</text><text class="st2" x="300" y="314" text-anchor="start">policy (owns its own)</text><path class="rel " d="M121,337 L121,440" marker-end="url(#arr)"/><text class="mult" x="127" y="434" text-anchor="start">0..capacity</text><text class="st2" x="127" y="392" text-anchor="start">map</text><path class="rel " d="M60,519 L60,545 L180,545 L180,519" marker-end="url(#arr)"/><text class="mult" x="186" y="533" text-anchor="start">0..1</text><text class="st2" x="120" y="560" text-anchor="middle">prev, next</text><path class="rel " d="M275,470 L226,470" marker-end="url(#arr)"/><text class="mult" x="231" y="464" text-anchor="start">2</text><path class="rel dash" d="M645,440 L645,406" marker-end="url(#tri)"/><path class="rel dash" d="M593,440 L697,440"/><path class="rel dash" d="M593,470 L593,440"/><path class="rel dash" d="M697,470 L697,440"/><path class="rel " d="M593,511 L593,585 L455,585 L455,557" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="461" y="571" text-anchor="start">1</text><text class="st2" x="524" y="579" text-anchor="middle">order</text><path class="rel " d="M697,511 L697,605 L415,605 L415,557" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="409" y="571" text-anchor="end">0..*</text><text class="st2" x="560" y="599" text-anchor="middle">buckets by freq</text></svg></div>
+    <div class="legend-uml" aria-label="Notation">
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>implements an interface</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M1,7 L9,2 L17,7 L9,12 z" fill="var(--ink)"/><path d="M17,7 H42" stroke="var(--ink)" stroke-width="1.3"/></svg>composition (owns, same lifetime)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>association (knows about)</span>
+      <span><b class="mono" style="color:var(--accent)">0..*</b>multiplicity: how many at that end</span>
+    </div>
+    <div class="aside"><p><b>Reading it:</b> "Cache → 0..capacity Node" is the map: a cache points at up to <i>capacity</i> nodes. "LFUPolicy ◆— 0..* DoublyLinkedList" is one list per use count that currently has keys. "Node → 0..1 Node" is the prev/next pair: each node has at most one neighbour on each side, and the sentinels mean real nodes always have both. The <span class="mono">ThreadSafeCache</span> both <i>is</i> a <span class="mono">KeyValueCache</span> and <i>holds</i> one: that pair of arrows is the Decorator pattern in UML.</p></div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="Interfaces" data-num="4" data-time="5m">
+    <div class="step-head"><span class="step-num">4</span><h2>Interfaces of the main classes</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Signatures first. The policy interface is the interesting one: the cache tells it what happened (added, touched, removed) and asks one question (who goes next). It never tells the policy how to store anything.</p>
+<pre class="api"><span class="verb">interface</span> KeyValueCache:
+    get(key) -> value | None           <span class="c"># None = miss; a hit also marks the key as just used</span>
+    put(key, value) -> None            <span class="c"># insert or overwrite; may evict one entry first</span>
+
+<span class="verb">class</span> Cache(KeyValueCache):
+    __init__(capacity: int, policy: EvictionPolicy)   <span class="c"># capacity >= 1</span>
+    subscribe(listener: EvictionListener) -> None
+    stats: CacheStats                  <span class="c"># hits, misses, evictions</span>
+
+<span class="verb">interface</span> EvictionPolicy:             <span class="c"># owns whatever structure it needs to order keys</span>
+    added(node: Node) -> None
+    touched(node: Node) -> None        <span class="c"># on every hit and every overwrite</span>
+    removed(node: Node) -> None
+    victim() -> Node                   <span class="c"># asked only when the cache is full</span>
+
+<span class="verb">interface</span> EvictionListener:
+    on_evict(key, value) -> None
+
+<span class="verb">class</span> ThreadSafeCache(KeyValueCache):
+    __init__(inner: KeyValueCache)     <span class="c"># same methods, each under one lock</span>
+
+<span class="verb">class</span> DoublyLinkedList:
+    push_front(node), unlink(node), last() -> Node | None   <span class="c"># all O(1)</span></pre>
+    <div class="aside"><p><b>Why the policy gets <span class="mono">Node</span>s, not keys:</b> moving a key to the front of a list is O(1) only if you already hold its node. If the policy received a key it would have to search for it, which is O(n). The map hands the node over; that hand-off is the whole trick. <b>And a caveat on <span class="mono">None</span>:</b> if callers may store <span class="mono">None</span> as a value, a miss and a stored <span class="mono">None</span> look the same; use a private <span class="mono">MISSING</span> sentinel or a <span class="mono">get(key, default)</span> form instead.</p></div>
+  </section>
+
+  <section class="panel article" id="patterns" data-nav="Design patterns" data-num="5" data-time="5m">
+    <div class="step-head"><span class="step-num">5</span><h2>Design patterns, and why</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Three patterns earn a place here, each tied to a requirement. A fourth card is the shortcut you should mention and then put aside.</p>
+    <div class="pats">
+      <div class="pat">
+        <h3>Strategy: the eviction policy</h3>
+        <p>"Which key leaves" is the rule most likely to change: LRU today, LFU for a workload with a stable hot set, size-aware eviction for large values. <span class="mono">Cache</span> calls four methods on an <span class="mono">EvictionPolicy</span> and never looks inside, so a new rule is a new class passed to the constructor. The walkthrough below swaps them with one button.</p>
+        <p class="no"><b>Not worth it</b> if the interviewer only ever wants LRU. Then one class with a map and a list is clearer; say you'd pull the interface out when a second rule shows up.</p>
+      </div>
+      <div class="pat">
+        <h3>Observer: eviction listeners</h3>
+        <p>Metrics, a debug log, or writing a dirty entry back to a database all want to hear "key X just left". The cache keeps a list of <span class="mono">EvictionListener</span>s and calls each one after an eviction, without knowing what they do.</p>
+        <p class="no"><b>Watch out:</b> listeners run on the thread that called <span class="mono">put</span>, and in this design inside the lock. A slow listener stalls every caller; have it drop the event on a queue and return.</p>
+      </div>
+      <div class="pat">
+        <h3>Decorator: the thread-safe wrapper</h3>
+        <p><span class="mono">ThreadSafeCache</span> implements the same interface as <span class="mono">Cache</span>, holds one, and adds a lock around each call. The core stays simple and testable without threads; callers that share a cache wrap it, single-threaded callers don't pay for the lock. The same shape fits a <i>loading</i> cache that calls a loader function on a miss.</p>
+        <p class="no"><b>Not worth it</b> as a stack of five wrappers (logging, metrics, locking, TTL, loading). Each layer adds a call and hides the order of effects; two is plenty.</p>
+      </div>
+      <div class="pat">
+        <h3>The shortcut: library ordered maps</h3>
+        <p>Python's <span class="mono">OrderedDict</span> has <span class="mono">move_to_end</span> and <span class="mono">popitem(last=False)</span>; Java's <span class="mono">LinkedHashMap</span> takes an access-order flag and a <span class="mono">removeEldestEntry</span> hook. Both are a hash map threaded through a linked list, which is exactly this design.</p>
+        <p class="no"><b>In the interview:</b> name them to show you know, then build the list yourself. The question is testing whether you can, and LFU doesn't fit them anyway.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="walkthrough" data-nav="Walkthrough" data-num="6" data-time="5m">
+    <div class="step-head"><span class="step-num">6</span><h2>Walkthrough: the pointers moving</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">The same classes as the Python below, running your list of operations. Each step is one line of <span class="mono">Cache</span>, or one pointer change inside the policy. Green is a hit, blue a new node, red the victim; a node lifted above the list has been unlinked. The output box prints exactly what the Python demo prints for the same input. Switch policy and watch <span class="mono">put d 4</span> evict a different key.</p>
+    <div class="polbar"><span>Eviction policy (Strategy):</span><button type="button" id="polLRU" aria-pressed="true">LRUPolicy</button><button type="button" id="polLFU" aria-pressed="false">LFUPolicy</button></div>
+    <div id="walk"></div>
+  </section>
+
+  <section class="panel article" id="code" data-nav="Code" data-num="7" data-time="7m">
+    <div class="step-head"><span class="step-num">7</span><h2>Code</h2><span class="step-time">about 7 minutes</span></div>
+    <p class="kicker">Runnable Python 3, standard library only. In an interview, write <span class="mono">DoublyLinkedList</span>, <span class="mono">LRUPolicy</span> and <span class="mono">Cache</span> in full, then sketch LFU and the wrapper. The demo runs the walkthrough's default operations under both policies, then lets eight threads hammer one wrapped cache and checks that the counts still add up.</p>
+<pre class="code" tabindex="0" aria-label="Python code">import random, threading
+from abc import ABC, abstractmethod
+
+class Node:
+    __slots__ = ("key", "value", "freq", "prev", "next")
+    def __init__(self, key=None, value=None):
+        self.key, self.value, self.freq = key, value, 1
+        self.prev = self.next = None
+
+class DoublyLinkedList:             <span class="c"># sentinels: no None checks when linking</span>
+    def __init__(self):
+        self.head, self.tail = Node("HEAD"), Node("TAIL")
+        self.head.next, self.tail.prev = self.tail, self.head
+        self.size = 0
+    def push_front(self, node):     <span class="c"># just after head = most recent</span>
+        node.prev, node.next = self.head, self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+        self.size += 1
+    def unlink(self, node):
+        node.prev.next, node.next.prev = node.next, node.prev
+        node.prev = node.next = None
+        self.size -= 1
+    def last(self):                 <span class="c"># just before tail = least recent</span>
+        return self.tail.prev if self.size else None
+    def keys(self):
+        node, out = self.head.next, []
+        while node is not self.tail:
+            out.append(node.key)
+            node = node.next
+        return out
+
+class EvictionPolicy(ABC):          <span class="c"># Strategy: decides who leaves</span>
+    @abstractmethod
+    def added(self, node): ...
+    @abstractmethod
+    def touched(self, node): ...
+    @abstractmethod
+    def removed(self, node): ...
+    @abstractmethod
+    def victim(self): ...
+
+class LRUPolicy(EvictionPolicy):
+    def __init__(self): self.order = DoublyLinkedList()
+    def added(self, node): self.order.push_front(node)
+    def touched(self, node):        <span class="c"># move to the front: O(1)</span>
+        self.order.unlink(node)
+        self.order.push_front(node)
+    def removed(self, node): self.order.unlink(node)
+    def victim(self): return self.order.last()
+    def describe(self): return "[" + " ".join(self.order.keys()) + "]"
+
+class LFUPolicy(EvictionPolicy):    <span class="c"># fewest uses leaves; ties go to least recent</span>
+    def __init__(self): self.buckets, self.min_freq = {}, 0
+    def _take(self, node):
+        bucket = self.buckets[node.freq]
+        bucket.unlink(node)
+        if not bucket.size: del self.buckets[node.freq]
+    def _put(self, node):
+        self.buckets.setdefault(node.freq, DoublyLinkedList()).push_front(node)
+    def added(self, node):
+        node.freq, self.min_freq = 1, 1
+        self._put(node)
+    def touched(self, node):
+        self._take(node)
+        if self.min_freq == node.freq and node.freq not in self.buckets:
+            self.min_freq += 1
+        node.freq += 1
+        self._put(node)
+    def removed(self, node): self._take(node)
+    def victim(self): return self.buckets[self.min_freq].last()
+    def describe(self):
+        return " ".join(f"f{f}[{' '.join(b.keys())}]" for f, b in sorted(self.buckets.items()))
+
+class EvictionListener(ABC):        <span class="c"># Observer: told after a key is evicted</span>
+    @abstractmethod
+    def on_evict(self, key, value): ...
+
+class CacheStats:
+    def __init__(self): self.hits = self.misses = self.evictions = 0
+    def __str__(self):
+        return f"hits={self.hits} misses={self.misses} evictions={self.evictions}"
+
+class Cache:
+    def __init__(self, capacity, policy):
+        if capacity &lt; 1: raise ValueError("capacity must be at least 1")
+        self.capacity, self.policy = capacity, policy
+        self.map, self.stats, self.listeners = {}, CacheStats(), []
+    def subscribe(self, listener): self.listeners.append(listener)
+    def get(self, key):
+        node = self.map.get(key)
+        if node is None:
+            self.stats.misses += 1
+            return None
+        self.stats.hits += 1
+        self.policy.touched(node)   <span class="c"># a read changes the order too</span>
+        return node.value
+    def put(self, key, value):
+        node = self.map.get(key)
+        if node is not None:        <span class="c"># update in place, counts as a use</span>
+            node.value = value
+            self.policy.touched(node)
+            return
+        if len(self.map) == self.capacity:
+            self._evict()
+        node = Node(key, value)
+        self.map[key] = node
+        self.policy.added(node)
+    def _evict(self):
+        old = self.policy.victim()
+        self.policy.removed(old)
+        del self.map[old.key]
+        self.stats.evictions += 1
+        for listener in self.listeners: listener.on_evict(old.key, old.value)
+    def __len__(self): return len(self.map)
+
+class ThreadSafeCache:              <span class="c"># Decorator: same get/put, one lock around each</span>
+    def __init__(self, inner):
+        self.inner, self.lock = inner, threading.Lock()
+    def get(self, key):
+        with self.lock: return self.inner.get(key)   <span class="c"># get writes (reorders), so no read lock</span>
+    def put(self, key, value):
+        with self.lock: self.inner.put(key, value)
+    def __len__(self):
+        with self.lock: return len(self.inner)
+
+<span class="c"># ---------------- demo ----------------</span>
+class EvictionLog(EvictionListener):
+    def __init__(self): self.last = None
+    def on_evict(self, key, value): self.last = f"{key}={value}"
+
+OPS = "put a 1, put b 2, put c 3, get a, get a, get b, get c, put d 4, get a, get b, put c 30, put e 5"
+
+def run(policy):
+    cache, log = Cache(3, policy), EvictionLog()
+    cache.subscribe(log)
+    print(f"== {type(policy).__name__}, capacity 3 ==")
+    for op in OPS.split(", "):
+        verb, key, *val = op.split()
+        log.last = None
+        if verb == "get":
+            v = cache.get(key)
+            result = "miss" if v is None else f"hit {v}"
+        else:
+            existed = key in cache.map
+            cache.put(key, int(val[0]))
+            result = "updated" if existed else "added"
+        if log.last: result += f", evicted {log.last}"
+        print(f"{op:&lt;9} -&gt; {result:&lt;20} {policy.describe()}")
+    print(cache.stats)
+
+run(LRUPolicy())
+run(LFUPolicy())
+
+<span class="c"># eight threads hammer one shared cache</span>
+shared, gets = ThreadSafeCache(Cache(50, LRUPolicy())), [0] * 8
+def worker(n):
+    rng = random.Random(n)
+    for _ in range(5000):
+        key = f"k{rng.randrange(80)}"
+        if rng.random() &lt; 0.7:
+            shared.get(key)
+            gets[n] += 1
+        else:
+            shared.put(key, n)
+threads = [threading.Thread(target=worker, args=(n,)) for n in range(8)]
+for t in threads: t.start()
+for t in threads: t.join()
+inner = shared.inner
+s = inner.stats
+print(f"8 threads x 5000 ops: size {len(shared)}/{inner.capacity}, "
+      f"list {inner.policy.order.size}, gets counted {s.hits + s.misses}/{sum(gets)}")</pre>
+    <h3>Output</h3>
+<pre class="log" style="max-height:none" aria-label="Program output">== LRUPolicy, capacity 3 ==
+put a 1   -&gt; added                [a]
+put b 2   -&gt; added                [b a]
+put c 3   -&gt; added                [c b a]
+get a     -&gt; hit 1                [a c b]
+get a     -&gt; hit 1                [a c b]
+get b     -&gt; hit 2                [b a c]
+get c     -&gt; hit 3                [c b a]
+put d 4   -&gt; added, evicted a=1   [d c b]
+get a     -&gt; miss                 [d c b]
+get b     -&gt; hit 2                [b d c]
+put c 30  -&gt; updated              [c b d]
+put e 5   -&gt; added, evicted d=4   [e c b]
+hits=5 misses=1 evictions=2
+== LFUPolicy, capacity 3 ==
+put a 1   -&gt; added                f1[a]
+put b 2   -&gt; added                f1[b a]
+put c 3   -&gt; added                f1[c b a]
+get a     -&gt; hit 1                f1[c b] f2[a]
+get a     -&gt; hit 1                f1[c b] f3[a]
+get b     -&gt; hit 2                f1[c] f2[b] f3[a]
+get c     -&gt; hit 3                f2[c b] f3[a]
+put d 4   -&gt; added, evicted b=2   f1[d] f2[c] f3[a]
+get a     -&gt; hit 1                f1[d] f2[c] f4[a]
+get b     -&gt; miss                 f1[d] f2[c] f4[a]
+put c 30  -&gt; updated              f1[d] f3[c] f4[a]
+put e 5   -&gt; added, evicted d=4   f1[e] f3[c] f4[a]
+hits=5 misses=1 evictions=2
+8 threads x 5000 ops: size 50/50, list 50, gets counted 28117/28117</pre>
+    <div class="aside"><p><b>Why sentinels:</b> with a dummy <span class="mono">HEAD</span> and <span class="mono">TAIL</span> that never leave, every real node always has a <span class="mono">prev</span> and a <span class="mono">next</span>. <span class="mono">push_front</span> and <span class="mono">unlink</span> become four pointer writes each, with no "is this the first node?" branches, which is where hand-written linked lists usually break.</p></div>
+  </section>
+
+  <section class="panel article" id="concurrency" data-nav="Deep dive: concurrency" data-num="8a" data-time="4m">
+    <div class="step-head"><span class="step-num">8a</span><h2>Deep dive: every read is a write</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Without a lock, two threads that both hit at once each run <span class="mono">unlink</span> and <span class="mono">push_front</span>: eight pointer writes interleaved. One bad interleaving leaves a node pointing at a neighbour that no longer points back, and the list either loses a node (the map and list disagree on size) or grows a loop (the next eviction never ends).</p>
+    <h3>Options, from simplest</h3>
+    <ul>
+      <li><b>One lock around get and put</b> (what <span class="mono">ThreadSafeCache</span> does). Correct, easy to reason about, and each call holds it for well under a microsecond. Fine until many cores fight over it.</li>
+      <li><b>A read-write lock doesn't help.</b> It lets readers run in parallel, but an LRU <span class="mono">get</span> moves a node, so it needs the write side. Every call ends up exclusive anyway.</li>
+      <li><b>Striped (segmented) cache.</b> Split into N independent caches, pick one by <span class="mono">hash(key) % N</span>, each with its own lock and capacity / N. Contention drops about N times. The cost: eviction is only LRU within a segment, so a busy segment may evict while a quiet one has room.</li>
+      <li><b>Make hits cheaper.</b> Record a hit in a small buffer and apply the reordering in batches under the lock (the approach taken by Java's Caffeine library), or drop the list: the CLOCK algorithm sets a "used" bit on a hit and only sweeps at eviction time, and Redis approximates LRU by sampling a few keys and evicting the oldest of the sample. All trade exact LRU order for reads that barely touch shared state.</li>
+    </ul>
+    <div class="aside"><p><b>Keep the lock short:</b> no I/O, no listener work, no value serialisation inside it. Our listeners do run under the wrapper's lock, which is safe only because <span class="mono">EvictionLog</span> just stores a string. The demo's thread test checks the two invariants that a race would break first: the list length equals the map size, and every <span class="mono">get</span> issued was counted once as a hit or a miss.</p></div>
+  </section>
+
+  <section class="panel article" id="extend" data-nav="Deep dive: extensibility" data-num="8b" data-time="3m">
+    <div class="step-head"><span class="step-num">8b</span><h2>Deep dive: what changes when requirements land</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Count the existing lines each new requirement edits. Most of them should land as new classes.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>New requirement</th><th>Add</th><th>Edit</th></tr></thead>
+      <tbody>
+        <tr><td>LFU instead of LRU</td><td class="mono">class LFUPolicy</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Metrics on evictions</td><td class="mono">a listener</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Load from a database on a miss</td><td class="mono">LoadingCache decorator</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Per-entry TTL</td><td class="mono">expires_at on Node</td><td class="mono warn">get checks expiry; put takes ttl</td></tr>
+        <tr><td>Evict by total bytes, not count</td><td class="mono">a weigher function</td><td class="mono warn">"if full" becomes "while over budget"</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>TTL is the honest stress test.</b> Pass <span class="mono">now</span> in (as the parking lot design passes time) and give each node an <span class="mono">expires_at</span>. <span class="mono">get</span> treats an expired node as a miss and removes it on the spot (lazy expiry). That alone can leave dead entries taking space until someone asks for them, so the eviction step should prefer an expired node over the policy's victim, and a busy cache may add a periodic sweep of the oldest entries. The policy interface doesn't change; <span class="mono">Cache.get</span> and <span class="mono">_evict</span> do. Saying where the edit lands, and why, is the point of the question.</p>
+    <p><b>Size-based eviction</b> breaks an assumption hidden in <span class="mono">if len(self.map) == self.capacity</span>: that one insert needs at most one eviction. A 5 MB value may need ten small ones to leave, so the check becomes a loop on a running weight total, and a value bigger than the whole budget should be refused, not admitted.</p>
+  </section>
+
+  <section class="panel article" id="solid" data-nav="Deep dive: SOLID" data-num="8c" data-time="2m">
+    <div class="step-head"><span class="step-num">8c</span><h2>Deep dive: SOLID, and where to stop</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="qa">
+      <div><span class="q">Single responsibility</span><p><span class="mono">Cache</span> handles lookup and capacity; the policy handles order; the list handles pointers; the wrapper handles locking. Stats live inside <span class="mono">Cache</span> because they're three integers bumped on the same lines; pulling them out would be ceremony.</p></div>
+      <div><span class="q">Open/closed</span><p>LFU, listeners and the lock all arrived without editing <span class="mono">Cache</span> (see 8b). TTL does edit it, and that's an acceptable cost: it changes what a hit means.</p></div>
+      <div><span class="q">Liskov</span><p>Any <span class="mono">EvictionPolicy</span> must name a victim that is in the cache whenever it is full. A policy that returned <span class="mono">None</span> there would let the cache grow past capacity: same signature, broken contract.</p></div>
+      <div><span class="q">Interface segregation</span><p>Listeners see one method and no cache internals. Callers see <span class="mono">get</span> and <span class="mono">put</span>, never nodes.</p></div>
+      <div><span class="q">Dependency inversion</span><p><span class="mono">Cache</span> depends on <span class="mono">EvictionPolicy</span>, not <span class="mono">LRUPolicy</span>, and <span class="mono">ThreadSafeCache</span> depends on <span class="mono">KeyValueCache</span>, not <span class="mono">Cache</span>.</p></div>
+      <div><span class="q">Where to stop</span><p>The policy and the list share <span class="mono">Node</span> directly, a deliberate leak: wrapping nodes in a policy-private type would cost an extra object per key for no new freedom. No interface for <span class="mono">DoublyLinkedList</span> either; nobody will ship a second one.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Twelve operations, traced by hand</h2>
+    <p class="kicker">Capacity 3, the walkthrough's default input. Lists are written most recent first, so the next LRU victim is always the last key.</p>
+    <ol class="steps">
+      <li><div><h3>put a, put b, put c</h3><p>Each is a miss in the map, so a new node is pushed right after <span class="mono">HEAD</span>. The list reads <b>[c b a]</b> and the cache is full.</p></div></li>
+      <li><div><h3>get a, get a, get b, get c</h3><p>Four hits. Each one unlinks the node and pushes it back to the front: [a c b], then [a c b] again (a was already first: unlink and re-push leave it in place), then [b a c], then <b>[c b a]</b>. Every key has been used since it arrived, but <span class="mono">a</span> least recently.</p></div></li>
+      <li><div><h3>put d 4: the policies disagree</h3><p>Full, so <span class="mono">victim()</span> is asked. LRU answers <span class="mono">tail.prev</span> = <b>a</b>, even though <span class="mono">a</span> was used three times. LFU looks at use counts (a: 3, b: 2, c: 2), takes the lowest bucket f2, and evicts its least recent member, <b>b</b>.</p></div></li>
+      <li><div><h3>get a, get b</h3><p>Under LRU: <span class="mono">a</span> misses, <span class="mono">b</span> hits. Under LFU: the opposite. Same input, same hit count so far, different keys kept.</p></div></li>
+      <li><div><h3>put c 30, put e 5</h3><p><span class="mono">c</span> exists, so its value is overwritten in place and it counts as a use. Then <span class="mono">e</span> is new: LRU's list is [c b d], so <b>d</b> goes; LFU's lowest bucket is f1 = [d], so <b>d</b> goes there too. Final totals for both: <span class="mono">hits=5 misses=1 evictions=2</span>.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A bounded map with a rule for which entry to drop, where both the lookup and the drop must be constant time.</p></div>
+      <div><span class="q">Why it's hard</span><p>Each structure alone fails. A hash map has no order; a list has order but O(n) lookup. Combining them means two structures that must always agree, which is exactly what concurrency threatens.</p></div>
+      <div><span class="q">Key insight</span><p>Store list nodes as the map's values. Lookup finds the node; the node knows its neighbours; moving it is four pointer writes.</p></div>
+      <div><span class="q">Same shape elsewhere</span><p>Page caches in an OS, a database buffer pool, connection pools that close the idlest connection, a browser's back-forward cache: bounded memory plus a rule for who gets dropped.</p></div>
+    </div>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>delete(key):</b> look up the node, <span class="mono">policy.removed(node)</span>, drop it from the map. For LFU, check that <span class="mono">min_freq</span> still points at a bucket that exists, or recompute it at the next eviction.</li>
+        <li><b>Why doubly linked?</b> Unlinking a node needs its predecessor. A singly linked list would have to walk from the head to find it: O(n).</li>
+        <li><b>Why not a heap of timestamps?</b> Every hit would update a key's timestamp and fix the heap: O(log n) per get instead of O(1).</li>
+        <li><b>A one-off scan</b> (a report that reads every key once) flushes the whole hot set out of an LRU cache. Answers: LFU, or a two-list scheme where new keys must be used twice before they enter the protected list.</li>
+        <li><b>peek(key):</b> read without counting as a use, for monitoring. Add it to the interface and skip <span class="mono">touched</span>.</li>
+        <li><b>Memory per entry:</b> a map slot plus a node with four references and a counter. For tiny values the bookkeeping can outweigh the data; say so.</li>
+        <li><b>Now make it distributed:</b> that's the high-level question: consistent hashing to pick a node, replication for hot keys, and this class running on every node.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Related on this site</h2>
+      <p>The policy itself, simulated against the optimal one; and caching in a real read-heavy system.</p>
+      <div class="concepts">
+        <a href="../topics/lru-cache.html">LRU Cache (concept)</a>
+        <a href="bitly.html">Design a URL Shortener</a>
+        <span class="planned-link" title="Planned">Design a Distributed Cache (coming)</span>
+      </div>
+      <p class="sources" style="margin-top:10px">The high-level "Distributed Cache" page will link back here for the per-node class design. Interview flow adapted from <a href="https://www.hellointerview.com/">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  $("zoomUml").addEventListener("click", e => {
+    const on = $("umlWrap").classList.toggle("zoomed");
+    e.target.setAttribute("aria-pressed", on); e.target.textContent = on ? "Fit to screen" : "Zoom in";
+    $("zoomHint").textContent = on ? "Scroll the diagram sideways to see the policies on the right." : "The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.";
+  });
+
+  // ================= the model: a line-for-line mirror of the Python classes =================
+  // `ev(msg, detached)` is how a policy reports each pointer change to the walkthrough.
+  class Node { constructor(key = null, value = null) { this.key = key; this.value = value; this.freq = 1; this.prev = this.next = null; } }
+  class DoublyLinkedList {
+    constructor() { this.head = new Node("HEAD"); this.tail = new Node("TAIL"); this.head.next = this.tail; this.tail.prev = this.head; this.size = 0; }
+    pushFront(node) { node.prev = this.head; node.next = this.head.next; this.head.next.prev = node; this.head.next = node; this.size++; }
+    unlink(node) { node.prev.next = node.next; node.next.prev = node.prev; node.prev = node.next = null; this.size--; }
+    last() { return this.size ? this.tail.prev : null; }
+    nodes() { const out = []; for (let n = this.head.next; n !== this.tail; n = n.next) out.push(n); return out; }
+    keys() { return this.nodes().map(n => n.key); }
+  }
+  // the four pointer writes, worded with the real neighbours
+  const pushMsg = (list, k) => { const f = list.head.next.key; return `push_front(${k}): ${k}.prev = HEAD, ${k}.next = ${f}, ${f}.prev = ${k}, HEAD.next = ${k}`; };
+  const unlinkMsg = node => `unlink(${node.key}): ${node.prev.key}.next = ${node.next.key}, ${node.next.key}.prev = ${node.prev.key}`;
+
+  class LRUPolicy {
+    constructor() { this.name = "LRUPolicy"; this.order = new DoublyLinkedList(); }
+    added(node, ev) { const m = pushMsg(this.order, node.key); this.order.pushFront(node); ev(m); }
+    touched(node, ev) {
+      const m1 = unlinkMsg(node); this.order.unlink(node); ev(m1, "unlinked");
+      const m2 = pushMsg(this.order, node.key); this.order.pushFront(node); ev(m2 + ". It is now the most recent.");
+    }
+    removed(node, ev) { const m = unlinkMsg(node); this.order.unlink(node); ev(m, "unlinked"); }
+    victim() { return this.order.last(); }
+    why() { return "tail.prev, the least recently used"; }
+    describe() { return "[" + this.order.keys().join(" ") + "]"; }
+    rows() { return [{ label: "", nodes: this.order.nodes() }]; }
+  }
+  class LFUPolicy {
+    constructor() { this.name = "LFUPolicy"; this.buckets = new Map(); this.minFreq = 0; }
+    _take(node) { const b = this.buckets.get(node.freq); b.unlink(node); if (!b.size) this.buckets.delete(node.freq); }
+    _put(node) { if (!this.buckets.has(node.freq)) this.buckets.set(node.freq, new DoublyLinkedList()); this.buckets.get(node.freq).pushFront(node); }
+    added(node, ev) {
+      node.freq = 1; this.minFreq = 1;
+      const m = this.buckets.has(1) ? pushMsg(this.buckets.get(1), node.key) : `bucket f1 is created; push_front(${node.key})`;
+      this._put(node); ev(`freq = 1, min_freq = 1; ${m}`);
+    }
+    touched(node, ev) {
+      const f = node.freq, um = unlinkMsg(node);
+      this._take(node);
+      let m = `bucket f${f}: ${um}`;
+      if (!this.buckets.has(f)) m += `; f${f} is empty, so it is dropped`;
+      if (this.minFreq === f && !this.buckets.has(f)) { this.minFreq++; m += `; min_freq = ${this.minFreq}`; }
+      ev(m, "unlinked");
+      node.freq++;
+      const pm = this.buckets.has(node.freq) ? pushMsg(this.buckets.get(node.freq), node.key) : `bucket f${node.freq} is created; push_front(${node.key})`;
+      this._put(node); ev(`freq ${f} → ${node.freq}; ${pm}`);
+    }
+    removed(node, ev) {
+      const f = node.freq, um = unlinkMsg(node);
+      this._take(node); ev(`bucket f${f}: ${um}${this.buckets.has(f) ? "" : `; f${f} is empty, so it is dropped`}`, "unlinked");
+    }
+    victim() { return this.buckets.get(this.minFreq).last(); }
+    why() { return `min_freq = ${this.minFreq}, and the least recent key in bucket f${this.minFreq}`; }
+    describe() { return [...this.buckets.entries()].sort((a, b) => a[0] - b[0]).map(([f, b]) => `f${f}[${b.keys().join(" ")}]`).join(" "); }
+    rows() { return [...this.buckets.entries()].sort((a, b) => a[0] - b[0]).map(([f, b]) => ({ label: `f${f}`, min: f === this.minFreq, nodes: b.nodes() })); }
+  }
+
+  class Cache {
+    constructor(capacity, policy) { this.capacity = capacity; this.policy = policy; this.map = new Map(); this.stats = { hits: 0, misses: 0, evictions: 0 }; this.listeners = []; }
+    subscribe(l) { this.listeners.push(l); }
+    get(key, F) {
+      const node = this.map.get(key);
+      if (!node) { this.stats.misses++; F.snap(3, `map.get("${esc(key)}") → None: <b class="bad">miss</b>. misses = ${this.stats.misses}. Nothing moves.`, { miss: key }); return null; }
+      this.stats.hits++;
+      F.snap(4, `map.get("${esc(key)}") → node ${esc(key)}=${node.value}: <b class="ok">hit</b> in one dict lookup. hits = ${this.stats.hits}`, { hit: key });
+      this.policy.touched(node, (m, det) => F.snap(5, `${this.policy.name}.touched(${esc(key)}): ${esc(m)}`, { hit: key }, det && node, det));
+      return node.value;
+    }
+    put(key, value, F) {
+      const node = this.map.get(key);
+      if (node) {
+        const old = node.value; node.value = value;
+        F.snap(10, `map.get("${esc(key)}") → existing node: value ${old} → ${value}, overwritten in place`, { hit: key });
+        this.policy.touched(node, (m, det) => F.snap(10, `${this.policy.name}.touched(${esc(key)}): ${esc(m)}`, { hit: key }, det && node, det));
+        return;
+      }
+      F.snap(8, `map.get("${esc(key)}") → None: a new key. size ${this.map.size} of ${this.capacity}${this.map.size === this.capacity ? ", full" : ", room left"}`, { miss: key });
+      if (this.map.size === this.capacity) this._evict(F);
+      const n = new Node(key, value); this.map.set(key, n);
+      F.snap(15, `Node(${esc(key)}, ${value}) created; map["${esc(key)}"] = node. Not in any list yet.`, { nw: key }, n, "new");
+      this.policy.added(n, m => F.snap(16, `${this.policy.name}.added(${esc(key)}): ${esc(m)}`, { nw: key }));
+    }
+    _evict(F) {
+      const old = this.policy.victim();
+      F.snap(12, `full: ${this.policy.name}.victim() → <b class="bad">${esc(old.key)}</b> (${this.policy.why()})`, { ev: old.key });
+      this.policy.removed(old, (m, det) => F.snap(13, `${this.policy.name}.removed(${esc(old.key)}): ${esc(m)}`, { ev: old.key }, old, "victim"));
+      this.map.delete(old.key); this.stats.evictions++;
+      this.listeners.forEach(l => l.onEvict(old.key, old.value));
+      F.snap(14, `del map["${esc(old.key)}"]; evictions = ${this.stats.evictions}; EvictionLog.on_evict("${esc(old.key)}", ${old.value})`, { ev: old.key }, old, "evicted");
+    }
+  }
+  class EvictionLog { constructor() { this.last = null; } onEvict(k, v) { this.last = `${k}=${v}`; } }
+
+  // ================= the walkthrough =================
+  const CODE = [
+    "def get(self, key):",
+    "    node = self.map.get(key)",
+    "    if node is None:",
+    "        self.stats.misses += 1; return None",
+    "    self.stats.hits += 1",
+    "    self.policy.touched(node)   # a read reorders",
+    "    return node.value",
+    "def put(self, key, value):",
+    "    node = self.map.get(key)",
+    "    if node is not None:",
+    "        node.value = value; self.policy.touched(node); return",
+    "    if len(self.map) == self.capacity:   # _evict():",
+    "        old = self.policy.victim()",
+    "        self.policy.removed(old)",
+    "        del self.map[old.key]; notify listeners",
+    "    node = Node(key, value); self.map[key] = node",
+    "    self.policy.added(node)"
+  ];
+  const DEMO = "put a 1, put b 2, put c 3, get a, get a, get b, get c, put d 4, get a, get b, put c 30, put e 5";
+
+  function parseOps(text) {
+    const parts = text.split(",").map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return { error: "Enter operations like: put a 1, get a" };
+    if (parts.length > 16) return { error: "Use at most 16 operations so every step stays readable." };
+    const ops = [];
+    for (const p of parts) {
+      const t = p.split(/\s+/), verb = t[0].toLowerCase();
+      if (verb === "get" && t.length === 2) ops.push({ verb, key: t[1] });
+      else if (verb === "put" && t.length === 3) {
+        if (!/^-?\d{1,3}$/.test(t[2])) return { error: `"${p}": the value must be a whole number between -999 and 999.` };
+        ops.push({ verb, key: t[1], value: +t[2] });
+      } else return { error: `"${p}" is not an operation. Use "get key" or "put key value", separated by commas.` };
+      if (!/^[A-Za-z0-9]{1,3}$/.test(ops[ops.length - 1].key)) return { error: `"${p}": keys are 1 to 3 letters or digits.` };
+    }
+    return { ops };
+  }
+
+  let walk;
+  function build({ cap, policy, ops }) {
+    const capacity = +cap.trim();
+    if (!/^\d+$/.test(cap.trim()) || capacity < 1 || capacity > 6) return { error: "Capacity must be a whole number from 1 to 6." };
+    const P = policy.trim().toUpperCase();
+    if (P !== "LRU" && P !== "LFU") return { error: "Policy must be LRU or LFU." };
+    const parsed = parseOps(ops); if (parsed.error) return parsed;
+    const pol = P === "LRU" ? new LRUPolicy() : new LFUPolicy();
+    const cache = new Cache(capacity, pol), log = new EvictionLog();
+    cache.subscribe(log);
+    const frames = [], out = [`== ${pol.name}, capacity ${capacity} ==`];
+    let opLabel = "";
+    const F = {
+      snap(line, msg, hl = {}, det = null, tag = null) {
+        frames.push({
+          line, msg: (opLabel ? `<b>${esc(opLabel)}</b> · ` : "") + msg, hl, out: [...out], lru: pol.name === "LRUPolicy", capacity,
+          rows: pol.rows().map(r => ({ label: r.label, min: r.min, nodes: r.nodes.map(n => ({ k: n.key, v: n.value, f: n.freq })) })),
+          det: det ? { k: det.key, v: det.value, f: det.freq, tag } : null,
+          map: [...cache.map.entries()].map(([k, n]) => [k, n.value]),
+          vars: Object.assign({ size: `${cache.map.size}/${capacity}`, hits: cache.stats.hits, misses: cache.stats.misses, evictions: cache.stats.evictions },
+            pol.name === "LFUPolicy" ? { min_freq: pol.minFreq } : {})
+        });
+      }
+    };
+    F.snap(-1, `Cache(${capacity}, ${pol.name}()) is empty: the list is just HEAD ⇄ TAIL. Press Next.`);
+    parsed.ops.forEach(op => {
+      opLabel = op.verb === "get" ? `get ${op.key}` : `put ${op.key} ${op.value}`;
+      log.last = null;
+      let result;
+      if (op.verb === "get") { const v = cache.get(op.key, F); result = v === null ? "miss" : `hit ${v}`; }
+      else { const existed = cache.map.has(op.key); cache.put(op.key, op.value, F); result = existed ? "updated" : "added"; }
+      if (log.last) result += `, evicted ${log.last}`;
+      out.push(`${opLabel.padEnd(9)} -> ${result.padEnd(20)} ${pol.describe()}`);
+      const last = frames[frames.length - 1];
+      last.out = [...out]; last.msg += ` → prints <span class="mono">${esc(result)}</span>`;
+    });
+    const s = cache.stats;
+    out.push(`hits=${s.hits} misses=${s.misses} evictions=${s.evictions}`);
+    F.snap(-1, `Done. ${s.hits} hits, ${s.misses} misses, ${s.evictions} evictions. Kept: ${[...cache.map.keys()].map(esc).join(", ")}.`);
+    frames[frames.length - 1].msg = frames[frames.length - 1].msg.replace(/^<b>.*?<\/b> · /, "");
+    return { frames };
+  }
+
+  // ---------- drawing (reads the frame only) ----------
+  const NW = 58, NH = 44, SW = 46, GAP = 24, RH = 74, LX = 44;
+  function nodeBox(x, y, n, cls, lru, extra = "") {
+    const stroke = cls === "hit" ? "var(--ok)" : cls === "nw" ? "var(--accent)" : cls === "ev" ? "var(--bad)" : "var(--ink)";
+    const fill = cls === "hit" || cls === "nw" ? "var(--accent-soft)" : cls === "ev" ? "var(--amber-soft)" : "var(--panel)";
+    return `<rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${cls ? 2.4 : 1.3}" ${extra}/>` +
+      `<text x="${x + NW / 2}" y="${y + 20}" text-anchor="middle" font-family="var(--mono)" font-size="15" font-weight="600" fill="var(--ink)">${esc(n.k)}</text>` +
+      `<text x="${x + NW / 2}" y="${y + 36}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">=${n.v}${lru ? "" : " f" + n.f}</text>`;
+  }
+  function sentinel(x, y, t) {
+    return `<rect x="${x}" y="${y + 6}" width="${SW}" height="${NH - 12}" rx="4" fill="var(--paper)" stroke="var(--line)" stroke-width="1.3" stroke-dasharray="4 3"/>` +
+      `<text x="${x + SW / 2}" y="${y + NH / 2 + 4}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="600" fill="var(--muted)">${t}</text>`;
+  }
+  function drawList(f) {
+    const cls = k => f.hl.hit === k ? "hit" : f.hl.nw === k ? "nw" : f.hl.ev === k ? "ev" : "";
+    const W = LX + SW + f.capacity * (NW + GAP) + GAP + SW + 8;
+    let s = "", y = 8;
+    if (f.det) {
+      const tagCls = f.det.tag === "new" ? "nw" : f.det.tag === "unlinked" && !f.hl.ev ? "hit" : "ev";
+      s += `<text x="4" y="${y + 26}" font-family="var(--mono)" font-size="10" fill="var(--muted)">out</text>`;
+      s += nodeBox(LX + SW + GAP, y, f.det, tagCls, f.lru, 'stroke-dasharray="5 3"');
+      const words = { new: "new: not linked yet", unlinked: "unlinked: prev = next = None", victim: "victim, unlinked", evicted: "evicted: gone from map too" }[f.det.tag];
+      s += `<text x="${LX + SW + GAP + NW + 10}" y="${y + 26}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${words}</text>`;
+      y += NH + 22;
+    }
+    if (!f.rows.length) {
+      s += `<text x="4" y="${y + 26}" font-family="var(--mono)" font-size="11" fill="var(--muted)">no buckets yet (the cache is empty)</text>`;
+      y += NH + 10;
+    }
+    f.rows.forEach(r => {
+      const xs = [LX];
+      r.nodes.forEach((_, i) => xs.push(LX + SW + GAP + i * (NW + GAP)));
+      const tx = LX + SW + GAP + r.nodes.length * (NW + GAP);
+      xs.push(tx);
+      if (r.label) {
+        s += `<text x="4" y="${y + 20}" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--ink)">${r.label}</text>`;
+        if (r.min) s += `<text x="4" y="${y + 36}" font-family="var(--mono)" font-size="9.5" font-weight="600" fill="var(--accent)">min</text>`;
+      }
+      s += sentinel(LX, y, "HEAD");
+      r.nodes.forEach((n, i) => { s += nodeBox(xs[i + 1], y, n, cls(n.k), f.lru); });
+      s += sentinel(tx, y, "TAIL");
+      for (let i = 0; i < xs.length - 1; i++) {
+        const x1 = xs[i] + (i === 0 ? SW : NW), x2 = xs[i + 1];
+        s += `<path d="M${x1 + 2},${y + 15} L${x2 - 2},${y + 15}" stroke="var(--ink)" stroke-width="1.2" marker-end="url(#wkA)"/>`;
+        s += `<path d="M${x2 - 2},${y + 29} L${x1 + 2},${y + 29}" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#wkB)"/>`;
+      }
+      y += RH - (r === f.rows[f.rows.length - 1] ? 22 : 0);
+    });
+    const defs = `<defs><marker id="wkA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9 z" fill="var(--ink)"/></marker><marker id="wkB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9 z" fill="var(--muted)"/></marker></defs>`;
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${y + 6}" style="width:100%;min-width:${Math.min(W, 420)}px;height:auto;display:block" role="img" aria-label="Linked list${f.lru ? "" : "s per use count"}">${defs}${s}</svg></div>`;
+  }
+  function draw(f) {
+    const mapCls = k => f.hl.hit === k ? "hit" : f.hl.nw === k ? "nw" : f.hl.ev === k ? "ev" : "";
+    const chips = f.map.map(([k, v]) => `<span class="${mapCls(k)}">"${esc(k)}" → node(${v})</span>`);
+    if (f.hl.miss !== undefined && !f.map.some(([k]) => k === f.hl.miss)) chips.push(`<span class="miss">"${esc(f.hl.miss)}" not found</span>`);
+    return `<p class="wk-h">${f.lru ? "Recency list (next → on top, ← prev below)" : "One list per use count (min_freq bucket evicts first)"}</p>
+      ${drawList(f)}
+      <p class="wk-cap">${f.lru ? "HEAD side = most recently used · TAIL side = the next victim" : "Each bucket: HEAD side = most recent · victim = tail of the min bucket"}</p>
+      <p class="wk-h">map: key → node</p>
+      <div class="wk-map">${chips.length ? chips.join("") : `<span class="empty">{ } empty</span>`}</div>
+      <p class="wk-h">Output (same as the Python demo)</p>
+      <pre class="wk-out">${f.out.map((l, k) => `<span${k === f.out.length - 1 && k > 0 ? ' class="last"' : ""}>${esc(l)}</span>`).join("\n")}</pre>`;
+  }
+
+  Stepper($("walk"), {
+    code: CODE,
+    inputs: [
+      { key: "cap", label: "Capacity (1 to 6)", value: "3" },
+      { key: "policy", label: "Policy (LRU or LFU)", value: "LRU" },
+      { key: "ops", label: "Operations", value: DEMO }
+    ],
+    presets: [
+      { label: "Demo, LRU", values: { cap: "3", policy: "LRU", ops: DEMO } },
+      { label: "Demo, LFU", values: { cap: "3", policy: "LFU", ops: DEMO } },
+      { label: "A scan flushes the hot keys", values: { cap: "3", policy: "LRU", ops: "put a 1, put b 2, get a, get b, get a, put x 7, put y 8, put z 9, get a, get b" } },
+      { label: "Capacity 1", values: { cap: "1", policy: "LRU", ops: "put a 1, get a, put b 2, get a, get b" } }
+    ],
+    build, draw
+  });
+
+  // the policy toggle: same operations, a different Strategy
+  const polInput = $("walk-policy"), form = $("walk").querySelector("form");
+  function syncPol() { const lfu = polInput.value.trim().toUpperCase() === "LFU"; $("polLRU").setAttribute("aria-pressed", !lfu); $("polLFU").setAttribute("aria-pressed", lfu); }
+  function setPol(p) { polInput.value = p; syncPol(); form.requestSubmit(); }
+  $("polLRU").addEventListener("click", () => setPol("LRU"));
+  $("polLFU").addEventListener("click", () => setPol("LFU"));
+  form.addEventListener("submit", syncPol);
+  $("walk").addEventListener("click", e => { if (e.target.closest("[data-preset]")) syncPol(); });
+</script>
+</body>
+</html>

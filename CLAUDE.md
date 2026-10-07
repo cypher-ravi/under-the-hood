@@ -25,8 +25,8 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 - `shared/stepper.js`: `Stepper(root, { code, inputs, presets, build(values) -> {frames}|{error}, draw(frame) })`, plus `drawArray(values, {ptr, mark})` and `parseNums(text)`. `dsa/two-pointers.html` is the reference example.
 
 ## Roadmap (next up first)
-- AI lessons: 01–05 shipped. Next: 06 Probability basics for ML, then 07 Loss functions, and on through the 60-lesson curriculum in `LESSONS`, then deep dives.
-- DSA: Binary Search, Tree, Heap, Graph, Backtracking, DP.
-- Design questions: Web Crawler, Distributed Cache, Google Docs, Dropbox.
-- Concepts: Count-Min Sketch, Distributed Locks, CRDTs, Vector Clocks.
-- LLD: LRU cache, Rate limiter (class design), Elevator system, Vending machine, Splitwise, Library management, Snake and ladder, Chess, Movie ticket booking (BookMyShow), Logger framework, Pub-sub / notification service, ATM, Hotel booking, In-memory file system, Tic-tac-toe, Online food ordering, Meeting room scheduler. (Parking lot shipped.)
+- AI lessons: 01–06 shipped. Next: 07 Loss functions, then 08 Gradient descent, and on through the 60-lesson curriculum in `LESSONS`, then deep dives.
+- DSA: Tree, Heap, Graph, Backtracking, DP.
+- Design questions: Distributed Cache, Google Docs, Dropbox.
+- Concepts: Distributed Locks, CRDTs, Vector Clocks.
+- LLD: Rate limiter (class design), Elevator system, Vending machine, Splitwise, Library management, Snake and ladder, Chess, Movie ticket booking (BookMyShow), Logger framework, Pub-sub / notification service, ATM, Hotel booking, In-memory file system, Tic-tac-toe, Online food ordering, Meeting room scheduler. (Parking lot and LRU cache shipped.)
