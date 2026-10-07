@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -113,7 +113,7 @@
   <p class="lede">Squaring a number means drawing a square with that side and measuring its area. That one picture explains why negative misses turn positive, why big misses get punished so hard, what a square root undoes, and how Pythagoras measures the distance between any two points, even in 768 dimensions.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where this is used</span>The AI lessons that lean on this</h2>
 <div class="uses">
 <ul>
@@ -125,12 +125,12 @@
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Misses have a sign, but "how wrong" shouldn't</h2>
 <p>When Lesson 03's line guessed flat A's rent ₹2,000 too low and flat E's ₹5,000 too high, the misses were −2 and +5. Add raw misses and the lows cancel the highs, so a terrible model can score zero. Every loss in ML first has to <mark>make each miss positive</mark>, and the two standard ways to do it, squaring and absolute value, are what this page is about. The square root then comes back as the way to turn "sum of squares" into a distance, which is how k-nearest neighbours decides which examples are "close".</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>Tiles on a floor, and steps from your door</h2>
 <p><strong>Squares are floor tiles.</strong> A square room 3 m on each side needs 9 one-metre tiles: 3 rows of 3. Double the side to 6 m and you need 36 tiles, four times as many. The tile count is the side times itself. That count is what "3 squared" means. A room can't have a negative size: if you paced out the side walking backwards, the floor still needs 9 tiles.</p>
 <p><strong>A square root is reading the room backwards.</strong> The shop says "this square room has 25 tiles". How long is a wall? You look for the side that, times itself, makes 25: it's 5.</p>
@@ -138,7 +138,7 @@
 <p>Both squaring and absolute value throw away direction. The difference is in how they treat big numbers: absolute value counts steps (2 steps then 4 steps), squaring counts tiles (4 tiles then 16 tiles). That difference is the whole story of squared versus absolute error.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Six steps, from one square to the distance between points</h2>
 
 <h3>1. Squaring is a number times itself</h3>
@@ -364,7 +364,7 @@
 <p><strong>More dimensions, same rule.</strong> For three entries, add a third square: <code>|[1, 2, 2]| = √(1 + 4 + 4) = √9 = 3</code>. For a 768-entry embedding you add 768 squares. You can't draw it, but the arithmetic never changes. This "square the gaps, add, root" distance is called the <strong>Euclidean distance</strong>, and it is how k-nearest neighbours (Lesson 17) finds the training examples most like a new one.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Why Pythagoras is true, and two labs</h2>
 
 <figure>
@@ -444,7 +444,7 @@
 </div>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>Errors for Lesson 03's guess 1.</strong> Misses −2, −1, +2, +2, +5.</p>
 <ul>
@@ -504,7 +504,7 @@ print(distance([0, 0, 0], [1, 2, 2]))       <span class="c"># three entries: sam
 <p>Note <code>(-3) ** 2</code> with brackets, and that <code>distance</code> works for any number of entries: <code>zip</code> pairs up the coordinates, however many there are.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"√(a² + b²) = a + b."</span>A root does not split across a plus. <code>√(9 + 16) = √25 = 5</code>, but <code>√9 + √16 = 3 + 4 = 7</code>. Walking 4 across and 3 up is 7 steps along the grid, but the straight line is only 5. The shortcut across the diagonal is the whole point of Pythagoras.
@@ -549,24 +549,24 @@ print(distance([0, 0, 0], [1, 2, 2]))       <span class="c"># three entries: sam
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. A model's misses on four houses are +3, −3, +1, −1. What are the plain sum, the total absolute error and the total squared error?</p><summary>Show answer</summary><p class="a">Plain sum: <code>3 − 3 + 1 − 1 = 0</code>, which wrongly says "perfect". Absolute: <code>3 + 3 + 1 + 1 = 8</code>. Squared: <code>9 + 9 + 1 + 1 = 20</code>. Set the misses lab to these values (fifth slider at 0) to check.</p></details>
 <details><p class="q">2. Flat E's miss shrinks from 5 to 4. By how much does the total squared error of Lesson 03's guess 1 drop? And the total absolute error?</p><summary>Show answer</summary><p class="a">Squared: <code>25 → 16</code>, so it drops by 9, from 38 to 29. Absolute: <code>5 → 4</code>, a drop of 1, from 12 to 11. The same one-unit fix is worth nine times more under squared error, because the miss was big.</p></details>
 <details><p class="q">3. What is the distance between the points (2, 5) and (8, −3)? What is the length of the vector [6, −8]?</p><summary>Show answer</summary><p class="a">Gaps: <code>dx = 6</code>, <code>dy = −8</code>. Squares: 36 and 64, sum 100, so the distance is <code>√100 = 10</code>. The vector [6, −8] is exactly those gaps measured from the origin, so its length is also 10. The minus sign on −8 disappears when it is squared.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">Squaring turns a length into an area: signs vanish and big misses balloon; absolute value keeps just the length; and the square root of a sum of squares is a straight-line distance.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Back to the course</span>Where to use it next</h2>
 <p>Reread the worked example in <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a>: its "total squared error" table should now read as five squares of floor, with flat E's 25 tiles doing most of the damage, and then the length formula in <a href="04-vectors-matrices.html">Lesson 04</a> will look like plain Pythagoras.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://betterexplained.com/articles/measure-any-distance-with-the-pythagorean-theorem/" target="_blank" rel="noopener">Better Explained: How to measure any distance with the Pythagorean theorem</a>, an intuition-first article on why <code>a² + b² = c²</code> works for any shape, not only triangles, and how it stretches to more dimensions.</li>
@@ -774,5 +774,6 @@ print(distance([0, 0, 0], [1, 2, 2]))       <span class="c"># three entries: sam
   drawD();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

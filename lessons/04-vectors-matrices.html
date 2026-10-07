@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -118,6 +118,8 @@
   <h1><span class="num">04</span> · Vectors and matrices, intuitively</h1>
   <p class="lede">A vector is a list of numbers. A matrix is a grid of them. That is almost the whole definition, and with one operation on top, the dot product, you can write any model's prediction for a thousand examples in a single line of code.</p>
 </header>
+
+<section data-step="Start here">
 <aside class="mathneed" aria-label="Math you'll need">
   <span class="tag">Math you'll need</span>
   <ul>
@@ -125,18 +127,16 @@
   </ul>
   <p>Rusty on any of these? Each is a short, from-scratch math lesson. Read it first, then come back.</p>
 </aside>
-
-<section>
 <h2><span class="tag">a · Where we are</span>From one knob per feature to one line for all of them</h2>
 <p>Lesson 03 ended with <code>ŷ = w₁·x₁ + w₂·x₂ + b</code>: one weight per feature, plus a bias. Today we give that pattern a name (the dot product), learn the two containers that hold the numbers (vectors and matrices), and see how they turn a loop over every example into one multiplication.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>The language every model is written in</h2>
 <p>Open any ML paper or library and you will see <code>X @ W</code>, "a 768-dimensional embedding", "a weight matrix of shape 4096 × 4096". GPUs became the workhorse of AI largely because they are very good at one job: multiplying big matrices. If you can read shapes and know what a dot product means, most of the code and notation in this course becomes readable.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>A shopping bill</h2>
 <p>You buy 3 kg of rice, 1 litre of oil and 2 packets of tea. The shop's prices are ₹60, ₹150 and ₹40. Your bill is</p>
 <div class="eq">3×60 + 1×150 + 2×40 = 180 + 150 + 80 = ₹410</div>
@@ -149,7 +149,7 @@
 <p>A model's prediction is exactly this bill. The features are the basket, the weights are the price list, and the bias is a fixed delivery charge.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Four ideas, in order</h2>
 
 <h3>1. Vectors: one example as a list</h3>
@@ -200,7 +200,7 @@
 <p>Multiplying a matrix by a matrix is the same idea repeated: each column of the second matrix is its own weight vector. If a model predicted both rent and maintenance, <code>W</code> would be 2 × 2 (one column per output), and <code>X W</code> would be 4 × 2: two predictions per flat, still one line.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Arrows, then a pricing machine</h2>
 
 <figure>
@@ -307,7 +307,7 @@
 </div>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in numpy</h2>
 <p><strong>Vector basics</strong> with <code>u = [3, 1]</code> and <code>v = [1, 2]</code>:</p>
 <ul>
@@ -364,7 +364,7 @@ print(X.T.shape)        <span class="c"># (2, 4)  transpose flips rows and colum
 <p>The loop and <code>X @ w + b</code> give identical numbers. The difference is that numpy runs the matrix version in optimized compiled code, and on a GPU thousands of those multiply-adds happen in parallel. Training a neural network is, to a large degree, doing this over and over with much bigger matrices.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"Vectors are arrows from physics, so they only make sense in 2D or 3D."</span>In ML a vector is just an ordered list, and 768 entries is as valid as 2. Length, angle and dot product are all defined by the same formulas in any dimension; only the drawing stops working.</div>
@@ -373,24 +373,24 @@ print(X.T.shape)        <span class="c"># (2, 4)  transpose flips rows and colum
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. Compute <code>[2, −1, 3] · [4, 0, 1]</code>.</p><summary>Show answer</summary><p class="a"><code>2×4 + (−1)×0 + 3×1 = 8 + 0 + 3 = 11</code>.</p></details>
 <details><p class="q">2. A dataset has 1,000 examples and 20 features. What is the shape of <code>X</code>, how long must <code>w</code> be, and what shape is <code>X @ w</code>?</p><summary>Show answer</summary><p class="a"><code>X</code> is 1000 × 20 (one row per example). <code>w</code> needs 20 entries, one per feature column. <code>X @ w</code> has shape (1000,): one prediction per example. If <code>w</code> had 19 entries, numpy would raise a shape error.</p></details>
 <details><p class="q">3. What is <code>[2, 1] · [−1, 2]</code>, and what does that tell you about the two arrows?</p><summary>Show answer</summary><p class="a"><code>2×(−1) + 1×2 = 0</code>. A dot product of zero (with neither vector being all zeros) means the arrows are at a right angle. In ML language, the two vectors share nothing in common direction; later, with embeddings, that will read as "unrelated".</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">An example is a vector, a dataset is a matrix, and a linear model's prediction for every example is one matrix–vector product: ŷ = X w + b.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Next time</span>Lesson 05 · Derivatives and slopes, intuitively</h2>
 <p>We can now compute predictions for any number of features, but we still pick the weights by guessing or brute-force search. Derivatives tell us, for each weight, which way to nudge it to make the error smaller. That is the missing piece before gradient descent.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://www.3blue1brown.com/topics/linear-algebra" target="_blank" rel="noopener">3Blue1Brown: Essence of Linear Algebra</a>, short visual videos. Chapters 1, 3 and 9 (vectors, matrices as transformations, dot products) fit this lesson best.</li>
@@ -477,5 +477,6 @@ print(X.T.shape)        <span class="c"># (2, 4)  transpose flips rows and colum
   drawPrice();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

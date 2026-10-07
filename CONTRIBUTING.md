@@ -10,6 +10,10 @@
 4. **Register it** in `topics/registry.js` with `status: "ready"`, a one-line `blurb`, and `usedIn` (real systems that use it).
 5. **Use theme tokens only** (`var(--accent)`, `var(--ink)`, …) so the page works in light and dark mode.
 
+## Course mode
+
+End every page with `<script src="../shared/progress.js"></script>` after its other scripts. Each top-level `<section>` in `<main>` becomes a step; keep steps short and see CLAUDE.md for the `data-step`, `data-step-join` and `data-split` attributes.
+
 ## Quality bar
 
 - The simulation must be real: the page runs the actual algorithm, not a scripted animation.

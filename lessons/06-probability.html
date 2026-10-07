@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -116,6 +116,8 @@
   <h1><span class="num">06</span> · Probability basics for ML</h1>
   <p class="lede">A probability is a number between 0 and 1 that says how often something happens out of all the times it could. It is the language a model uses to say how sure it is, and once you see it as counting a part out of a whole, every rule in this lesson becomes common sense.</p>
 </header>
+
+<section data-step="Start here">
 <aside class="mathneed" aria-label="Math you'll need">
   <span class="tag">Math you'll need</span>
   <ul>
@@ -123,25 +125,23 @@
   </ul>
   <p>Rusty on any of these? Each is a short, from-scratch math lesson. Read it first, then come back.</p>
 </aside>
-
-<section>
 <h2><span class="tag">a · Where we are</span>From "which way to turn the knob" to "how sure is the answer"</h2>
 <p>Lesson 05 gave us slopes: for any loss, the derivative says which way to turn each knob. But we have not yet said what a classifier should <em>output</em> when the honest answer is "probably spam, but I can't be certain". Today we learn to say "probably" with numbers, so that Lesson 07 can measure how wrong such an answer is.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Almost every model speaks in chances</h2>
 <p>A spam filter doesn't really say "spam". It says "spam with probability 0.92", and a separate rule decides what to do with that number. A weather app's "70% chance of rain", a fraud model's risk score and a chatbot picking its next word from a list of word probabilities all work the same way. If you can't read these numbers, you can't tell a confident model from a lucky one, and you can't understand the loss that trains it.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>A jar of marbles</h2>
 <p>Picture a jar with 20 marbles: 5 orange, 15 green. Shake it, close your eyes, pull one out. How likely is orange? You already know the answer without any formula: 5 out of 20, a quarter of the time. That is all a probability is: <mark>the share of the whole</mark> that matches what you care about.</p>
 <p>Now someone tells you something extra: "the marble you pulled is one of the 4 with a scratch on it", and 3 of the scratched ones are orange. You forget the other 16 marbles. Your new "whole" is just the 4 scratched ones, and orange is now 3 out of 4. <strong>Learning a fact shrinks the whole you count over.</strong> That one move, called conditioning, is how a spam filter goes from "a quarter of all mail is spam" to "this email that says <em>free</em> is probably spam".</p>
 <p>Swap marbles for emails, orange for spam and the scratch for the word "free", and you have the core of this lesson. The rest is giving names to these counts.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Six steps, from one die to a model's output</h2>
 
 <h3>1. Outcomes, events and probability</h3>
@@ -227,7 +227,7 @@
 <p>Read 0.92 as a conditional probability: <code>P(spam | this email's features) = 0.92</code>, the model's estimate of what share of emails <em>like this one</em> are spam. Our 20-email table did the same by counting; a model has to estimate it for emails it has never seen.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Conditioning is zooming in</h2>
 
 <figure>
@@ -345,7 +345,7 @@
 </div>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>The inbox.</strong> 20 emails. Spam: 5, all from unknown senders, 3 of them say "free". Ok: 15, of which 1 says "free" (a colleague offering free lunch, from a known sender), 9 more are from known senders, and 5 are from unknown senders (shops, banks, newsletters).</p>
 <ul>
@@ -395,7 +395,7 @@ print(sum(f * (1 / 6) for f in range(1, 7)))    <span class="c"># 3.5    fair di
 <p>Notice that <code>P</code> never uses a formula like <code>P(A and B) / P(B)</code>. It just counts inside the smaller pool, and the formula falls out. Real ML libraries don't count tables of emails, but the numbers they produce mean exactly this.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"P(spam | free) and P(free | spam) are the same thing."</span>They share the same top count but divide by different wholes. Here they are 0.75 and 0.6, and they can be far apart. Most emails from your bank mention "account", yet most emails mentioning "account" are not from your bank. Mixing up the two directions is one of the most common reasoning errors, in ML and in medicine.</div>
@@ -404,24 +404,24 @@ print(sum(f * (1 / 6) for f in range(1, 7)))    <span class="c"># 3.5    fair di
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. Roll a fair die once. What is the probability of rolling 5 or more? What about less than 5?</p><summary>Show answer</summary><p class="a">"5 or more" is {5, 6}, 2 of 6 outcomes, so <code>2/6 = 1/3 ≈ 0.333</code>. "Less than 5" is its complement: <code>1 − 1/3 = 2/3 ≈ 0.667</code>. Counting {1, 2, 3, 4} gives the same 4/6.</p></details>
 <details><p class="q">2. In the 20-email inbox, what is P(spam | unknown sender)? And P(unknown sender | spam)?</p><summary>Show answer</summary><p class="a">There are 10 unknown senders (5 spam + 5 ok), so <code>P(spam | unknown) = 5/10 = 0.5</code>. All 5 spam emails came from unknown senders, so <code>P(unknown | spam) = 5/5 = 1</code>. Same top count, different wholes, very different answers. Check both in the inbox lab.</p></details>
 <details><p class="q">3. The number of spam emails arriving in a minute is 0 with probability 0.5, 1 with probability 0.3 and 2 with probability 0.2. Is this a valid distribution, and what is the expected number per minute?</p><summary>Show answer</summary><p class="a">Valid: every probability is between 0 and 1, and <code>0.5 + 0.3 + 0.2 = 1</code>. <code>E[X] = 0×0.5 + 1×0.3 + 2×0.2 = 0.7</code> spam emails per minute, about 42 an hour. You will never get 0.7 in one minute; it is the long-run average.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">A probability is a part divided by a whole; knowing something new just shrinks the whole you count over, and a model's "0.92 spam" is that same kind of number.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Next time</span>Lesson 07 · Loss functions: measuring how wrong a model is</h2>
 <p>Now that a model can say "spam with probability 0.92", we need a single number that says how good or bad that answer was given the true label, and that number, the loss, is what the slopes of Lesson 05 will push downhill.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://seeing-theory.brown.edu/" target="_blank" rel="noopener">Seeing Theory</a>, an interactive visual introduction to probability and statistics made at Brown University. Its first two chapters, Basic Probability and Compound Probability, cover expectation and conditional probability with simulations you can play with.</li>
@@ -543,5 +543,6 @@ print(sum(f * (1 / 6) for f in range(1, 7)))    <span class="c"># 3.5    fair di
   reset();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

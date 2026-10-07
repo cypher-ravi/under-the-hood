@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -137,23 +137,23 @@
   <p class="lede">The big Greek Σ looks scary, but it is a for-loop you already write every week: start a total at zero, walk through a list, add one thing each time. Divide that total by how many things you added and you have an average, the number behind every "mean error" a model reports.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where this is used</span>Lessons that lean on Σ</h2>
 <p><a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> (total squared error, and the average 22.8 as the best constant guess) and <a href="06-probability.html">Lesson 06 · Probability basics</a> (the expected value <code>E[X] = Σ x · P(X = x)</code>). Coming next: Lesson 07 · Loss functions (coming), Lesson 09 · Linear regression (coming) and Lesson 14 · Evaluation metrics (coming), which all start with "add this up over every example, then divide".</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Every loss is a sum</h2>
 <p>A model is never judged on one example. It makes a guess for every row in the data, gets a miss on each, and the training loop needs <em>one</em> number to push down. That number is almost always "add up the misses, then divide by how many there were", written in papers as <code>(1/n) Σ (yᵢ − ŷᵢ)²</code>. If you can read that line as a loop, half of the formulas in ML stop being decoration.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>A shopping receipt and a shared bill</h2>
 <p>A supermarket receipt is a sum. The till goes down the list of items one at a time and keeps a running total; the last line is everything added together. Nobody needs a formula for that. Σ is only a short way to <mark>write down the instruction</mark> "go down the list and keep a running total".</p>
 <p>Now five friends split a dinner bill. One ate a lot, one only had soup. The fair share is the total divided by five: everyone pays the same amount, and the bill is still covered. That fair share is the <strong>average</strong> (also called the <strong>mean</strong>). The friends who ate more than the fair share make up for the ones who ate less, exactly, to the rupee. Hold on to that "they cancel out" feeling; it is why the average is called a balance point.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>From a list to Σ to the average, in seven steps</h2>
 
 <h3>1. Adding a list, the long way</h3>
@@ -434,7 +434,7 @@ print(total)               <span class="c"># 114</span></code></pre>
 </figure>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Reading the symbol, then running the loop</h2>
 
 <figure>
@@ -535,7 +535,7 @@ print(total)               <span class="c"># 114</span></code></pre>
 <p>Things to try. Step through the rents and watch the pivot settle on 22.8, with 13.4 pulling each way. Switch to the squared misses: the total is 6 and the mean, 1.2, is the MSE. In the weighted mode, change the weight of 5 to a large number and see the balance point slide right, the way the loaded die's expected value moved from 3.5 to 4.5. Then set all six weights equal: the weighted average becomes the plain average, 2.5.</p>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>The data.</strong> Lesson 03's five flats: areas <code>x = 4, 6, 8, 10, 12</code> (hundreds of sq ft) and rents <code>y = 14, 19, 22, 28, 31</code> (₹ thousands), <code>n = 5</code>.</p>
 <ul>
@@ -596,7 +596,7 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
 <p>In real code you will almost always write <code>sum(...)</code> (or numpy's <code>.sum()</code> and <code>.mean()</code>), not the explicit loop. But when a paper shows a Σ, the loop is what it means, and writing it out once is the fastest way to check you've read it right.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"Σ xᵢ² is the same as (Σ xᵢ)²."</span>The brackets say which happens first. <code>Σ xᵢ²</code> squares each item and then adds: 360 for our areas. <code>(Σ xᵢ)²</code> adds first and squares the total once: 1600. The pull-out rule only works for a plain constant factor, never for a square.
@@ -637,24 +637,24 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. Unroll and compute <span class="sig"><small>4</small><span class="s">Σ</span><small>i=2</small></span>(2i). How many terms are there?</p><summary>Show answer</summary><p class="a">The counter runs i = 2, 3, 4 (start and stop both included), so three terms: <code>2·2 + 2·3 + 2·4 = 4 + 6 + 8 = 18</code>. In Python: <code>sum(2 * i for i in range(2, 5))</code>. Note the expression can use <code>i</code> itself, not only a list item.</p></details>
 <details><p class="q">2. For the areas <code>x = 4, 6, 8, 10, 12</code> you know <code>Σ xᵢ = 40</code>. Without adding five numbers, find <code>Σ (3xᵢ − 1)</code>.</p><summary>Show answer</summary><p class="a">Split, then pull out the 3, then the constant runs 5 times: <code>3 · 40 − 5 · 1 = 120 − 5 = 115</code>. Check the long way: 11 + 17 + 23 + 29 + 35 = 115.</p></details>
 <details><p class="q">3. Lesson 03's first guess, <code>ŷ = 3x</code>, had squared misses 4, 1, 4, 4, 25. Write its mean squared error with Σ and compute it.</p><summary>Show answer</summary><p class="a"><code>MSE = (1/5) Σ (yᵢ − ŷᵢ)² = (4 + 1 + 4 + 4 + 25) / 5 = 38 / 5 = 7.6</code>. The second guess had MSE 1.2, so it is better by the same factor as the totals, 38 versus 6. Put 14, 19, 22, 28, 31 and 12, 18, 24, 30, 36 into the lab's squared-misses mode to check.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">Σ is a for-loop that adds one term per item; divide that total by the count and you get the mean, the balance point where the items above and below cancel out.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Back to the course</span>Re-read Lesson 03's worked example</h2>
 <p>With Σ in hand, go back to <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> and read its <code>total_error</code> function as <code>Σ (ŷᵢ − yᵢ)²</code>, then glance at the expected value in <a href="06-probability.html">Lesson 06</a>: both are the loops you just stepped through.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://www.khanacademy.org/math/ap-calculus-ab/ab-integration-new/ab-6-3/a/review-summation-notation" target="_blank" rel="noopener">Khan Academy: Summation notation</a>, a short review article with worked examples and practice problems on reading and writing Σ.</li>
@@ -971,5 +971,6 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
   $('sawW').addEventListener('input',drawSaw); drawSaw();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

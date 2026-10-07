@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
@@ -438,5 +438,6 @@ return prev                   <span class="c"># new head of the reversed part</s
     draw(f) { return drawLinks(f.v, f.nx, { ptr: { S: f.S, F: f.F, P: f.P, C: f.C, A: f.A, Z: f.Z }, mark: f.mark, head: 0 }) + `<p class="legend">S slow · F fast · P prev · C curr · A front walker · Z back walker</p>`; }
   });
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

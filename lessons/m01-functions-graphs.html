@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -119,17 +119,17 @@
   <p class="lede">A function is a rule that turns an input into an output, exactly like a small piece of code with no side effects. A graph is that rule drawn as a picture: every input paired with its output, plotted as a dot. With those two ideas, "a model is a straight line with two knobs" stops being abstract.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where this is used</span>The AI lessons that lean on this page</h2>
 <p><a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> (the line <code>ŷ = w·x + b</code> fitted to five flats) and <a href="05-derivatives.html">Lesson 05 · Derivatives and slopes</a> (the slope of a line, and curves like <code>f(x) = x²</code>). Later: Lesson 09 · Linear regression end to end (coming) and Lesson 21 · Activation functions (coming).</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Every model is one of these</h2>
 <p>A spam filter, a rent predictor and a chatbot are all functions: features go in, a prediction comes out. Training means changing a few numbers inside the rule, and the clearest way to see what those numbers do is to draw the function and watch the picture move. If you can read <code>f(x) = 2.15x + 5.6</code> and picture its line, you can follow Lesson 03 and Lesson 05 without stopping.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>A vending machine</h2>
 <p>Think of a vending machine. You press a button (the <mark>input</mark>), the machine follows its wiring (the <mark>rule</mark>), and a snack drops out (the <mark>output</mark>). Two things make it trustworthy:</p>
 <ul>
@@ -143,7 +143,7 @@
 <p>Now imagine you pressed every button and wrote each (button, snack) pair on a card, then pinned all the cards on a wall in order. That wall is the <strong>graph</strong>. It shows you the whole machine at once, so you can spot patterns, like "the further right you go, the bigger the snack".</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Eight small steps, from a rule to a line to a curve</h2>
 
 <h3>1. The notation f(x)</h3>
@@ -335,7 +335,7 @@
 <p>Neural networks need bends like this to model anything that isn't a straight line. Lesson 21 meets the most common bend in modern networks, <code>ReLU(x) = max(0, x)</code>: 0 for every negative input, <code>x</code> itself otherwise, so <code>ReLU(−2) = 0</code> and <code>ReLU(3) = 3</code>. It's two straight pieces joined at a corner, but as a whole it is not a line.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Dots, slopes and a bend</h2>
 
 <figure>
@@ -475,7 +475,7 @@
 <p>Things to try. Press "fitted" and check the table against the worked example below: 14.2, 18.5, 22.8, 27.1, 31.4. Drag <code>w</code> alone and watch the hollow crossing point stay put while the line spins; drag <code>b</code> alone and watch the line slide. Look at the last column of the table: for a line it is the same number on every row, and that number is <code>w</code>. Then switch to the curve with <code>w = 1, b = 0</code> (plain <code>x²</code>) and the same column changes on every row.</p>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>Evaluate.</strong> With <code>f(x) = 2x + 6</code>: <code>f(4) = 14</code>, <code>f(6) = 18</code>, <code>f(8) = 22</code>, <code>f(10) = 26</code>, <code>f(12) = 30</code>. A new 900 sq ft flat: <code>f(9) = 2 × 9 + 6 = 24</code>. The crossing point: <code>f(0) = 6</code>.</p>
 <p><strong>The fitted line.</strong> Lesson 03's search settled on <code>w = 2.15, b = 5.6</code>. Flat A: <code>2.15 × 4 + 5.6 = 8.6 + 5.6 = 14.2</code>. Likewise B: <code>12.9 + 5.6 = 18.5</code>, C: <code>17.2 + 5.6 = 22.8</code>, D: <code>21.5 + 5.6 = 27.1</code>, E: <code>25.8 + 5.6 = 31.4</code>. The 900 sq ft flat: <code>19.35 + 5.6 = 24.95</code>, about ₹24,950.</p>
@@ -523,7 +523,7 @@ print([sq(x + 1) - sq(x) for x in range(0, 3)])   <span class="c"># steps of 1 i
 <p>Notice <code>line(w, b)</code>: it takes two knobs and hands back a function. That is exactly the "model family" idea from Lesson 03. The family is <code>line</code>; picking <code>w</code> and <code>b</code> picks one member of it. (The <code>round(…, 2)</code> is there because computers store numbers like 2.15 slightly inexactly, so <code>2.15 * 4 + 5.6</code> can print as 14.200000000000001.)</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"f(x) means f times x."</span>The brackets after a function's name mean "feed this in", like a function call in code. <code>f(3)</code> is "the output of f when the input is 3", not "f × 3". The confusion is natural, because <code>2(x + 1)</code> <em>does</em> mean multiply: when the thing before the brackets is a number, it's multiplication; when it's a function's name, it's a call.</div>
@@ -563,24 +563,24 @@ print([sq(x + 1) - sq(x) for x in range(0, 3)])   <span class="c"># steps of 1 i
 </figure>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. For <code>f(x) = 3x − 2</code>, what is <code>f(5)</code>? Which input gives an output of 10?</p><summary>Show answer</summary><p class="a"><code>f(5) = 3 × 5 − 2 = 13</code>. Backwards: <code>3x − 2 = 10</code>, so <code>3x = 12</code>, so <code>x = 4</code>. Check: <code>f(4) = 12 − 2 = 10</code>.</p></details>
 <details><p class="q">2. A straight line passes through (2, 7) and (6, 15). What are its slope <code>w</code> and its intercept <code>b</code>?</p><summary>Show answer</summary><p class="a">Rise 15 − 7 = 8 over run 6 − 2 = 4, so <code>w = 2</code>. Then use one point: <code>7 = 2 × 2 + b</code>, so <code>b = 3</code>. The line is <code>y = 2x + 3</code>; check the other point: <code>2 × 6 + 3 = 15</code>.</p></details>
 <details><p class="q">3. With the fitted line <code>ŷ = 2.15x + 5.6</code>, flat E (<code>x = 12</code>) is priced at 31.4. What does the price become if <code>b</code> goes up by 1? If instead <code>w</code> goes up by 0.1?</p><summary>Show answer</summary><p class="a">Raising <code>b</code> by 1 adds 1 to every output: 32.4. Raising <code>w</code> by 0.1 adds <code>0.1 × 12 = 1.2</code>: <code>2.25 × 12 + 5.6 = 32.6</code>. The same nudge to <code>w</code> would add only 0.4 for flat A (<code>x = 4</code>). A change to <code>w</code> matters more the bigger the input, which is exactly what Lesson 05's slopes will measure.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">A function turns each input into exactly one output, its graph is every (input, output) pair drawn as a dot, and for a line y = w·x + b, w sets the tilt and b sets where it crosses the vertical axis.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Back to the course</span>Read Lesson 03 next</h2>
 <p>With <code>f(x)</code>, slope and intercept in hand, <a href="03-model-is-a-function.html">Lesson 03 · A model is a function</a> reads as one idea: a model is <code>w · x + b</code> with the knobs left blank, and training is turning them until the line runs through the flats.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://www.khanacademy.org/math/pre-algebra/xb4832e56:functions-and-linear-models" target="_blank" rel="noopener">Khan Academy: Functions and linear models</a>, short videos and practice on what a function is, function tables and linear (straight-line) relationships.</li>
@@ -793,5 +793,6 @@ print([sq(x + 1) - sq(x) for x in range(0, 3)])   <span class="c"># steps of 1 i
   })();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

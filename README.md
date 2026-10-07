@@ -87,6 +87,10 @@ Every topic page has the same sections: the simulation, a worked example traced 
 
 Planned topics are listed in [`topics/registry.js`](topics/registry.js). The roadmap follows the core concepts, patterns and problem breakdowns in [Hello Interview's system design guide](https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction).
 
+## Course mode and progress
+
+Every page reads like a short course: one bite-sized step at a time, with a step bar, an "All steps" list and a "Mark covered & next" button (or switch to everything on one page). Checkmarks are saved in your browser, and the gallery shows what you've covered on each card and per tab. `shared/progress.js` does all of this from the page's existing sections.
+
 ## Run locally
 
 No build step and no dependencies.
@@ -105,6 +109,7 @@ Push to GitHub and enable **Settings → Pages → Deploy from branch → main /
 ```
 index.html            gallery, renders cards from topics/registry.js
 shared/lab.css        theme tokens (light + dark) and shared components
+shared/progress.js    course mode (one step at a time) and covered checkmarks
 topics/registry.js    list of topics and their status
 topics/<slug>.html    one self-contained page per topic
 lessons/<NN>-<slug>.html  one self-contained page per AI lesson

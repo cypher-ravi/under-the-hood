@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -86,17 +86,17 @@
   <p class="lede">AI, machine learning and deep learning are three nested ideas, not three names for the same thing. By the end of this page you will be able to say exactly how they differ, and you will have watched a machine "learn" a rule from eight examples.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where we are</span>The very first step</h2>
 <p>This is Lesson 01, the start of a 60-lesson path from "what is AI" to transformers and agents, so there is nothing to connect back to yet. Everything later in the course, from gradient descent to transformers, sits inside the map we draw today.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Everyone says "AI". Few mean the same thing.</h2>
 <p>A chess engine from 1997, the spam filter in your Gmail, the face unlock on your phone and ChatGPT are all called "AI". They work in very different ways. As an engineer, knowing which kind of system you are looking at tells you what it needs (rules or data), how it fails, and how you would debug it.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>Two ways to teach someone to cook</h2>
 <p>Imagine you want someone to make good dosa batter.</p>
 <p><strong>Way one: write the recipe.</strong> "Soak 3 cups rice and 1 cup urad dal for 6 hours, grind, add salt, ferment overnight." You, the expert, turned your knowledge into explicit steps. The learner just follows them. If the batter fails in a cold Bangalore winter, you have to notice and add a new rule: "in cold weather, ferment 4 hours longer."</p>
@@ -104,7 +104,7 @@
 <p>Way one is <mark>classic programming</mark> (and early AI). Way two is <mark>machine learning</mark>. The whole field is about making way two work reliably on a computer.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Three nested circles</h2>
 
 <dl class="defn">
@@ -187,7 +187,7 @@ f(x) = not spam  otherwise</code></pre>
 </ol>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Tune the knob yourself</h2>
 <div class="lab" id="lab">
   <h3>Spam-filter threshold lab</h3>
@@ -208,7 +208,7 @@ f(x) = not spam  otherwise</code></pre>
 <p>Notice two things. First, <strong>no threshold is perfect</strong>: email G has only one "!" but is spam. Real data is messy, and the goal is fewest mistakes, not zero. Second, the "learning" was nothing magical. It was a search over knob settings, guided by a score. Keep that picture; it is the heart of the whole course.</p>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>Learning the threshold by hand</h2>
 <p>Here are the same eight emails as a table. <code>x</code> is the "!" count, <code>y</code> is the true label.</p>
 <div class="tbl"><table>
@@ -252,7 +252,7 @@ print(predict(6, best_t))             <span class="c"># 1  (spam)</span></code><
 <p>Trying every value works here because there are only 7 options. With a billion knobs, trying every combination is impossible, which is why later lessons build smarter ways to turn the knobs.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"AI means ChatGPT."</span>Chatbots are one small corner (the innermost circle). Route planners, fraud detectors and recommendation systems are AI too, and many of them use no neural network at all.</div>
@@ -261,24 +261,24 @@ print(predict(6, best_t))             <span class="c"># 1  (spam)</span></code><
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. A thermostat that turns on the heater when the temperature drops below 20°C, with 20 set by an engineer. Is that machine learning?</p><summary>Show answer</summary><p class="a">No. It has a threshold like our spam model, but a human chose the 20. It becomes ML only if the threshold is picked automatically from data, for example from records of when people felt cold.</p></details>
 <details><p class="q">2. Put these in order from broadest to narrowest: deep learning, AI, machine learning.</p><summary>Show answer</summary><p class="a">AI ⊃ machine learning ⊃ deep learning. Every deep learning system is an ML system, and every ML system is an AI system.</p></details>
 <details><p class="q">3. In our worked example, suppose email G had 4 "!" instead of 1. What would the best threshold be, and how many mistakes would it make?</p><summary>Show answer</summary><p class="a">Now spam emails have counts 3, 5, 4, 4 and ok emails have 0, 1, 0, 2. Any threshold of 3 separates them perfectly: t = 3 gives 0 mistakes (100%). Changing the data changed what the model learned.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">AI is the goal, machine learning is the method of learning rules from examples instead of writing them, and deep learning is machine learning with large neural networks.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Next time</span>Lesson 02 · Data: examples, features, labels, datasets</h2>
 <p>Today the machine learned from eight emails described by a single number. Next we look closely at that raw material: what counts as an example, how you turn a messy email or photo into numbers (features), and why the quality of the data matters more than almost anything else.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free, friendly resources</h2>
 <ul>
   <li><a href="https://www.elementsofai.com/" target="_blank" rel="noopener">Elements of AI</a> (University of Helsinki): a gentle, non-mathematical course. Chapter 1 covers today's topic.</li>
@@ -346,5 +346,6 @@ print(predict(6, best_t))             <span class="c"># 1  (spam)</span></code><
   draw(1);
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -115,17 +115,17 @@
   <p class="lede">A model never sees an email, a photo or a patient. It sees a table of numbers someone chose to write down. This lesson is about that table: what goes in each row and column, and why choosing it well matters more than almost anything else.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where we are</span>Zooming in on the raw material</h2>
 <p>In Lesson 01 a computer "learned" a spam rule, <code>spam if "!" count ≥ 3</code>, from eight emails. It got 7 of 8 right and could never do better, because email G was spam with only one "!". Today we ask why: the problem was not the learning, it was the data we gave it.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Better data beat better algorithms</h2>
 <p>The 2012 jump in image recognition that kicked off the deep learning boom ran on <strong>ImageNet</strong>, a collection of over 14 million photos that people had labelled by hand, one by one. The network was important, but without those labels it had nothing to learn from. In real ML jobs, most of the time goes into collecting, cleaning and describing data, not into the model.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>A deck of flashcards</h2>
 <p>Think of how a child learns to tell a ripe mango from an unripe one. You show them mangoes, one at a time. For each one they notice a few things: <em>colour, how soft it feels, how sweet it smells</em>. Then you tell them the answer: "ripe" or "not ripe".</p>
 <p>Write that on flashcards. The <strong>front</strong> of each card lists what you noticed: <em>yellow, soft, strong smell</em>. The <strong>back</strong> has the answer: <em>ripe</em>. A stack of these cards is exactly what a learning algorithm needs.</p>
@@ -138,7 +138,7 @@
 <p>Notice what the child can and can't learn from. If you only ever wrote down colour, they could never learn that a green-skinned variety can still be ripe. <strong>What you choose to write on the front sets the limit on what can be learned.</strong></p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>From the world to a table of numbers</h2>
 
 <dl class="defn">
@@ -196,7 +196,7 @@
 </ul>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>One email becomes one row</h2>
 
 <figure>
@@ -273,7 +273,7 @@
 <p>With <code>bangs</code> alone the best you can do is 1 mistake (email G). With <code>links</code> alone, also 1 (email H). Put them together and a rule with <strong>zero</strong> mistakes appears. Now try <code>words</code>: it is nearly useless, because spam and real mail are about the same length in this data. <mark>Adding the right feature helped more than any amount of cleverness with the old one could.</mark></p>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>Scoring each feature by hand</h2>
 <p>The full dataset. <code>y = 1</code> means spam.</p>
 <div class="tbl"><table>
@@ -342,7 +342,7 @@ print(Xa[6])                   <span class="c"># [ 1  4  0 70]   one example (em
 <p>Two habits to take away from the code: <code>X[:, j]</code> reads a <strong>column</strong> (one feature across all examples) and <code>X[i]</code> reads a <strong>row</strong> (one example across all features). You will use both constantly. Lesson 04 explains why this grid shape, a matrix, is so central.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"The model looks at the email."</span>It only ever sees the numbers your recipe produced. Our spam model has never read a single word. If the recipe drops the clue that matters, no model can recover it.</div>
@@ -351,24 +351,24 @@ print(Xa[6])                   <span class="c"># [ 1  4  0 70]   one example (em
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. You want to predict a flat's rent from its area, number of bedrooms and distance to the metro. Name the example, the features and the label. Is this classification or regression?</p><summary>Show answer</summary><p class="a">Each flat is one example. Area, bedrooms and metro distance are the three features (<code>d = 3</code>). Rent is the label. Rent is a number on a scale, so it is regression.</p></details>
 <details><p class="q">2. A colleague encodes the feature "city" as Delhi = 1, Mumbai = 2, Chennai = 3. What is the problem, and what should they do?</p><summary>Show answer</summary><p class="a">The numbers imply an order and distances that don't exist (Chennai is not "three times" Delhi, and Mumbai is not "between" them). Use one-hot encoding: three 0/1 columns, so Delhi is <code>[1, 0, 0]</code>, Mumbai <code>[0, 1, 0]</code>, Chennai <code>[0, 0, 1]</code>.</p></details>
 <details><p class="q">3. A spam model gets 100% accuracy in testing. One of its features is "number of times any user reported this email as spam". Should you be happy?</p><summary>Show answer</summary><p class="a">No. That is label leakage: reports only exist after people have already decided it is spam. A brand-new email arriving in someone's inbox has zero reports, so in real use the feature tells the model nothing and the 100% vanishes.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">A dataset is a table: each row is an example, each column a feature turned into a number, and the label is the answer; a model can only learn what those columns make visible.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Next time</span>Lesson 03 · A model is a function</h2>
 <p>We now have a clean table of <code>X</code> and <code>y</code>. Next we look at the other half: the model itself, as an ordinary function from a feature vector to a guess, and learning as picking the function that best fits the table.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://developers.google.com/machine-learning/crash-course/categorical-data" target="_blank" rel="noopener">Google ML Crash Course: Working with categorical data</a>, a short, practical module on one-hot encoding and related tricks.</li>
@@ -495,5 +495,6 @@ print(Xa[6])                   <span class="c"># [ 1  4  0 70]   one example (em
   draw();
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -124,6 +124,8 @@
   <h1><span class="num">05</span> · Derivatives and slopes, intuitively</h1>
   <p class="lede">A derivative answers one question: if I nudge this input a tiny bit, how much does the output move, and in which direction? For a model, the input is a knob and the output is its error, so the answer tells you which way to turn every knob without trying them all.</p>
 </header>
+
+<section data-step="Start here">
 <aside class="mathneed" aria-label="Math you'll need">
   <span class="tag">Math you'll need</span>
   <ul>
@@ -132,18 +134,16 @@
   </ul>
   <p>Rusty on any of these? Each is a short, from-scratch math lesson. Read it first, then come back.</p>
 </aside>
-
-<section>
 <h2><span class="tag">a · Where we are</span>From trying everything to feeling the slope</h2>
 <p>In Lesson 03 we fitted a line to five flats by brute force: 24,381 knob settings, each scored, best one kept. Lesson 04 packed the predictions into one line, <code>ŷ = Xw + b</code>. What we still lack is a smart way to <em>choose</em> <code>w</code> and <code>b</code>. Today's tool is the derivative: from where you stand, it tells you which way is downhill and how steep it is, using only nearby information.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>Every training step is a pile of slopes</h2>
 <p>Grid search dies quickly. Ten values for each of a million knobs is 10<sup>1,000,000</sup> settings, more than any computer could ever try. Real models don't search at all. On every training step they compute, for <em>each</em> parameter, the slope of the error with respect to that parameter, then nudge every parameter a little in the downhill direction. When a PyTorch script calls <code>loss.backward()</code>, that is what happens: one slope is computed and stored for every weight in the model. A model with billions of parameters gets billions of slopes per step. This lesson is about what one of those numbers means.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>Walking down a hill in thick fog</h2>
 <p>You are on a hillside in fog so dense you can see only your own boots. You want to reach the bottom of the valley. You can't see the valley, but you can feel the ground: if it tilts down to your left, go left. If it is steep, you are probably far from the bottom. If it is perfectly flat, you might be there.</p>
 <ul>
@@ -154,7 +154,7 @@
 <p>A car's speedometer is the same idea in another costume. Average speed is total distance over total time: 120 km in 2 hours is 60 km/h. But the speedometer shows speed <em>right now</em>, which is the distance covered in a tiny slice of time divided by that tiny slice. "Rate of change at one instant" is exactly what a derivative is.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Six steps, from a straight line to two knobs</h2>
 
 <h3>1. The slope of a straight line</h3>
@@ -230,7 +230,7 @@
 <p>Compare the cost. Brute force scored 24,381 settings. The nudging method needs one extra loss evaluation per knob, and the exact slopes need only a formula. Training libraries use a smarter bookkeeping method (backpropagation, later in the course) that gets every partial derivative at once for roughly the cost of a couple of passes through the model, whether it has two knobs or two billion.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>A secant shrinking into a tangent</h2>
 
 <figure>
@@ -298,7 +298,7 @@
 <p>Three things to try. With <code>f(x) = x²</code>, set the gap to 0.001 anywhere: the secant slope is always the rule's <code>2x</code> plus the gap. Move to a negative <code>x</code>: the slope goes negative, so "downhill" means moving right. Then switch to the flat-C loss, start at <code>w = 2</code> and press "Take a step downhill" a few times: the steps shrink by themselves as the ground flattens, and <code>w</code> settles at 2.75.</p>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>The loss for flat C</strong>, <code>L(w) = (8w − 22)²</code>, at <code>w = 2</code>:</p>
 <ul>
@@ -364,7 +364,7 @@ for step in range(5):
 <p>The numeric slopes are always a hair off the exact ones, by an amount that shrinks with <code>h</code>. In practice libraries use exact derivatives (worked out automatically), and engineers use the nudge method as a sanity check, called a <strong>gradient check</strong>, when they suspect a bug.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"The derivative of a function is one number."</span>It is a new function: one slope for every point. For <code>x²</code> it is <code>2x</code>, which is −4 at <code>x = −2</code>, 0 at <code>x = 0</code> and 6 at <code>x = 3</code>. "The derivative is −96" is shorthand for "at this particular <code>w</code>".</div>
@@ -373,24 +373,24 @@ for step in range(5):
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. Use the power rule to find the derivative of <code>f(x) = x³</code> at <code>x = 2</code>. Then check it numerically with <code>h = 0.01</code>.</p><summary>Show answer</summary><p class="a"><code>f′(x) = 3x²</code>, so <code>f′(2) = 12</code>. Numerically: <code>2.01³ = 8.120601</code>, so <code>(8.120601 − 8) / 0.01 = 12.0601</code>, close to 12, off by a little leftover gap.</p></details>
 <details><p class="q">2. A flat has <code>x = 4</code>, <code>y = 12</code>, so <code>L(w) = (4w − 12)² = 16w² − 96w + 144</code>. What is <code>L′(1)</code>, which way should <code>w</code> move, and where is the slope zero?</p><summary>Show answer</summary><p class="a"><code>L′(w) = 32w − 96</code>, so <code>L′(1) = −64</code>. Negative means increasing <code>w</code> lowers the loss, so move <code>w</code> up. The slope is zero at <code>w = 3</code>, where the guess <code>4 × 3 = 12</code> matches the rent exactly.</p></details>
 <details><p class="q">3. At some setting, <code>∂L/∂w = 10</code> and <code>∂L/∂b = −2</code>. Which way should each knob move, and which one matters more right now?</p><summary>Show answer</summary><p class="a">Move against each slope: <code>w</code> down (its slope is positive), <code>b</code> up (its slope is negative). The loss is five times more sensitive to <code>w</code> here, so a nudge to <code>w</code> changes it more. The gradient is <code>[10, −2]</code>; downhill is <code>[−10, 2]</code>.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">A derivative is the slope at a single point: how much the output moves per tiny nudge of the input, and its sign tells you which way is downhill.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Next time</span>Lesson 06 · Probability basics for ML</h2>
 <p>We can now turn knobs to shrink a loss, but real models often output chances ("93% spam") rather than plain numbers, and the losses that train them are built from probabilities, so we need the basic language of chance before Lesson 07 defines loss properly.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://www.3blue1brown.com/lessons/essence-of-calculus" target="_blank" rel="noopener">3Blue1Brown: The Essence of Calculus</a>, a visual video series. Chapters 2 and 3 (the paradox of the derivative, derivative formulas through geometry) match this lesson.</li>
@@ -462,5 +462,6 @@ for step in range(5):
   load('sq');
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>

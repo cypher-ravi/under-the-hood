@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=7">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
 <style>
   /* Lesson pages: one reading column on the site's notebook grid. Colors come only from shared/lab.css tokens. */
   .lesson-wrap { max-width: 50rem; gap: 0; }
@@ -101,17 +101,17 @@
   <p class="lede">An exponent counts how many times you multiply. A logarithm runs that backwards: it tells you the count. With those two ideas, plus one special number called e, you can read the loss that trains every classifier.</p>
 </header>
 
-<section>
+<section data-step="Start here">
 <h2><span class="tag">a · Where this is used</span>The AI lessons that need it</h2>
 <p class="used">Lesson 07 · Loss functions (coming) is built on <code>−ln p</code>, so read this first. Exponents and <code>e</code> come back in Lesson 10 · Logistic regression (coming), Lesson 21 · Activation functions (coming), Lesson 31 · Tokenization (coming) and Lesson 40 · Decoding (coming). The probabilities we take logs of are the ones from <a href="06-probability.html">Lesson 06 · Probability basics for ML</a>, like the spam filter's "0.92".</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">b · Why this matters</span>The model said 0.92. How much should that cost?</h2>
 <p>In Lesson 06 a spam filter said "spam with probability 0.92". If the email really is spam, that answer was good, and its cost should be small. If the filter had said 0.08, it was confidently wrong, and the cost should be large. The usual cost is <code>−ln p</code>, where <code>p</code> is the probability the model gave the right answer: 0.0834 for the good answer, 2.5257 for the bad one, about 30 times more. To read that formula you need logarithms, and to understand logarithms you need exponents. That's this page.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">c · The intuition</span>Folding paper</h2>
 <p>Take a sheet of paper and fold it in half. Now it's 2 layers thick. Fold again: 4 layers. Again: 8. Each fold <em>doubles</em> the thickness. Two questions come up naturally:</p>
 <ul>
@@ -121,7 +121,7 @@
 <p>Now unfold it. Each unfold halves the layers: 8, 4, 2, 1. If you could keep going past 1, you'd get half a layer, then a quarter. That's where negative exponents live. Logarithms are just <mark>counting folds</mark>, and everything below is a careful version of this one picture.</p>
 </section>
 
-<section>
+<section data-step="How it works" data-split>
 <h2><span class="tag">d · How it actually works</span>Eight steps, from 2 × 2 × 2 to −ln p</h2>
 
 <h3>1. An exponent is repeated multiplication</h3>
@@ -412,7 +412,7 @@
 <p>Two things to notice. Near <code>p = 1</code> the curve is almost flat: going from 0.92 to 1 saves only 0.08. Near <code>p = 0</code> it shoots up without limit, because <code>ln p</code> heads to minus infinity. So <mark>being confidently wrong is punished hard</mark>, much harder than being unsure. That is exactly the behaviour Lesson 07 wants from a loss. And the "logs add" rule means the cost of a whole batch of answers is just the sum of their <code>−ln p</code>'s.</p>
 </section>
 
-<section>
+<section data-step="See it">
 <h2><span class="tag">e · See it</span>Slide p, slide n, stack up small numbers</h2>
 
 <div class="lab" id="lab1">
@@ -470,7 +470,7 @@
 </div>
 </section>
 
-<section>
+<section data-step="Worked example">
 <h2><span class="tag">f · Worked example</span>By hand, then in Python</h2>
 <p><strong>Exponents.</strong> <code>2<sup>3</sup> = 2 × 2 × 2 = 8</code>. <code>2<sup>0</sup> = 1</code>. <code>2<sup>−1</sup> = 1/2 = 0.5</code>, <code>2<sup>−3</sup> = 1/8 = 0.125</code>. Counting factors: <code>2<sup>3</sup> · 2<sup>4</sup> = 8 × 16 = 128 = 2<sup>7</sup></code>.</p>
 <p><strong>Logs.</strong> <code>log<sub>2</sub> 8 = 3</code>, <code>log<sub>2</sub> 1024 = 10</code>, <code>log<sub>2</sub> 0.125 = −3</code>. Multiplication into addition: <code>log<sub>2</sub>(8 × 16) = log<sub>2</sub> 128 = 7 = 3 + 4</code>.</p>
@@ -520,7 +520,7 @@ print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4
 <p>Python prints the million-slice value as <code>2.71828</code> because rounding to 6 places gives 2.718280 and the trailing zero is dropped. The underflow line is the one to remember: a plain loop of multiplications returns exactly 0.0, with no error or warning.</p>
 </section>
 
-<section>
+<section data-step="Check your understanding">
 <h2><span class="tag">g · Common misconceptions</span>Three things that sound right but aren't</h2>
 <div class="mis">
   <div><span class="wrong">"2³ means 2 × 3."</span>It means three 2s multiplied: 2 × 2 × 2 = 8, not 6. The exponent counts copies; it is not a second number to multiply by. The gap grows fast: 2<sup>10</sup> is 1,024, while 2 × 10 is 20.</div>
@@ -551,24 +551,24 @@ print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4
 </div>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
 <details><p class="q">1. What is 10<sup>−2</sup>, and what is log<sub>10</sub> 0.01?</p><summary>Show answer</summary><p class="a"><code>10<sup>−2</sup> = 1 / 10<sup>2</sup> = 1/100 = 0.01</code>. The log asks the same question backwards, "10 to the what is 0.01?", so <code>log<sub>10</sub> 0.01 = −2</code>. A number below 1 has a negative log.</p></details>
 <details><p class="q">2. A model gave the right answer probability 0.5 on one email and 0.25 on another. Using −ln 0.5 = 0.6931, what is −ln 0.25?</p><summary>Show answer</summary><p class="a"><code>0.25 = 0.5 × 0.5</code>, and logs turn multiplication into addition, so <code>−ln 0.25 = 0.6931 + 0.6931 = 1.3863</code>. Halving the probability given to the right answer always adds the same 0.6931 to the cost.</p></details>
 <details><p class="q">3. Why do models add up log-probabilities instead of multiplying probabilities?</p><summary>Show answer</summary><p class="a">Multiplying hundreds of numbers below 1 produces a value too small for a float to store, so it rounds to 0 (underflow) and every long sentence looks equally impossible. Because <code>ln(x · y) = ln x + ln y</code>, adding logs carries the same information as the product, but as an ordinary number like −782.4.</p></details>
 </section>
 
-<section>
+<section data-step="Wrap-up">
 <h2><span class="tag">i · The one-line takeaway</span>If you remember one thing</h2>
 <p class="takeaway">An exponent counts how many times you multiply, a log reads that count back, and because logs turn products into sums, −ln p gives a cost that is tiny when a model is confidently right and huge when it is confidently wrong.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">j · Back to the course</span>Next: Lesson 07 · Loss functions (coming)</h2>
 <p>With <code>−ln p</code> in hand, Lesson 07 is a short step: it adds up that cost over every example in the data, and that sum is the number training pushes down. Until it ships, re-read the end of <a href="06-probability.html">Lesson 06</a>, where the "0.92 spam" output comes from.</p>
 </section>
 
-<section>
+<section data-step-join>
 <h2><span class="tag">k · Go deeper (optional)</span>Two free resources</h2>
 <ul>
   <li><a href="https://betterexplained.com/articles/demystifying-the-natural-logarithm-ln/" target="_blank" rel="noopener">Better Explained: Demystifying the Natural Logarithm (ln)</a>, a plain-language take on ln as "time needed to grow", with a companion article, <a href="https://betterexplained.com/articles/an-intuitive-guide-to-exponential-functions-e/" target="_blank" rel="noopener">An Intuitive Guide To Exponential Functions &amp; e</a>, that builds e from compounding.</li>
@@ -749,5 +749,6 @@ print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4
   setK(200);
 })();
 </script>
+<script src="../shared/progress.js"></script>
 </body>
 </html>
