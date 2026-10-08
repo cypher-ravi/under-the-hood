@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contention and Distributed Locks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .canvas-panel { display: grid; gap: 12px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  #race { width: 100%; height: auto; display: block; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modes button { font-size: 12.5px; padding: 8px 10px; }
+  .modes button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+  .check.off { opacity: .45; }
+  .scrub { display: grid; gap: 6px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; min-width: 0; }
+  .compare b { font: 600 1.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .compare span { font-size: 12px; color: var(--muted); }
+  .compare .badv b { color: var(--bad); }
+  .compare .okv b { color: var(--ok); }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-wrap: anywhere; }
+  .feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; max-height: 210px; overflow-y: auto; }
+  .feed li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+  .feed li.now span { font-weight: 600; }
+  .feed li.bad span { color: var(--bad); }
+  .feed li.good span { color: var(--ok); }
+  .feed time { font: 500 11px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 6px 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 14px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1.5px solid; }
+  table.data tr.cur td { background: var(--accent-soft); }
+  table.data tr.clk { cursor: pointer; }
+  table.data tr.clk:hover td { background: var(--paper); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Patterns</span>
+  </div>
+
+  <header class="intro">
+    <h1>Contention and Distributed Locks</h1>
+    <p class="lede">Two buyers press "buy" on the last ticket in the same instant. Each one reads "1 left", each one writes "0 left", and the venue has sold one seat twice. Every fix makes the read and the write behave as one step: lock the row, check a version number when you write, or take a lock from a separate lock service. That last option has a catch. A lock that expires on its own (a lease) can expire while its holder is frozen, and then two clients both think they hold it. A <b>fencing token</b> lets the storage itself turn the stale one away.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="cfgLabel"></span><span class="eyebrow" id="clock"></span></div>
+      <svg id="race" viewBox="0 0 640 300" role="img" aria-label="Timeline of buyers racing for the last seats, with the lock and the store"></svg>
+      <div class="legend">
+        <span><i style="border-color:var(--muted);background:var(--paper)"></i>lock request / release</span>
+        <span><i style="border-color:var(--amber);background:var(--amber-soft)"></i>waiting</span>
+        <span><i style="border-color:var(--accent);background:var(--accent)"></i>read</span>
+        <span><i style="border-color:var(--accent);background:var(--accent-soft)"></i>work (charge card)</span>
+        <span><i style="border-color:var(--bad);background:var(--panel)"></i>frozen (GC pause)</span>
+        <span><i style="border-color:var(--ok);background:var(--ok)"></i>write: sale</span>
+        <span><i style="border-color:var(--bad);background:var(--bad)"></i>write: oversold or unsafe</span>
+        <span>✕ = rejected · red line on the lock lane = lease expired</span>
+      </div>
+      <div class="scrub">
+        <label class="field" for="cursor"><span class="row"><span>Time · drag to scrub</span><b class="mono num" id="cursorOut"></b></span>
+          <input type="range" id="cursor" min="0" max="300" step="1" value="0">
+        </label>
+        <div class="controls">
+          <button class="primary" id="play">Play</button>
+          <button id="prev">← Event</button>
+          <button id="next">Event →</button>
+          <button id="restart">Restart</button>
+        </div>
+      </div>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <div class="modes" role="tablist" aria-label="How the buyers coordinate" id="modes">
+        <button role="tab" data-mode="none">1 · No coordination</button>
+        <button role="tab" data-mode="pess">2 · Row lock</button>
+        <button role="tab" data-mode="opt">3 · Version check</button>
+        <button role="tab" data-mode="lease">4 · Lease lock</button>
+        <button role="tab" data-mode="fence">5 · Lease + fencing</button>
+      </div>
+      <p id="modeNote" style="font-size:13.5px"></p>
+      <label class="field" for="n"><span class="row"><span>Buyers (A first, 10 ms apart)</span><b class="mono num" id="nOut"></b></span><input type="range" id="n" min="2" max="5" value="2"></label>
+      <label class="field" for="seats"><span class="row"><span>Seats left at the start</span><b class="mono num" id="seatsOut"></b></span><input type="range" id="seats" min="1" max="3" value="1"></label>
+      <label class="field" for="pause"><span class="row"><span>Buyer A freezes after its work for</span><b class="mono num" id="pauseOut"></b></span><input type="range" id="pause" min="0" max="300" step="10" value="150"></label>
+      <label class="field" for="ttl"><span class="row"><span>Lease length (TTL) · modes 4 and 5</span><b class="mono num" id="ttlOut"></b></span><input type="range" id="ttl" min="40" max="300" step="10" value="100"></label>
+      <label class="check" id="readsRow" for="reads"><input type="checkbox" id="reads" checked> Storage checks the token on reads too (mode 5)</label>
+      <div class="compare">
+        <div id="soldBox"><span>Tickets sold</span><b id="sold">–</b><span id="soldSub"></span></div>
+        <div id="overBox"><span>Oversold</span><b id="over">–</b><span>sales beyond the seats</span></div>
+      </div>
+      <div class="stat-row"><span>Seats left in the store</span><b id="left">–</b></div>
+      <div class="stat-row"><span>Retries (failed version check or stale token)</span><b id="retries">–</b></div>
+      <div class="stat-row"><span>Writes rejected by the store</span><b id="rejected">–</b></div>
+      <div class="stat-row"><span>Writes after the writer's lease expired</span><b id="unsafe">–</b></div>
+      <div class="stat-row"><span>Buyers who gave up (lease too short)</span><b id="gaveUp">–</b></div>
+      <div class="stat-row"><span>Total time spent waiting for a lock</span><b id="wait">–</b></div>
+      <div class="stat-row"><span>Last buyer finished at</span><b id="finish">–</b></div>
+      <div>
+        <span class="eyebrow">Events up to the cursor</span>
+        <ul class="feed" id="feed" style="margin-top:8px" aria-live="polite"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="sub">
+      <h2>Same race, all five modes</h2>
+      <span class="eyebrow">current sliders · tap a row to switch</span>
+    </div>
+    <p class="kicker" style="color:var(--muted)">Every row below is a full run of the same model with your current buyers, seats, pause and lease length. Only the coordination changes.</p>
+    <div class="table-wrap" id="table"></div>
+    <p id="tableNote"></p>
+  </section>
+
+  <section class="panel article" id="example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Tokens 33 and 34: a frozen buyer and the store that says no</h2>
+    <p class="kicker">Two buyers, one seat, a 100 ms lease, and buyer A freezes for 150 ms after charging the card. These are the default sliders in mode 5, and every time below is what the simulation computes. The lock service starts its counter at 33 so the numbers match the classic version of this example.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>A takes the lock (t = 5 ms)</h3>
+        <p>A asks the lock service for the lock. In Redis that is one command, and the token comes from a counter that only goes up:</p>
+        <p class="formula">SET lock:seat-C12 A NX PX 100 → OK, token 33, expires at 105 ms</p>
+        <p><span class="mono">NX</span> means "only if nobody holds it", <span class="mono">PX 100</span> means "delete it after 100 ms". B arrives at 10 ms, asks at 15 ms, is refused, and starts polling every 20 ms.</p>
+      </div></li>
+      <li><div>
+        <h3>A reads, works, then freezes (t = 15 to 205 ms)</h3>
+        <p>A reads the seat count with token 33. The store sees 1 seat and remembers that the highest token it has seen is 33. A spends 40 ms charging the card, and at 55 ms its process stops for a 150 ms garbage-collection pause. Nothing in A runs, so it cannot notice anything.</p>
+      </div></li>
+      <li><div>
+        <h3>The lease runs out (t = 105 ms)</h3>
+        <p>The lock service has no idea A is frozen. It only knows 100 ms have passed without a release, so it deletes the key. This is exactly what a lease is for: if A had crashed, the seat would otherwise be locked forever.</p>
+      </div></li>
+      <li><div>
+        <h3>B gets the lock with token 34 (t = 115 ms)</h3>
+        <p>B's next poll succeeds. B reads with token 34, sees 1 seat, and the store raises its highest-seen token to 34. B charges the card and writes "0 seats left, sold to B" with token 34 at 175 ms. 34 ≥ 34, so the write is accepted. B releases the lock at 180 ms.</p>
+      </div></li>
+      <li><div>
+        <h3>A wakes up and writes (t = 215 ms)</h3>
+        <p>A resumes at 205 ms believing it still holds the lock, and sends "0 seats left, sold to A" with token 33. Here the two modes differ:</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Mode</th><th>Store's check</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">4 · lease only</td><td class="mono">none</td><td class="mono warn">accepted: 2 sold, 1 seat</td></tr>
+            <tr><td class="mono">5 · fencing</td><td class="mono">33 &lt; 34</td><td class="mono okc">rejected: A is stale</td></tr>
+          </tbody>
+        </table></div>
+        <p>With fencing, A learns it lost the lock, starts over, gets token 35 at 220 ms, reads 0 seats and stops. One seat, one sale.</p>
+      </div></li>
+      <li><div>
+        <h3>Why the store checks reads too</h3>
+        <p>Set the pause to 80 ms and untick "checks the token on reads". A now wakes at 135 ms and writes with token 33 while B (token 34) has already read but not yet written. The store has only seen token 33, so A's write passes, and B's write at 175 ms passes too: two sales. B decided to sell on a read that A's write made out of date. When the store also records the token on reads, B's read at 125 ms raises it to 34 first and A's write is rejected. The general rule: every request made under the lock carries the token, and the store refuses anything older than the newest token it has seen.</p>
+      </div></li>
+      <li><div>
+        <h3>Release only what you own</h3>
+        <p>When B finishes, it deletes the key only if the value is still its own, in one atomic step (a small Lua script in Redis). A plain <span class="mono">DEL</span> from a client whose lease already expired would delete someone else's lock.</p>
+        <p class="formula">if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end</p>
+      </div></li>
+    </ol>
+    <div class="aside"><p><b>The rule to remember:</b> a lease protects you from a holder that died, and does nothing about a holder that is merely slow. Only the resource can tell an old holder from a new one, so the resource has to check.</p></div>
+  </section>
+
+  <section class="panel article" id="story">
+    <span class="eyebrow">The story</span>
+    <h2>From Chubby to the Redlock argument</h2>
+    <p>Large systems at Google kept needing the same thing: pick one master out of many machines and make sure everyone agrees who it is. Mike Burrows described Google's answer, Chubby, at OSDI in 2006. Chubby is a small replicated service that hands out locks and stores small files, kept consistent with Paxos. GFS used a Chubby lock to choose its master, and Bigtable used it to elect a master and to let clients find it. Clients held their locks through sessions with leases (12 seconds by default), and the paper already faced the frozen-holder problem. A lock holder could ask for a <b>sequencer</b>, an opaque string describing the lock at the moment it was taken, and pass it to the servers it talked to so they could reject requests from a holder that had lost the lock. For servers that did not check sequencers, Chubby offered a <b>lock-delay</b>: when a holder failed, the lock could not be taken again for a while (up to a minute).</p>
+    <p>In 2010 Patrick Hunt, Mahadev Konar, Flavio Junqueira and Benjamin Reed of Yahoo! presented ZooKeeper at USENIX ATC. Instead of locks it offers a small tree of data nodes with ordered writes and watches, and leaves locks to recipes built on top: each contender creates an ephemeral, sequential node, and the lowest number holds the lock. When a client's session dies, its ephemeral node is deleted and the next in line is told.</p>
+    <p>Redis users wanted something lighter. In 2014 Salvatore Sanfilippo (antirez), Redis's creator, proposed an algorithm later called Redlock: take the same lock on a majority of independent Redis servers, each with an expiry, and count the lock as held only if a majority answered within the lease time. In February 2016 Martin Kleppmann published "How to do distributed locking". He argued that Redlock's safety depends on timing assumptions (bounded network delay, bounded pauses, clocks that drift little) that real systems break, and that no lease, however it is acquired, protects you from a client that pauses past its expiry. His fix was the fencing token, a number that goes up with every grant and that the storage checks. He also split locks into two kinds: locks for efficiency, where an occasional double run only wastes work, and locks for correctness, where it corrupts data. Sanfilippo replied within days with "Is Redlock safe?", and the debate is still the standard reading on the subject.</p>
+    <blockquote class="pull">A lease ends when the lock service's clock says so, not when the holder notices. Anything that matters has to be checked where the data lives.</blockquote>
+    <ol class="timeline">
+      <li><span class="year">2006</span><p>Mike Burrows, "The Chubby lock service for loosely-coupled distributed systems" (OSDI): coarse-grained locks with leases, sequencers and lock-delay.</p></li>
+      <li><span class="year">2010</span><p>Hunt, Konar, Junqueira and Reed, "ZooKeeper: Wait-free coordination for Internet-scale systems" (USENIX ATC). Locks become a recipe on ephemeral sequential nodes.</p></li>
+      <li><span class="year">2014</span><p>Sanfilippo publishes "A proposal for more reliable locks using Redis", the algorithm that becomes Redlock.</p></li>
+      <li><span class="year">2016</span><p>Kleppmann's "How to do distributed locking" (February) argues for fencing tokens; Sanfilippo answers with "Is Redlock safe?".</p></li>
+      <li><span class="year">Today</span><p>etcd and ZooKeeper back the locks and leader elections of Kubernetes, Kafka's older deployments and many databases. Their ever-increasing revision numbers (etcd) and transaction IDs (ZooKeeper's zxid) can serve as fencing tokens.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>Ways to make "read the value, decide, write the value" safe when several clients do it at once: an exclusive lock (pessimistic), a version check on the write (optimistic), or a lock from a separate service with an expiry (a lease), made safe with a fencing token.</p></div>
+      <div><span class="q">Why</span><p>Between your read and your write, someone else can write. Your write is then based on an old value and silently erases theirs: a lost update. With tickets or money that means selling or spending the same thing twice.</p></div>
+      <div><span class="q">When</span><p>Any time many clients compete for the same few things: the last seat, a username, an inventory count, a job that should run once, the right to be leader.</p></div>
+      <div><span class="q">Where</span><p>Inside one database, use its row locks, conditional updates or unique constraints. Across services, use a coordination service built on consensus (ZooKeeper, etcd, Chubby) for correctness, or a single Redis key when a rare double run only costs some wasted work.</p></div>
+      <div><span class="q">How</span><p>Pessimistic: hold the row lock from read to write, others queue. Optimistic: write only <span class="mono">WHERE version = v</span>, retry on failure. Lease: <span class="mono">SET NX PX</span>, release with compare-and-delete. Fencing: every grant gets a larger number, and the store refuses any request carrying a number below the largest it has seen.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> a lock outside the data can only make collisions rare. Making them impossible takes a check at the data: a row lock, a version, a constraint or a token.</p>
+      <p><b>Where the consensus comes in:</b> a lock service that must stay correct when its own servers fail is a replicated state machine. ZooKeeper and etcd keep the lock table on a majority of nodes, the same idea as <a href="raft.html">Raft</a> and <a href="quorum.html">quorums</a>. A single Redis node is fast, but if it fails over to a replica that missed the last write, two clients can hold the "same" lock.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>In mode 1, set the pause to 0. Both buyers still sell the seat: B reads before A writes, so the window is the 40 ms of work, not the pause. With 5 buyers and 1 seat, all 5 buy.</li>
+        <li>Mode 2 is always correct, but look at the waiting time. With 5 buyers and a 150 ms pause, B to E each sit 200 ms behind A's frozen transaction (800 ms of waiting in total) just to learn the seat is gone. In mode 3 they all know by 110 ms.</li>
+        <li>Mode 3 never waits. The losers find out at write time that the version moved, retry, read 0 seats and stop. Under heavy contention for a single row, retries pile up, which is why hot rows often use a lock or a queue instead.</li>
+        <li>In mode 4, drag the pause down. At 30 ms or less, A writes inside its 100 ms lease. From 40 to 60 ms A's write is already unsafe (the counter says so) but lands before B reads, so the count comes out right by luck. From 70 ms on, the seat is sold twice. Raise the TTL to 300 ms and the 150 ms pause is harmless again: a longer lease only moves the cliff.</li>
+        <li>Mode 5, with tokens checked on reads, never oversells for any pause or TTL. The stale write shows up as "rejected" instead of as a second sale. Set the TTL to 40 ms (shorter than the 60 ms a buyer needs from lock to write) and the pause to 20 ms: it stays safe but thrashes. Each holder's lease expires before it can write, the store rejects 7 stale requests, and one buyer gives up.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>First, avoid the distributed lock.</b> If the data lives in one database, use it: <span class="mono">UPDATE seats SET status = 'held' WHERE id = ? AND status = 'available'</span> and check the row count, or a version column, or a unique constraint on (event, seat). That is one atomic step and needs no extra service. The <a href="../questions/ticketmaster.html#contention">Ticketmaster design</a> does seat holds this way or with a Redis key that expires.</p>
+        <p><b>Pessimistic or optimistic?</b> Locks suit high contention and long critical sections you can't redo; version checks suit low contention, short work and reads that vastly outnumber writes. Never hold a database lock across a slow external call such as a payment.</p>
+        <p><b>Efficiency or correctness?</b> If running twice only wastes work (sending a report, rebuilding a cache), a single Redis <span class="mono">SET NX PX</span> is fine. If running twice corrupts data, the lock alone is not enough.</p>
+        <p><b>Lease vs correctness:</b> the TTL must be longer than the work, and nothing bounds a GC pause, a swapped-out page or a stalled network. Say this out loud, then add fencing tokens checked by the resource, or make the write itself conditional.</p>
+        <p><b>Which lock service?</b> ZooKeeper or etcd (consensus, sessions, monotonic revision numbers usable as tokens) for correctness; Redis for speed when an occasional overlap is acceptable. Expect a question on what happens when the lock server fails over.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const NAMES = "ABCDE";
+  // durations in ms (the model's clock)
+  const T = { lock: 5, read: 10, work: 40, write: 10, poll: 20, gap: 10 };
+  const FIRST_TOKEN = 33, MAX_TRIES = 4;
+  const MODES = {
+    none:  { label: "No coordination", short: "1 · none", note: "Each buyer reads the seat count, charges the card, then writes count − 1. Nothing stops two buyers from reading the same count." },
+    pess:  { label: "Row lock", short: "2 · row lock", note: "Pessimistic: a buyer locks the row (SELECT … FOR UPDATE) before reading and holds it until its write commits. Everyone else queues. The database releases the lock if the connection dies, so there is no lease." },
+    opt:   { label: "Version check", short: "3 · version", note: "Optimistic: read the count with its version, then UPDATE … WHERE version = v. If someone wrote first, the update matches 0 rows and the buyer starts over." },
+    lease: { label: "Lease lock", short: "4 · lease", note: "A separate lock service (SET key NX PX ttl): take the lock, read, work, write, release. The lock deletes itself after the TTL so a crashed buyer cannot hold it forever." },
+    fence: { label: "Lease + fencing", short: "5 · fencing", note: "Same lease, but each grant carries a token that only grows (33, 34, …). Every read and write sends it, and the store rejects any token older than the newest it has seen." }
+  };
+
+  // ---------- the model: millisecond ticks, clients as state machines ----------
+  function simulate(p) {
+    const mode = p.mode, leased = mode === "lease" || mode === "fence";
+    const store = { seats: p.seats, ver: 1, maxTok: 0 };
+    const lock = { holder: null, token: 0, exp: 0, seg: null };   // lease service or DB row lock
+    const queue = [];                                             // FIFO for the row lock
+    let nextTok = FIRST_TOKEN;
+    const segs = [], lockSegs = [], storeMarks = [], events = [];
+    const st = { sold: 0, over: 0, retries: 0, rejected: 0, unsafe: 0, wait: 0, gaveUp: 0, left: p.seats };
+    const C = Array.from({ length: p.n }, (_, i) => ({ i, name: NAMES[i], phase: "arrive", until: i * T.gap, t0: 0, waitFrom: null, paused: false, done: false, result: "", snap: 0, ver: 0, tok: 0 }));
+
+    const log = (t, text, cls = "") => { st.left = store.seats; events.push({ t, text, cls, st: { ...st } }); };
+    const begin = (c, t, phase, dur, kind) => {
+      c.phase = phase; c.until = t + dur;
+      if (kind) { c.seg = { lane: c.i, kind, t0: t, t1: t + dur, who: c.name }; segs.push(c.seg); }
+    };
+    const finish = (c, t, result) => { c.done = true; c.result = result; c.end = t; };
+    const sale = (c, t, unsafe) => {
+      store.seats = c.snap - 1; st.sold++; st.over = Math.max(0, st.sold - p.seats);
+      const bad = st.sold > p.seats || unsafe;
+      c.seg.kind = bad ? "writeBad" : "write";
+      storeMarks.push({ t, text: String(store.seats), cls: bad ? "bad" : "ok" });
+      return bad;
+    };
+    // --- lock helpers ---
+    const grant = (c, t) => {
+      if (c.waitFrom !== null) { st.wait += t - c.waitFrom; segs.push({ lane: c.i, kind: "wait", t0: c.waitFrom, t1: t }); c.waitFrom = null; }
+      lock.holder = c; lock.token = leased ? nextTok++ : 0; lock.exp = leased ? t + p.ttl : Infinity; c.tok = lock.token;
+      lock.seg = { t0: t, t1: null, who: c.name, tok: lock.token, how: "" }; lockSegs.push(lock.seg);
+    };
+    const free = (t, how) => { if (lock.seg) { lock.seg.t1 = t; lock.seg.how = how; } lock.holder = null; lock.seg = null; };
+    const releaseRow = (c, t) => {
+      free(t, "released");
+      const nx = queue.shift();
+      if (nx) { const w = t - nx.waitFrom; grant(nx, t); log(t, `${nx.name} gets the row lock after waiting ${w} ms.`); begin(nx, t, "read", T.read, "read"); }
+    };
+
+    function step(c, t) {
+      switch (c.phase) {
+        case "arrive":
+          if (mode === "pess") return begin(c, t, "lockreq", T.lock, "lock");
+          if (leased) return begin(c, t, "acq", T.lock, "lock");
+          return begin(c, t, "read", T.read, "read");
+
+        case "lockreq":   // pessimistic: SELECT ... FOR UPDATE
+          if (!lock.holder) { grant(c, t); log(t, `${c.name} locks the row (SELECT … FOR UPDATE).`); return begin(c, t, "read", T.read, "read"); }
+          queue.push(c); c.waitFrom = t; c.phase = "queued"; c.until = Infinity;
+          log(t, `${c.name} blocks: ${lock.holder.name} holds the row lock.`);
+          return;
+
+        case "acq":       // lease: SET lock NX PX ttl
+          if (!lock.holder) {
+            grant(c, t);
+            log(t, `${c.name} gets the lease${mode === "fence" ? ` with token ${c.tok}` : ""}, valid until ${lock.exp} ms.`);
+            return begin(c, t, "read", T.read, "read");
+          }
+          if (c.waitFrom === null) { c.waitFrom = t - T.lock; log(t, `${c.name} is refused (${lock.holder.name} holds the lease) and polls every ${T.poll} ms.`); }
+          return begin(c, t, "acq", T.poll + T.lock);
+
+        case "read": {
+          if (mode === "fence" && p.checkReads) {
+            if (c.tok < store.maxTok) { return stale(c, t, "read"); }
+            store.maxTok = Math.max(store.maxTok, c.tok);
+          }
+          c.snap = store.seats; c.ver = store.ver;
+          const extra = mode === "opt" ? ` (version ${c.ver})` : mode === "fence" && p.checkReads ? ` (store's newest token: ${store.maxTok})` : "";
+          if (c.snap <= 0) {
+            log(t, `${c.name} reads 0 seats${extra}: sold out.`);
+            if (mode === "pess") { finish(c, t, "sold out"); releaseRow(c, t); return; }
+            if (leased) return begin(c, t, "rel", T.lock, "lock");
+            return finish(c, t, "sold out");
+          }
+          log(t, `${c.name} reads ${c.snap} seat${c.snap > 1 ? "s" : ""} left${extra}.`);
+          return begin(c, t, "work", T.work, "work");
+        }
+
+        case "work":
+          if (c.i === 0 && !c.paused && p.pause > 0) {
+            c.paused = true;
+            log(t, `${c.name} freezes for ${p.pause} ms (stop-the-world GC pause).`, "bad");
+            return begin(c, t, "pause", p.pause, "pause");
+          }
+          return begin(c, t, "write", T.write, "writeing");
+
+        case "pause":
+          if (leased && lock.holder !== c) log(t, `${c.name} wakes up. Its lease ended at ${c.tok ? lockSegs.find(s => s.tok === c.tok).t1 : "?"} ms, but it still thinks it holds the lock.`, "bad");
+          else log(t, `${c.name} wakes up and carries on.`);
+          return begin(c, t, "write", T.write, "writeing");
+
+        case "write": {
+          if (mode === "opt") {
+            if (store.ver !== c.ver) {
+              st.retries++; c.seg.kind = "rejected";
+              storeMarks.push({ t, text: "✕", cls: "bad" });
+              log(t, `${c.name}'s UPDATE … WHERE version = ${c.ver} matches 0 rows (version is now ${store.ver}). Retry.`);
+              return begin(c, t, "read", T.read, "read");
+            }
+            store.ver++;
+            const bad = sale(c, t);
+            log(t, `${c.name} writes ${store.seats} left, version ${store.ver}: sold.`, bad ? "bad" : "good");
+            return finish(c, t, "bought");
+          }
+          if (mode === "fence") {
+            if (c.tok < store.maxTok) return stale(c, t, "write");
+            store.maxTok = c.tok;
+          }
+          const lost = store.seats !== c.snap;
+          const unsafe = leased && lock.holder !== c;
+          if (unsafe) st.unsafe++;
+          const prev = store.seats;
+          const bad = sale(c, t, unsafe && mode === "lease");
+          log(t, `${c.name} writes ${store.seats} left${mode === "fence" ? ` with token ${c.tok}` : ""}: sold.` +
+            (lost ? ` But the count was already ${prev}: ${c.name} overwrote another sale (a lost update).` : "") +
+            (unsafe ? (mode === "lease" ? ` Unsafe: ${c.name}'s lease had expired.` : ` Its lease had expired, but nobody holds a newer token, so the store's check still passes safely.`) : ""), bad ? "bad" : "good");
+          if (mode === "pess") { finish(c, t, "bought"); releaseRow(c, t); return; }
+          if (leased) { c.result = "bought"; return begin(c, t, "rel", T.lock, "lock"); }
+          return finish(c, t, "bought");
+        }
+
+        case "rel":
+          if (lock.holder === c && lock.token === c.tok) { free(t, "released"); log(t, `${c.name} releases the lock (delete only if the value is still ${c.name}).`); }
+          else log(t, `${c.name}'s release does nothing: the key is no longer ${c.name}'s, so compare-and-delete leaves it alone.`);
+          return finish(c, t, c.result || "sold out");
+      }
+    }
+    function stale(c, t, what) {
+      st.rejected++; st.retries++;
+      c.seg.kind = "rejected";
+      storeMarks.push({ t, text: "✕" + c.tok, cls: "bad" });
+      c.tries = (c.tries || 0) + 1;
+      if (c.tries >= MAX_TRIES) {
+        st.gaveUp++;
+        log(t, `Store rejects ${c.name}'s ${what}: token ${c.tok} < ${store.maxTok}. ${c.name} gives up after ${MAX_TRIES} stale tokens: the ${p.ttl} ms lease is shorter than read + work + write (${T.read + T.work + T.write} ms), so each holder's lease runs out before it can write.`, "bad");
+        return finish(c, t, "gave up");
+      }
+      log(t, `Store rejects ${c.name}'s ${what}: token ${c.tok} < ${store.maxTok}. ${c.name} has lost the lock and starts over.`, "good");
+      c.waitFrom = null;
+      return begin(c, t, "acq", T.lock, "lock");
+    }
+
+    log(0, `${p.n} buyers, ${p.seats} seat${p.seats > 1 ? "s" : ""} left.`);
+    let t = 0;
+    for (; t < 20000; t++) {
+      if (leased && lock.holder && t >= lock.exp) {
+        const h = lock.holder; free(lock.exp, "expired");
+        log(t, `Lease for ${h.name}${mode === "fence" ? ` (token ${h.tok})` : ""} expires. ${h.name} is ${h.phase === "pause" ? "frozen" : "still working"} and doesn't know.`, h.phase === "pause" ? "bad" : "");
+      }
+      for (const c of C) if (!c.done && t >= c.until) step(c, t);
+      if (C.every(c => c.done)) break;
+    }
+    const end = Math.max(...C.map(c => c.end || 0));
+    lockSegs.forEach(s => { if (s.t1 === null) s.t1 = end; });
+    return { p, segs, lockSegs, storeMarks, events, end, clients: C, st };
+  }
+
+  // ---------- page state ----------
+  let mode = "none", run, now = 0, playing = false;
+  const params = () => ({ mode, n: +$("n").value, seats: +$("seats").value, pause: +$("pause").value, ttl: +$("ttl").value, checkReads: $("reads").checked });
+  function rebuild(keepEnd = true) {
+    run = simulate(params());
+    $("cursor").max = run.end;
+    now = keepEnd ? run.end : 0;
+    renderTable();
+    render();
+  }
+  const statAt = t => { let s = run.events[0].st; for (const e of run.events) { if (e.t <= t) s = e.st; else break; } return s; };
+
+  // ---------- drawing ----------
+  const KIND = {
+    lock:      { fill: "var(--paper)",       stroke: "var(--muted)" },
+    wait:      { fill: "var(--amber-soft)",  stroke: "var(--amber)", dash: "3 2" },
+    read:      { fill: "var(--accent)",      stroke: "var(--accent)" },
+    work:      { fill: "var(--accent-soft)", stroke: "var(--accent)" },
+    pause:     { fill: "var(--panel)",       stroke: "var(--bad)", dash: "4 3" },
+    writeing:  { fill: "var(--ok)",          stroke: "var(--ok)" },
+    write:     { fill: "var(--ok)",          stroke: "var(--ok)" },
+    writeBad:  { fill: "var(--bad)",         stroke: "var(--bad)" },
+    rejected:  { fill: "var(--panel)",       stroke: "var(--bad)" }
+  };
+  function render() {
+    const svg = $("race"), narrow = (svg.clientWidth || 640) < 520;
+    const W = narrow ? 360 : 640, x0 = narrow ? 60 : 68, x1 = W - 12, p = run.p;
+    const span = Math.max(run.end, 50) + 10, X = t => x0 + (t / span) * (x1 - x0);
+    const leased = p.mode === "lease" || p.mode === "fence", hasLock = leased || p.mode === "pess";
+    const lane = 30, fs = 12;
+    let s = "", y = 4;
+    // axis
+    const stepT = span > 400 ? 100 : 50;
+    for (let t = 0; t <= span; t += stepT) {
+      s += `<line x1="${X(t)}" y1="${y + 14}" x2="${X(t)}" y2="1000" stroke="var(--grid)" stroke-width="1"/>`;
+      s += `<text x="${X(t)}" y="${y + 10}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">${t}${t === 0 ? " ms" : ""}</text>`;
+    }
+    y += 18;
+    const rowLabel = (txt, sub, yy, col = "var(--ink)") => {
+      s += `<text x="6" y="${yy + 13}" font-family="var(--mono)" font-size="${fs}" font-weight="600" fill="${col}">${txt}</text>`;
+      if (sub) s += `<text x="6" y="${yy + 25}" font-family="var(--mono)" font-size="10" fill="var(--muted)">${sub}</text>`;
+    };
+    const fade = (t0) => t0 > now ? ' opacity="0.22"' : "";
+    // lock lane
+    if (hasLock) {
+      rowLabel(leased ? "Lock" : "Row", leased ? "lease" : "lock", y, "var(--muted)");
+      s += `<line x1="${x0}" y1="${y + lane - 4}" x2="${x1}" y2="${y + lane - 4}" stroke="var(--line)"/>`;
+      run.lockSegs.forEach(L => {
+        const a = X(L.t0), b = X(L.t1), w = Math.max(2, b - a);
+        s += `<g${fade(L.t0)}><rect x="${a}" y="${y + 3}" width="${w}" height="${lane - 10}" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.2"/>`;
+        let lab = leased && p.mode === "fence" ? `${L.who} #${L.tok}` : L.who;
+        if (L.how === "expired" && w > (lab.length + 10) * 7 + 6) lab += " · expired";
+        if (w > lab.length * 7 + 6) s += `<text x="${a + 5}" y="${y + 17}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--accent)">${lab}</text>`;
+        else if (w > 10) s += `<text x="${a + 3}" y="${y + 17}" font-family="var(--mono)" font-size="10" font-weight="600" fill="var(--accent)">${L.who}</text>`;
+        if (L.how === "expired") s += `<path d="M${b} ${y} v${lane - 4}" stroke="var(--bad)" stroke-width="2.4"/>`;
+        s += `</g>`;
+      });
+      y += lane + 2;
+    }
+    // buyer lanes
+    run.clients.forEach(c => {
+      const res = c.result === "bought" ? "bought" : c.result;
+      const shown = c.end <= now;
+      rowLabel(c.name, shown ? res : "", y, c.i === 0 && p.pause > 0 ? "var(--ink)" : "var(--ink)");
+      s += `<line x1="${x0}" y1="${y + 14}" x2="${x1}" y2="${y + 14}" stroke="var(--line)" stroke-dasharray="2 3"/>`;
+      run.segs.filter(g => g.lane === c.i).forEach(g => {
+        const k = KIND[g.kind] || KIND.lock, a = X(g.t0), w = Math.max(2.5, X(g.t1) - a);
+        const h = g.kind === "lock" ? 10 : 20, yy = y + 14 - h / 2;
+        s += `<g${fade(g.t0)}><rect x="${a}" y="${yy}" width="${w}" height="${h}" rx="2" fill="${k.fill}" stroke="${k.stroke}" stroke-width="1.4"${k.dash ? ` stroke-dasharray="${k.dash}"` : ""}/>`;
+        if (g.kind === "pause" && w > 52) s += `<text x="${a + w / 2}" y="${y + 18}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="600" fill="var(--bad)">${w > 80 ? "GC pause" : "pause"}</text>`;
+        if (g.kind === "wait" && w > 40) s += `<text x="${a + w / 2}" y="${y + 18}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="var(--amber)">wait</text>`;
+        if (g.kind === "rejected") s += `<path d="M${a + 1} ${yy + 2} l${w - 2} ${h - 4} m0 ${-(h - 4)} l${-(w - 2)} ${h - 4}" stroke="var(--bad)" stroke-width="1.6"/>`;
+        s += `</g>`;
+      });
+      y += lane;
+    });
+    // store lane
+    y += 2;
+    rowLabel("Store", "seats", y, "var(--muted)");
+    s += `<line x1="${x0}" y1="${y + 14}" x2="${x1}" y2="${y + 14}" stroke="var(--line)"/>`;
+    s += `<text x="${x0 + 2}" y="${y + 11}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--ink)">${p.seats}</text>`;
+    let lastX = -99, row = 0;
+    run.storeMarks.forEach(m => {
+      const x = X(m.t);
+      row = x - lastX < 22 ? (row + 1) % 2 : 0; lastX = x;
+      s += `<g${fade(m.t)}><circle cx="${x}" cy="${y + 14}" r="3.2" fill="${m.cls === "bad" ? "var(--bad)" : "var(--ok)"}"/>`;
+      s += `<text x="${x}" y="${y + (row ? 32 : 9)}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="600" fill="${m.cls === "bad" ? "var(--bad)" : "var(--ok)"}">${m.text}</text></g>`;
+    });
+    y += 36;
+    // cursor
+    s += `<line x1="${X(now)}" y1="18" x2="${X(now)}" y2="${y - 4}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    s += `<path d="M${X(now) - 4} 16 h8 l-4 5 z" fill="var(--ink)"/>`;
+    svg.setAttribute("viewBox", `0 0 ${W} ${y}`);
+    svg.innerHTML = s;
+
+    // labels, stats, verdict, feed
+    $("cfgLabel").textContent = `${MODES[p.mode].label} · ${p.n} buyers · ${p.seats} seat${p.seats > 1 ? "s" : ""}`;
+    $("clock").textContent = `t = ${Math.round(now)} ms of ${run.end}`;
+    $("cursorOut").textContent = `${Math.round(now)} ms`;
+    $("cursor").value = now;
+    $("nOut").textContent = p.n; $("seatsOut").textContent = p.seats;
+    $("pauseOut").textContent = p.pause + " ms"; $("ttlOut").textContent = p.ttl + " ms";
+    $("modeNote").textContent = MODES[p.mode].note;
+    $("readsRow").classList.toggle("off", p.mode !== "fence");
+    $("reads").disabled = p.mode !== "fence";
+    document.querySelectorAll("#modes button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === p.mode));
+    const st = statAt(now);
+    $("sold").textContent = st.sold; $("soldSub").textContent = `of ${p.seats} seat${p.seats > 1 ? "s" : ""}`;
+    $("over").textContent = st.over;
+    $("overBox").className = st.over ? "badv" : "okv";
+    $("left").textContent = st.left;
+    $("retries").textContent = st.retries;
+    $("rejected").textContent = st.rejected;
+    $("unsafe").textContent = st.unsafe;
+    $("gaveUp").textContent = st.gaveUp;
+    $("wait").textContent = st.wait + " ms";
+    $("finish").textContent = now >= run.end ? run.end + " ms" : "running";
+    $("play").textContent = playing ? "Pause" : now >= run.end ? "Replay" : "Play";
+
+    const v = $("verdict"), F = run.st, done = now >= run.end;
+    if (!done) { v.className = "verdict-box warn"; v.innerHTML = `<b>Running: ${st.sold} sold so far.</b><p>Press Play or step through the events. Faded bars haven't happened yet.</p>`; }
+    else if (F.over) {
+      v.className = "verdict-box bad";
+      v.innerHTML = `<b>Oversold: ${F.sold} tickets for ${p.seats} seat${p.seats > 1 ? "s" : ""}.</b><p>${p.mode === "none" ? "Two buyers read the same count before either wrote. Each wrote count − 1, so one write erased the other (a lost update)." : `${F.unsafe} write${F.unsafe > 1 ? "s" : ""} came from a buyer whose lease had already expired. The lock service handed the lock to someone else, and nothing at the store noticed.`}</p>`;
+    } else {
+      const how = { pess: `Correct, at the cost of ${F.wait} ms of waiting in total.`, opt: `Correct with no waiting; ${F.retries} write${F.retries === 1 ? "" : "s"} lost the version check and retried.`, lease: F.wait ? `Correct this time: every buyer finished inside its ${p.ttl} ms lease. Raise the pause past the lease to break it.` : "Correct this time.", fence: F.rejected ? `Correct: ${F.rejected} stale request${F.rejected > 1 ? "s were" : " was"} rejected by the store.` : "Correct: no stale requests reached the store.", none: "Correct only because the buyers never overlapped." }[p.mode];
+      if (F.gaveUp) { v.className = "verdict-box warn"; v.innerHTML = `<b>Safe but stuck: ${F.sold} sold, ${F.gaveUp} buyer${F.gaveUp > 1 ? "s" : ""} gave up.</b><p>Nothing was oversold, but the ${p.ttl} ms lease is shorter than the ${T.read + T.work + T.write} ms a buyer needs between taking the lock and writing, so each holder's lease expires first and the store rejects its write. Fencing keeps you safe; it can't make a too-short lease useful. Raise the TTL.</p>`; return renderFeed(); }
+      v.className = "verdict-box ok";
+      v.innerHTML = `<b>${F.sold} sold for ${p.seats} seat${p.seats > 1 ? "s" : ""}. Nothing oversold.</b><p>${how}</p>`;
+    }
+    renderFeed();
+  }
+  function renderFeed() {
+    const past = run.events.filter(e => e.t <= now);
+    $("feed").innerHTML = past.slice().reverse().map((e, i) => `<li class="${e.cls}${i === 0 ? " now" : ""}"><time>${e.t} ms</time><span>${e.text}</span></li>`).join("");
+  }
+
+  function renderTable() {
+    const p = params();
+    let h = `<table class="data"><thead><tr><th>Mode</th><th>Sold</th><th>Over</th><th>Retries</th><th>Wait</th><th>Done at</th></tr></thead><tbody>`;
+    const rows = Object.keys(MODES).map(m => ({ m, r: simulate({ ...p, mode: m }) }));
+    rows.forEach(({ m, r }) => {
+      h += `<tr class="clk${m === mode ? " cur" : ""}" data-mode="${m}"><td class="mono">${MODES[m].short}</td><td class="mono">${r.st.sold}</td><td class="mono ${r.st.over ? "warn" : "okc"}">${r.st.over}</td><td class="mono">${r.st.retries}</td><td class="mono">${r.st.wait} ms</td><td class="mono">${r.end} ms</td></tr>`;
+    });
+    $("table").innerHTML = h + "</tbody></table>";
+    const bad = rows.filter(x => x.r.st.over).map(x => MODES[x.m].short);
+    $("tableNote").textContent = bad.length ? `Oversold with these settings: ${bad.join(", ")}. The modes that check at the data (row lock, version, fencing) stay correct whatever the pause.` : `Nothing oversold with these settings. Raise the pause or the number of buyers to make the unsafe modes fail.`;
+  }
+
+  // ---------- playback ----------
+  let last = 0;
+  function frame(ts) {
+    if (!playing) return;
+    const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
+    now = Math.min(run.end, now + dt * Math.max(60, run.end / 4));   // a whole run takes about 4 s
+    if (now >= run.end) playing = false;
+    render();
+    if (playing) requestAnimationFrame(frame);
+  }
+  $("play").onclick = () => {
+    if (playing) { playing = false; render(); return; }
+    if (now >= run.end) now = 0;
+    playing = true; last = 0; requestAnimationFrame(frame);
+  };
+  const times = () => [...new Set(run.events.map(e => e.t))];
+  $("next").onclick = () => { playing = false; const t = times().find(x => x > now); now = t === undefined ? run.end : t; render(); };
+  $("prev").onclick = () => { playing = false; const t = times().filter(x => x < now).pop(); now = t === undefined ? 0 : t; render(); };
+  $("restart").onclick = () => { playing = false; now = 0; render(); };
+  $("cursor").oninput = e => { playing = false; now = +e.target.value; render(); };
+  $("modes").onclick = e => { const b = e.target.closest("[data-mode]"); if (!b) return; mode = b.dataset.mode; playing = false; rebuild(); };
+  $("table").onclick = e => { const r = e.target.closest("[data-mode]"); if (!r) return; mode = r.dataset.mode; playing = false; rebuild(); };
+  ["n", "seats", "pause", "ttl"].forEach(id => $(id).oninput = () => { playing = false; rebuild(); });
+  $("reads").onchange = () => { playing = false; rebuild(); };
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 100); });
+
+  rebuild();
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

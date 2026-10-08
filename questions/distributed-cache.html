@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a Distributed Cache</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  #arch { width: 100%; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .board { display: grid; gap: 6px; margin-top: 10px; }
+  .nodeline { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .nodeline .t { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .nodeline.hot { border-color: var(--bad); }
+  .nodeline.hot .t { color: var(--bad); }
+  .nodeline.down { border-style: dashed; border-color: var(--bad); color: var(--muted); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .wctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 24px; align-items: end; }
+  .wctl .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chart { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  #lruSvg { max-width: 620px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 14px; font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .keys i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .tin { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; }
+  .tin:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .lrulog { margin: 0; font: 500 13px/1.5 var(--mono); color: var(--muted); }
+  .lrulog b { color: var(--ink); }
+  .formula { font: 500 13px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; white-space: pre; margin: 0; }
+  ul.dn { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+  table.data td.y { color: var(--ok); font-weight: 600; }
+  table.data td.n { color: var(--bad); font-weight: 600; }
+  table.data td.a { color: var(--amber); font-weight: 600; }
+  table.data tr.cur td { background: var(--accent-soft); }
+  table.wrapcells td { white-space: normal; min-width: 120px; vertical-align: top; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="distributed-cache" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a Distributed Cache</h1>
+    <p class="lede">Build a fast key-value store that sits in front of a slower database: <span class="mono">get</span>, <span class="mono">set</span> and <span class="mono">delete</span>, with keys that expire. One machine with a hash map does this in a few lines. The design question is what happens when the data no longer fits in one machine's memory, the traffic no longer fits in one machine's CPU, machines die, and a few keys are far more popular than all the rest.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope it to a cache, not a database. Losing an entry is allowed: the database behind it still has the truth, so a lost entry costs one slower read, not lost data.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: clients should be able to</h3>
+        <ul>
+          <li><span class="mono">get(key)</span>: return the value, or say it is a miss.</li>
+          <li><span class="mono">set(key, value, ttl)</span>: store a value, optionally with a time to live.</li>
+          <li><span class="mono">delete(key)</span>: remove a key, usually because the database row changed.</li>
+          <li>Have keys disappear on their own when their TTL runs out, and have the least useful keys evicted when memory is full.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Hold about 1 TB of cached data, far more than one machine's memory.</li>
+          <li>Serve 1M+ operations a second at peak, mostly reads.</li>
+          <li>Answer in well under a millisecond typically and a few milliseconds at p99.</li>
+          <li>Stay available when a node dies: some extra misses are fine, an outage is not.</li>
+          <li>Accept eventual consistency: a value may be stale for a short, bounded time.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> a cache is worth having only because memory is about a thousand times faster than a database round trip that touches disk, and because traffic is skewed: a small share of keys gets most of the reads. Every design choice below either keeps more of the useful keys in memory, or keeps each request on a single fast hop.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>Cache entry</h3><code>key, value (bytes)
+expires_at (or none)
+prev, next (LRU links)
+size</code></div>
+      <div class="entity"><h3>Node</h3><code>node_id, address
+role: primary | replica
+shard_id
+memory_used, memory_limit</code></div>
+      <div class="entity"><h3>Shard</h3><code>shard_id
+primary node, replica nodes
+ring positions (virtual nodes)</code></div>
+      <div class="entity"><h3>Cluster map</h3><code>version
+ring: hash → shard
+shard → nodes
+(held by a config service,
+ cached by every client)</code></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+<pre class="api"><span class="verb">GET</span>    /cache/{key}                  → 200 value | 404 miss
+<span class="verb">PUT</span>    /cache/{key}?ttl=60   body    → 200
+<span class="verb">DELETE</span> /cache/{key}                  → 200
+<span class="verb">POST</span>   /cache/mget  { keys: [...] }   → { key: value | null }
+
+<span class="c">// on the wire: a compact protocol over long-lived TCP connections</span>
+<span class="c">// get k  ·  set k ttl v  ·  delete k  ·  mget k1 k2 ...</span></pre>
+    <div class="aside"><p><b>Why not plain HTTP in practice?</b> At a million operations a second with sub-millisecond targets, parsing headers and opening connections costs more than the lookup itself. Real caches use a small text or binary protocol over pooled TCP connections, and a batch call (<span class="mono">mget</span>) so a page that needs 50 keys pays for one round trip per node, not 50.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="13m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker" id="hldKicker"></p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="send">Send 1 s of traffic</button>
+          <button id="hot">A key goes viral</button>
+          <button id="kill">Kill a node</button>
+          <button id="reset">Reset</button>
+        </div>
+        <svg id="arch" viewBox="0 0 610 400" role="img" aria-label="Cache cluster architecture with animated requests"></svg>
+        <div class="cost" id="cost"></div>
+        <p class="note" id="simNote" aria-live="polite"></p>
+        <div class="board" id="board"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="eviction" data-nav="Deep dive: eviction and TTL" data-num="5a" data-time="3m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: eviction and expiry inside one node</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Each node is a hash map plus a doubly linked list. The map finds an entry in O(1); the list keeps entries in order of last use, so the least recently used one is always at the tail. A hit unlinks the entry and puts it at the head; an insert into a full cache drops the tail. Both are a handful of pointer changes.</p>
+    <div class="wctl">
+      <label class="field" for="lseq"><span class="row"><span>Requests (each is a get; a miss loads and inserts)</span></span><input class="tin" id="lseq" value="A B C A D B E A C F A" spellcheck="false"></label>
+      <label class="field" for="lcap"><span class="row"><span>Capacity</span><b class="mono num" id="lcapOut"></b></span><input type="range" id="lcap" min="2" max="6" step="1" value="3"></label>
+      <div class="btns"><button class="primary" id="lstep">Step</button><button id="lall">Run all</button><button id="lreset">Reset</button></div>
+    </div>
+    <svg class="chart" id="lruSvg" viewBox="0 0 384 230" role="img" aria-label="Hash map and linked list of an LRU cache"></svg>
+    <p class="lrulog" id="lruLog" aria-live="polite"></p>
+
+    <h3 style="margin-top:6px">Expiry: lazy deletes plus active sampling</h3>
+    <p>A TTL cannot be enforced by a timer per key: a node holds hundreds of millions of keys. Two cheap rules do the job together. <b>Lazy:</b> when a read finds an expired key, delete it and report a miss, so no client ever sees an expired value. <b>Active:</b> about 10 times a second, sample a few keys that have a TTL, delete the expired ones, and sample again straight away if more than a set share of the sample had expired. Redis has documented a loop like this: sample 20 keys, repeat if more than 25% had expired. Lazy alone is correct but leaks memory: keys nobody reads again stay forever. The simulation below runs both for 60 seconds.</p>
+    <div class="modes" id="tmodes" role="group" aria-label="Expiry strategy"></div>
+    <div class="wctl">
+      <label class="field" for="trate"><span class="row"><span>New keys per second (TTL 5–15 s)</span><b class="mono num" id="trateOut"></b></span><input type="range" id="trate" min="500" max="5000" step="500" value="2000"></label>
+      <label class="field" for="tsamp"><span class="row"><span>Keys sampled per round</span><b class="mono num" id="tsampOut"></b></span><input type="range" id="tsamp" min="5" max="40" step="1" value="20"></label>
+      <label class="field" for="tthr"><span class="row"><span>Sample again if expired share is above</span><b class="mono num" id="tthrOut"></b></span><input type="range" id="tthr" min="0.05" max="0.6" step="0.05" value="0.25"></label>
+    </div>
+    <svg class="chart" id="ttlChart" viewBox="0 0 720 220" role="img" aria-label="Live and expired keys in memory over time"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>live keys</span><span><i style="background:var(--bad)"></i>expired keys still using memory</span></div>
+    <div class="results" id="ttlResults"></div>
+    <ul class="dn" id="ttlNotes"></ul>
+  </section>
+
+  <section class="panel article" id="sharding" data-nav="Deep dive: sharding" data-num="5b" data-time="3m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: how many shards, and what moves when you add one</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">The number of shards is set by whichever runs out first: memory or operations per second. Then the question is how keys find their shard, and how many have to move when the count changes.</p>
+    <div class="calc">
+      <label class="field" for="sdata"><span class="row"><span>Cached data</span><b class="mono num" id="sdataOut"></b></span><input type="range" id="sdata" min="-1" max="1" step="0.05" value="0"></label>
+      <label class="field" for="sval"><span class="row"><span>Average value size</span><b class="mono num" id="svalOut"></b></span><input type="range" id="sval" min="-1" max="1.5" step="0.05" value="0"></label>
+      <label class="field" for="sover"><span class="row"><span>Overhead per key (pointers, key, TTL)</span><b class="mono num" id="soverOut"></b></span><input type="range" id="sover" min="40" max="200" step="10" value="80"></label>
+      <label class="field" for="sram"><span class="row"><span>RAM per node</span><b class="mono num" id="sramOut"></b></span><input type="range" id="sram" min="16" max="512" step="16" value="64"></label>
+      <label class="field" for="sops"><span class="row"><span>Peak operations per second</span><b class="mono num" id="sopsOut"></b></span><input type="range" id="sops" min="5" max="7" step="0.1" value="6"></label>
+      <label class="field" for="snode"><span class="row"><span>Operations one node handles</span><b class="mono num" id="snodeOut"></b></span><input type="range" id="snode" min="4.5" max="6" step="0.1" value="5"></label>
+      <label class="field" for="srf"><span class="row"><span>Copies of each shard</span><b class="mono num" id="srfOut"></b></span><input type="range" id="srf" min="1" max="3" step="1" value="2"></label>
+    </div>
+    <div class="results" id="sizeResults"></div>
+    <pre class="formula" id="sizeFormula"></pre>
+
+    <h3 style="margin-top:6px">Adding a node: modulo hashing vs a consistent-hash ring</h3>
+    <p>With <span class="mono">shard = hash(key) mod N</span>, changing N changes the answer for almost every key, so almost the whole cache misses at once. On a ring, each node owns the arcs that end at its points, and a new node only takes over arcs from its neighbours. Below, 20,000 real keys are hashed onto a real ring, before and after adding one node.</p>
+    <div class="calc">
+      <label class="field" for="rn"><span class="row"><span>Nodes before</span><b class="mono num" id="rnOut"></b></span><input type="range" id="rn" min="2" max="30" step="1" value="10"></label>
+      <label class="field" for="rv"><span class="row"><span>Virtual nodes (points) per node</span><b class="mono num" id="rvOut"></b></span><input type="range" id="rv" min="0" max="8" step="1" value="7"></label>
+    </div>
+    <svg class="chart" id="ringChart" viewBox="0 0 720 200" role="img" aria-label="Keys per node after adding one node"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>keys a node kept</span><span><i style="background:var(--amber)"></i>keys that moved to the new node</span><span><i style="background:var(--muted)"></i>fair share</span></div>
+    <div class="results" id="ringResults"></div>
+    <ul class="dn" id="ringNotes"></ul>
+  </section>
+
+  <section class="panel article" id="replication" data-nav="Deep dive: replication" data-num="5c" data-time="3m">
+    <div class="step-head"><span class="step-num">5c</span><h2>Deep dive: replication and how stale is acceptable</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">A replica lets a shard survive its primary's death without a wave of misses, and can share read load. How many copies must confirm a write (W) and how many a read asks (R) decide the trade between latency, durability and staleness. All numbers below come from the formulas shown.</p>
+    <div class="calc">
+      <label class="field" for="pn"><span class="row"><span>Copies per shard (N)</span><b class="mono num" id="pnOut"></b></span><input type="range" id="pn" min="1" max="5" step="1" value="2"></label>
+      <label class="field" for="pw"><span class="row"><span>Copies that must ack a write (W)</span><b class="mono num" id="pwOut"></b></span><input type="range" id="pw" min="1" max="5" step="1" value="1"></label>
+      <label class="field" for="pr"><span class="row"><span>Copies a read asks (R)</span><b class="mono num" id="prOut"></b></span><input type="range" id="pr" min="1" max="5" step="1" value="1"></label>
+      <label class="field" for="plag"><span class="row"><span>Replication lag (async copies)</span><b class="mono num" id="plagOut"></b></span><input type="range" id="plag" min="0.5" max="100" step="0.5" value="5"></label>
+      <label class="field" for="pwr"><span class="row"><span>Writes per second on one shard</span><b class="mono num" id="pwrOut"></b></span><input type="range" id="pwr" min="100" max="50000" step="100" value="4000"></label>
+      <label class="field" for="prtt"><span class="row"><span>Round trip between nodes</span><b class="mono num" id="prttOut"></b></span><input type="range" id="prtt" min="0.1" max="2" step="0.05" value="0.5"></label>
+    </div>
+    <div class="results" id="repResults"></div>
+    <pre class="formula" id="repFormula"></pre>
+    <ul class="dn" id="repNotes"></ul>
+  </section>
+
+  <section class="panel article" id="hotkeys" data-nav="Deep dive: hot keys" data-num="5d" data-time="3m">
+    <div class="step-head"><span class="step-num">5d</span><h2>Deep dive: one key hotter than a whole node</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Sharding spreads keys, not requests. If one key gets a large share of all reads (a celebrity's profile, a breaking story), every one of those reads lands on the one shard that owns it. Pick a fix and move the sliders.</p>
+    <div class="modes" id="hmodes" role="group" aria-label="Hot key fix"></div>
+    <div class="calc">
+      <label class="field" for="hops"><span class="row"><span>Total reads per second</span><b class="mono num" id="hopsOut"></b></span><input type="range" id="hops" min="5" max="7" step="0.1" value="6"></label>
+      <label class="field" for="hshards"><span class="row"><span>Shards</span><b class="mono num" id="hshardsOut"></b></span><input type="range" id="hshards" min="4" max="50" step="1" value="20"></label>
+      <label class="field" for="hcap"><span class="row"><span>Reads one node handles</span><b class="mono num" id="hcapOut"></b></span><input type="range" id="hcap" min="4.5" max="6" step="0.1" value="5"></label>
+      <label class="field" for="hshare"><span class="row"><span>Hottest key's share of reads</span><b class="mono num" id="hshareOut"></b></span><input type="range" id="hshare" min="0.005" max="0.3" step="0.005" value="0.1"></label>
+      <label class="field" for="hcopies"><span class="row"><span>Copies of the hot key</span><b class="mono num" id="hcopiesOut"></b></span><input type="range" id="hcopies" min="2" max="16" step="1" value="4"></label>
+      <label class="field" for="happ"><span class="row"><span>App servers</span><b class="mono num" id="happOut"></b></span><input type="range" id="happ" min="10" max="2000" step="10" value="500"></label>
+      <label class="field" for="httl"><span class="row"><span>Near-cache TTL</span><b class="mono num" id="httlOut"></b></span><input type="range" id="httl" min="0.1" max="10" step="0.1" value="1"></label>
+    </div>
+    <svg class="chart" id="hotChart" viewBox="0 0 720 220" role="img" aria-label="Load on each shard"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>ordinary keys</span><span><i style="background:var(--bad)"></i>hot key's reads</span><span><i style="background:var(--amber)"></i>node capacity</span></div>
+    <div class="results" id="hotResults"></div>
+    <pre class="formula" id="hotFormula"></pre>
+    <ul class="dn" id="hotNotes"></ul>
+  </section>
+
+  <section class="panel article" id="stampede" data-nav="Deep dive: stampedes and writes" data-num="5e" data-time="3m">
+    <div class="step-head"><span class="step-num">5e</span><h2>Deep dive: stampedes, and how writes reach the cache</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">When a popular key expires, every request that arrives before someone puts it back is a miss, and with the usual cache-aside code every miss recomputes the value from the database. That is a stampede (or thundering herd). Below, requests arrive at random around the moment the key expires; the simulation counts how many reach the database.</p>
+    <div class="modes" id="smodes" role="group" aria-label="Stampede protection"></div>
+    <div class="calc">
+      <label class="field" for="sq"><span class="row"><span>Reads per second for this key</span><b class="mono num" id="sqOut"></b></span><input type="range" id="sq" min="2" max="4.7" step="0.1" value="3.7"></label>
+      <label class="field" for="st"><span class="row"><span>Time to recompute from the DB</span><b class="mono num" id="stOut"></b></span><input type="range" id="st" min="10" max="2000" step="10" value="200"></label>
+    </div>
+    <svg class="chart" id="stChart" viewBox="0 0 720 200" role="img" aria-label="Database queries over time around the expiry"></svg>
+    <div class="keys"><span><i style="background:var(--bad)"></i>recompute after the key expired</span><span><i style="background:var(--ok)"></i>early refresh, before expiry</span></div>
+    <div class="results" id="stResults"></div>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Protection</th><th>DB queries</th><th>Requests that waited</th><th>Longest wait</th></tr></thead>
+      <tbody id="stTable"></tbody>
+    </table></div>
+    <ul class="dn" id="stNotes"></ul>
+
+    <h3 style="margin-top:6px">Many keys expiring together: add jitter</h3>
+    <div class="calc">
+      <label class="field" for="jk"><span class="row"><span>Keys written in the same second</span><b class="mono num" id="jkOut"></b></span><input type="range" id="jk" min="3" max="7" step="0.1" value="6"></label>
+      <label class="field" for="jt"><span class="row"><span>TTL</span><b class="mono num" id="jtOut"></b></span><input type="range" id="jt" min="60" max="7200" step="60" value="3600"></label>
+      <label class="field" for="jj"><span class="row"><span>Random jitter on the TTL, ±</span><b class="mono num" id="jjOut"></b></span><input type="range" id="jj" min="0" max="0.3" step="0.01" value="0.1"></label>
+    </div>
+    <div class="results" id="jResults"></div>
+
+    <h3 style="margin-top:6px">Write strategies</h3>
+    <div class="table-wrap"><table class="data wrapcells">
+      <thead><tr><th>Strategy</th><th>On a write</th><th>Read right after</th><th>If the cache node dies</th><th>Fits when</th></tr></thead>
+      <tbody>
+        <tr><td><b>Cache-aside</b> (look-aside)</td><td>App writes the DB, then deletes the key</td><td>Miss, reloads fresh value</td><td>Nothing lost; extra misses</td><td>Default for read-heavy data</td></tr>
+        <tr><td><b>Write-through</b></td><td>Write goes to cache and DB together, ack after both</td><td>Hit, fresh</td><td>Nothing lost</td><td>Data read right after it is written</td></tr>
+        <tr><td><b>Write-back</b> (write-behind)</td><td>Write goes to cache only; flushed to DB later in batches</td><td>Hit, fresh</td><td class="n">Unflushed writes are lost</td><td>Counters, metrics: fast writes, loss tolerable</td></tr>
+        <tr><td><b>Write-around</b></td><td>Write goes to DB only; cache untouched until a read misses</td><td>May be stale until TTL</td><td>Nothing lost</td><td>Data written often, read rarely</td></tr>
+      </tbody>
+    </table></div>
+    <div class="aside"><p><b>Delete, don't update.</b> With cache-aside, deleting the key after a DB write is safer than setting the new value: a delete repeated or reordered gives the same result, while two racing sets can leave the older value in the cache. The remaining race (a slow reader puts back a value it read just before the write) is what Facebook's leases close: a miss hands out a token, and a delete cancels it, so the late set is refused.</p></div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One profile read, start to finish</h2>
+    <p class="kicker">Using the final design: clients that route with a cached ring, shards with a primary and an async replica, a config service that handles failover, and a near-cache for hot keys.</p>
+    <ol class="steps">
+      <li><div><h3>Route</h3><p>A web server needs <span class="mono">user:42:profile</span>. Its cache client hashes the key, finds the first ring point at or after the hash, and gets shard 17. The ring came from the config service at startup (version 812) and is refreshed when the service announces a change, so there is no proxy hop in the way.</p></div></li>
+      <li><div><h3>Miss</h3><p>The client sends <span class="mono">get</span> to shard 17's primary. The key isn't there (it was evicted from the tail of the LRU list last night), so the node asks for and gets a lease token along with the miss.</p></div></li>
+      <li><div><h3>Fill</h3><p>The web server reads the row from the database (8 ms), then sends <span class="mono">set user:42:profile ttl=3600±10% token=…</span>. The token is still valid, so the node stores the value at the head of its list and the primary streams the set to its replica a few milliseconds later.</p></div></li>
+      <li><div><h3>Write</h3><p>The user edits their bio. The profile service updates the database row, then sends <span class="mono">delete user:42:profile</span>. The next read misses and loads the new bio. Had a slow reader been about to put the old value back, its lease would now be invalid and its set refused.</p></div></li>
+      <li><div><h3>Failure</h3><p>Shard 17's primary loses power. The config service misses three heartbeats, promotes the replica, bumps the cluster map to version 813, and clients switch within a second. A delete that hadn't reached the replica yet leaves one stale value, which the TTL bounds at an hour; a stricter system would keep a short log of recent deletes and replay it during failover.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A hash map spread across machines, holding copies of data whose real home is a slower store, so that the copies may be dropped at any time.</p></div>
+      <div><span class="q">Why it's hard</span><p>Memory is limited, so something must be thrown away; machines join and leave, so the map from key to machine must change without throwing everything away; and traffic is skewed, so equal shares of keys do not mean equal shares of load.</p></div>
+      <div><span class="q">Key insight</span><p>Because the database holds the truth, the cache can choose availability and speed over consistency. Every loss turns into a miss, and every staleness is bounded by a TTL or fixed by a delete.</p></div>
+      <div><span class="q">Where it bends</span><p>The database behind it. A cache that hides 99% of reads means the database is sized for 1%; lose the cache or let a hot key expire, and the database sees up to 100 times its normal load at once.</p></div>
+      <div><span class="q">What must stay small</span><p>Every per-request step: one hash, one network hop, O(1) work on the node. Anything that grows with the number of keys (a global lock, a full scan for expired keys, a proxy hop per request) shows up at p99.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>A blog site's memory, then the web's</h2>
+    <p>In 2003, to take load off LiveJournal's databases, Brad Fitzpatrick, who had founded the site, wrote memcached: a daemon that turns the spare memory of many machines into one big hash table, with clients choosing the server for each key by hashing it. The first release came out on 22 May 2003. It was written in Perl at first and soon rewritten in C by Anatoly Vorobey, then working at LiveJournal. Its rules were simple and stayed: values live in memory only, the least recently used ones are thrown out when memory is full, and clients must treat any value as something that may vanish.</p>
+    <p>In 2009 Salvatore Sanfilippo ("antirez"), working on a real-time web log analyzer called LLOOGG, needed something faster than his database for its workload. He built an in-memory store with a prototype in Tcl, rewrote it in C, and announced Redis ("Remote Dictionary Server") on Hacker News on 25 February 2009. Where memcached stores opaque blobs, Redis stores data structures (lists, sets, sorted sets, hashes) and can persist them and replicate them. VMware hired him in March 2010 to keep working on it.</p>
+    <p>In 2013 Rajesh Nishtala and twelve colleagues at Facebook presented "Scaling Memcache at Facebook" at NSDI. Their memcache handled billions of requests a second and held trillions of items. The paper describes much of this page in production: memcache as a demand-filled look-aside cache; deleting instead of updating on writes, because deletes are idempotent; leases, which reject stale sets and hand out one token per key every 10 seconds to stop thundering herds; a small "gutter" pool, about 1% of servers, that takes over for failed ones; mcrouter, which routes requests; and mcsqueal daemons that pick deletes out of each database's committed transactions and broadcast them to every frontend cluster in the region.</p>
+    <ol class="timeline">
+      <li><span class="year">2003</span><p>Brad Fitzpatrick releases memcached for LiveJournal (22 May); Anatoly Vorobey rewrites it in C.</p></li>
+      <li><span class="year">2009</span><p>Salvatore Sanfilippo announces Redis on Hacker News (25 February).</p></li>
+      <li><span class="year">2010</span><p>VMware hires Sanfilippo to work on Redis full time.</p></li>
+      <li><span class="year">2013</span><p>"Scaling Memcache at Facebook" at NSDI: look-aside caching, leases and invalidation at billions of requests a second.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Keys that don't exist:</b> requests for missing rows always miss and always hit the database (cache penetration). Cache a short-lived "not found" marker, or check a Bloom filter of existing keys before going to the database.</li>
+        <li><b>Multiple regions:</b> keep one cache cluster per region in front of that region's database replica, and drive invalidations from the database's change log rather than from app code (Facebook's mcsqueal does this within a region), so every cluster hears about every write.</li>
+        <li><b>Cold start:</b> a new or restarted cluster has a 0% hit rate. Warm it by letting it read from an existing cluster on a miss before falling back to the database, or replay recent hot keys.</li>
+        <li><b>Big values:</b> a 5 MB value blocks a node's network and evicts thousands of small keys. Cap the value size, compress, or split large objects into chunks under one prefix.</li>
+        <li><b>Memory fragmentation:</b> after many sets of different sizes, free memory is scattered. memcached groups values into slab classes by size; Redis relies on its allocator and can defragment. Budget about 25–30% headroom.</li>
+        <li><b>Proxy or smart client:</b> a client library saves a hop; a routing proxy (like mcrouter or Twemproxy) keeps clients simple and pools connections. Both read the same cluster map.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/lru-cache.html">LRU Cache</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/quorum.html">Quorum Replication and CAP</a>
+        <a href="../topics/bloom-filter.html">Bloom Filter</a>
+        <a href="lld-lru-cache.html">Design an LRU Cache (classes)</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/overview">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e12 ? (n / 1e12).toFixed(1) + "T" : n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+  const bytes = b => b >= 1e12 ? (b / 1e12).toFixed(2) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : b >= 1e3 ? (b / 1e3).toFixed(1) + " KB" : Math.round(b) + " B";
+  const pct = x => (x * 100).toFixed(x < 0.1 && x > 0 ? 1 : 0) + "%";
+  const ms = x => x >= 1000 ? (x / 1000).toFixed(2) + " s" : (x < 10 ? x.toFixed(2) : Math.round(x)) + " ms";
+  // seeded random numbers so every simulation is repeatable
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function mix(x) { x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B); x = Math.imul(x ^ (x >>> 13), 0xC2B2AE35); return (x ^ (x >>> 16)) >>> 0; }
+  function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
+  const keyHash = k => mix(fnv(k));
+  const narrowMQ = window.matchMedia("(max-width: 600px)");
+
+  // consistent-hash ring shared by the live design and deep dive 5b
+  function buildRing(names, V) {
+    const pts = [];
+    names.forEach(n => { for (let v = 0; v < V; v++) pts.push({ h: mix(fnv(n + "#" + v)), n }); });
+    return pts.sort((a, b) => a.h - b.h);
+  }
+  function owner(ring, h) { let lo = 0, hi = ring.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ring[m].h < h) lo = m + 1; else hi = m; } return ring[lo === ring.length ? 0 : lo].n; }
+
+  // LRU on a Map: insertion order is recency order, oldest first
+  class LRU {
+    constructor(cap) { this.cap = cap; this.m = new Map(); }
+    get(k) { if (!this.m.has(k)) return undefined; const v = this.m.get(k); this.m.delete(k); this.m.set(k, v); return v; }
+    set(k, v) { this.m.delete(k); this.m.set(k, v); if (this.m.size > this.cap) this.m.delete(this.m.keys().next().value); }
+    del(k) { this.m.delete(k); }
+    get size() { return this.m.size; }
+    clone() { const c = new LRU(this.cap); this.m.forEach((v, k) => c.m.set(k, v)); return c; }
+  }
+
+  // ================= Live design =================
+  const NK = 240, ZS = 0.9, CAP = 45, NODECAP = 80, BURST = 200, WRITE_P = 0.1, HOT_P = 0.6, HOT = 149, LAG = 10, NEAR_CAP = 8, NEAR_TTL = 40, HOT_MIN = 10, VN = 40;
+  const KEY = i => "item:" + (i + 1);
+  const ZC = []; { let c = 0; for (let i = 0; i < NK; i++) { c += 1 / Math.pow(i + 1, ZS); ZC.push(c); } }
+  function pickKey(r) { const x = r() * ZC[NK - 1]; let lo = 0, hi = NK - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (ZC[m] < x) lo = m + 1; else hi = m; } return lo; }
+  const SH = ["A", "B", "C", "D"];
+
+  function makeCluster(stage, seed) {
+    const names = stage === 0 ? ["A"] : SH;
+    const c = { stage, r: rng(seed), shards: {}, db: new Array(NK).fill(1), req: 0, win: [], winCount: new Map(), near: new LRU(NEAR_CAP), last: null, secs: 0,
+      tot: { req: 0, reads: 0, hits: 0, miss: 0, stale: 0, near: 0, nearStale: 0, db: 0 }, onSample: null };
+    names.forEach(n => c.shards[n] = { n, primary: new LRU(CAP), replica: stage >= 2 ? new LRU(CAP) : null, pending: [], alive: true, promoted: false, resync: false });
+    c.ring = buildRing(names, VN);
+    return c;
+  }
+  const route = (c, k) => c.shards[owner(c.ring, keyHash(KEY(k)))];
+  function applyRep(s, op) { if (op.t === "set") s.replica.set(op.k, op.v); else s.replica.del(op.k); }
+  function replicate(s, op) { if (!s.replica || s.resync) return; s.pending.push(op); while (s.pending.length > LAG) applyRep(s, s.pending.shift()); }
+  function track(c, k) { c.win.push(k); c.winCount.set(k, (c.winCount.get(k) || 0) + 1); if (c.win.length > BURST) { const o = c.win.shift(); c.winCount.set(o, c.winCount.get(o) - 1); } }
+  const isHot = (c, k) => c.stage === 3 && (c.winCount.get(k) || 0) >= HOT_MIN;
+  const addLoad = (b, w) => { b.load[w] = (b.load[w] || 0) + 1; };
+
+  function read(c, k, b) {
+    b.reads++;
+    const hot = isHot(c, k);
+    if (hot) { const e = c.near.get(k); if (e && e.exp > c.req) { b.near++; if (e.v < c.db[k]) b.nearStale++; return { kind: "near" }; } }
+    const s = route(c, k);
+    let node = s.primary, where = s.n;
+    if (hot && s.replica && !s.resync && (c.req & 1)) { node = s.replica; where = "r" + s.n; }
+    addLoad(b, where);
+    const v = node.get(k);
+    if (v !== undefined) { b.hits++; if (v < c.db[k]) b.stale++; if (hot) c.near.set(k, { v, exp: c.req + NEAR_TTL }); return { kind: "hit", where }; }
+    b.miss++; b.db++;
+    const ver = c.db[k];
+    if (where !== s.n) addLoad(b, s.n);
+    s.primary.set(k, ver); replicate(s, { t: "set", k, v: ver });
+    if (hot) c.near.set(k, { v: ver, exp: c.req + NEAR_TTL });
+    return { kind: "miss", where };
+  }
+  function write(c, k, b) {
+    c.db[k]++; b.writes++;
+    const s = route(c, k);
+    addLoad(b, s.n);
+    s.primary.del(k); replicate(s, { t: "del", k });
+    return { kind: "write", where: s.n };
+  }
+  function burst(c, hot) {
+    const b = { req: 0, reads: 0, writes: 0, hits: 0, miss: 0, stale: 0, near: 0, nearStale: 0, db: 0, load: {}, hot: !!hot };
+    for (let i = 0; i < BURST; i++) {
+      const k = hot && c.r() < HOT_P ? HOT : pickKey(c.r);
+      track(c, k);
+      const viral = hot && k === HOT; // a viral key is read, not written
+      const res = !viral && c.r() < WRITE_P ? write(c, k, b) : read(c, k, b);
+      if (c.onSample && i < 14) c.onSample(res, i);
+      c.req++; b.req++;
+    }
+    Object.values(c.shards).forEach(s => { if (s.resync) { s.replica = s.primary.clone(); s.pending = []; s.resync = false; } });
+    c.last = b; c.secs++;
+    ["req", "reads", "hits", "miss", "stale", "near", "nearStale", "db"].forEach(f => c.tot[f] += b[f]);
+    return b;
+  }
+  function kill(c) {
+    const live = Object.values(c.shards).filter(s => s.alive);
+    const s = route(c, 0); // the shard that owns the most popular key
+    if (c.stage === 0) { const lost = s.primary.size; s.primary = new LRU(CAP); return { kind: "restart", s: s.n, lost }; }
+    if (c.stage === 1) {
+      if (live.length <= 1) return null;
+      s.alive = false; const lost = s.primary.size;
+      c.ring = buildRing(live.filter(x => x !== s).map(x => x.n), VN);
+      return { kind: "removed", s: s.n, lost };
+    }
+    if (s.resync) return { kind: "busy", s: s.n };
+    const lostOps = s.pending.length, lostDel = s.pending.filter(o => o.t === "del").length, kept = s.replica.size;
+    s.primary = s.replica; s.replica = new LRU(CAP); s.resync = true; s.promoted = true; s.pending = [];
+    return { kind: "failover", s: s.n, lostOps, lostDel, kept };
+  }
+  const busiest = b => { let m = 0, w = null; Object.entries(b.load).forEach(([k, v]) => { if (v > m) { m = v; w = k; } }); return { n: m, w }; };
+  const hitRate = b => b.reads ? (b.hits + b.near) / b.reads : 0;
+
+  // scripted runs: the numbers in each stage's "what breaks next" come from these
+  const H = (() => {
+    const out = {};
+    let c = makeCluster(0, 3); for (let i = 0; i < 6; i++) burst(c, false); out.s0 = { b: c.last };
+    c = makeCluster(1, 3); for (let i = 0; i < 6; i++) burst(c, false);
+    const before = c.last, k1 = kill(c), after = burst(c, false); out.s1 = { before, k: k1, after };
+    c = makeCluster(1, 3); for (let i = 0; i < 6; i++) burst(c, false); out.s1h = { b: burst(c, true) };
+    c = makeCluster(2, 3); for (let i = 0; i < 6; i++) burst(c, false);
+    const b2 = c.last, k2 = kill(c), a2 = burst(c, false); out.s2 = { before: b2, k: k2, after: a2 };
+    c = makeCluster(2, 3); for (let i = 0; i < 6; i++) burst(c, false); out.s2h = { b: burst(c, true) };
+    c = makeCluster(3, 3); for (let i = 0; i < 6; i++) burst(c, false); burst(c, true); out.s3h = { b: burst(c, true), tot: c.tot };
+    return out;
+  })();
+
+  $("hldKicker").innerHTML = `A toy cluster: ${NK} keys whose popularity falls off steeply (<span class="mono">item:1</span> is read most), ${pct(WRITE_P)} of requests are writes that update the database and delete the cached key, and each node holds ${CAP} keys and can serve ${NODECAP} requests a second. One press sends one second of traffic, ${BURST} requests. Try each stage, then kill a node or make <span class="mono">${KEY(HOT)}</span> go viral.`;
+
+  const STAGES = [
+    {
+      name: "1 · One node",
+      adds: `One cache server holds a hash map with an LRU list. The app does cache-aside: <span class="mono">get</span>; on a miss, read the database and <span class="mono">set</span>; on a write, update the database and <span class="mono">delete</span> the key.`,
+      why: "Reads that hit never touch the database, and the LRU list keeps the popular keys because they keep getting used.",
+      breaks: () => `In a scripted run, the hit rate in the sixth second is only ${pct(hitRate(H.s0.b))}: only ${CAP} of ${NK} keys fit. And the node gets ${H.s0.b.req} requests a second against a capacity of ${NODECAP}. At real scale, 1 TB doesn't fit in one machine and 1M ops/s doesn't fit in one CPU.`
+    },
+    {
+      name: "2 · Shard with a ring",
+      adds: `${SH.length} nodes, each owning part of a consistent-hash ring (${VN} points per node). Each client keeps a copy of the ring from a <b>config service</b> and sends each key straight to its owner: one hop, no proxy.`,
+      why: "Memory and throughput now add up across nodes. The ring means a node joining or leaving moves only the keys next to it, not almost all of them as with hash mod N.",
+      breaks: () => `Kill a node. In a scripted run shard ${H.s1.k.s} owned the hottest key; its ${H.s1.k.lost} cached keys vanished, and the next second the hit rate fell from ${pct(hitRate(H.s1.before))} to ${pct(hitRate(H.s1.after))} while database reads went from ${H.s1.before.db} to ${H.s1.after.db}. At real scale that is a whole node's share of 1M ops/s hitting the database at once.`
+    },
+    {
+      name: "3 · Replicas + failover",
+      adds: `Each shard has a primary and an <b>async replica</b>; the primary streams every set and delete to it, about ${LAG} operations behind. The config service watches heartbeats and, when a primary dies, promotes its replica and publishes a new cluster map.`,
+      why: "A failure now costs the few operations in flight instead of the whole shard. Async keeps writes as fast as with one copy; for a cache, losing a few in-flight sets just means a few misses.",
+      breaks: () => `A lost <i>delete</i> is worse than a lost set: it leaves a stale value (failover in a scripted run lost ${H.s2.k.lostOps} in-flight operations, ${H.s2.k.lostDel} of them deletes; TTLs bound how long it lasts). The bigger problem: press <b>A key goes viral</b>. ${pct(HOT_P)} of all traffic is for one key, and all of it lands on one shard: ${busiest(H.s2h.b).n} requests a second on one node with capacity ${NODECAP}.`
+    },
+    {
+      name: "4 · Hot keys",
+      adds: `The client counts keys over the last second. A key read ${HOT_MIN}+ times is <b>hot</b>: it is kept in a small <b>near-cache</b> inside the app for ${NEAR_TTL / BURST} s, and its misses alternate between the shard's primary and replica.`,
+      why: "Most reads of a hot key never leave the app server, and the ones that do are spread over two copies. The price is staleness: the near-cache is not told about deletes, so a hot value can be up to its TTL out of date.",
+      breaks: () => { const b = H.s3h.b, bb = busiest(b); return `In a scripted viral second, ${b.near} of ${b.reads} reads were served by near-caches and the busiest node got ${bb.n} requests (capacity ${NODECAP}). ${b.nearStale} near-cache reads returned a value older than the database. What's left is tuning: eviction (5a), shard count (5b), replication (5c), hot keys (5d) and stampedes (5e).`; }
+    }
+  ];
+
+  // diagram layout: wide and narrow
+  const ROWS = [70, 157, 243, 330], NROWS = [225, 305, 385, 465];
+  function P(k) {
+    const n = narrowMQ.matches;
+    if (k === "client") return n ? { x: 170, y: 40 } : { x: 95, y: 200 };
+    if (k === "config") return n ? { x: 85, y: 125 } : { x: 95, y: 70 };
+    if (k === "db") return n ? { x: 255, y: 125 } : { x: 95, y: 330 };
+    if (stage === 0 && k === "A") return n ? { x: 170, y: 250 } : { x: 385, y: 200 };
+    const rep = k[0] === "r", i = SH.indexOf(rep ? k[1] : k);
+    return n ? { x: rep ? 255 : 85, y: NROWS[i] } : { x: rep ? 530 : 385, y: ROWS[i] };
+  }
+  let stage = 0, cl, dots = [], note = "", lastKill = null;
+  function nodesOf() {
+    const ks = ["client", "db"];
+    if (stage >= 1) ks.push("config");
+    Object.keys(cl.shards).forEach(n => { ks.push(n); if (stage >= 2) ks.push("r" + n); });
+    return ks;
+  }
+  function edgesOf() {
+    const e = [["client", "db"]];
+    if (stage >= 1) e.push(["config", "client", "dash"]);
+    Object.keys(cl.shards).forEach(n => { e.push(["client", n]); if (stage >= 2) e.push([n, "r" + n, "dash"]); });
+    return e;
+  }
+  function resetSim() {
+    cl = makeCluster(stage, 11); dots = []; note = ""; lastKill = null;
+    cl.onSample = (res, i) => {
+      if (res.kind === "near") return;
+      const w = res.where;
+      const path = res.kind === "hit" ? ["client", w, "client"] : res.kind === "miss" ? ["client", w, "client", "db", "client"] : ["client", "db", "client", w];
+      dots.push({ path, seg: 0, f: 0, x: P("client").x, y: P("client").y, kind: res.kind, wait: i * 0.07 });
+    };
+  }
+  function stepDots(dt) {
+    const SPEED = 650;
+    dots.forEach(d => {
+      if (d.wait > 0) { d.wait -= dt; return; }
+      let move = SPEED * dt;
+      while (move > 0 && d.seg < d.path.length - 1) {
+        const a = P(d.path[d.seg]), b = P(d.path[d.seg + 1]);
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1, left = len * (1 - d.f);
+        if (move >= left) { move -= left; d.seg++; d.f = 0; } else { d.f += move / len; move = 0; }
+      }
+      const a2 = P(d.path[d.seg]), b2 = P(d.path[Math.min(d.seg + 1, d.path.length - 1)]);
+      d.x = a2.x + (b2.x - a2.x) * d.f; d.y = a2.y + (b2.y - a2.y) * d.f;
+    });
+    dots = dots.filter(d => d.seg < d.path.length - 1);
+  }
+  function label(k) {
+    if (k === "client") return stage === 3 ? "App + near-cache" : "App servers";
+    if (k === "config") return "Config service";
+    if (k === "db") return "Database";
+    if (k[0] === "r") return `${k[1]} replica`;
+    const s = cl.shards[k];
+    if (stage === 0) return "Cache node";
+    return s.promoted ? `Shard ${k} · promoted` : `Shard ${k}`;
+  }
+  function sub(k) {
+    const b = cl.last;
+    if (k === "client") return stage === 3 ? `${cl.near.size} hot keys local` : `${cl.tot.req} requests sent`;
+    if (k === "config") return stage >= 2 ? "ring + failover" : `ring, ${VN} pts/node`;
+    if (k === "db") return b ? `${b.db} reads last s` : "source of truth";
+    if (k[0] === "r") { const s = cl.shards[k[1]]; if (s.resync) return "re-syncing"; const ld = b ? b.load[k] || 0 : 0; return `${s.replica.size} keys · ${ld}/s`; }
+    const s = cl.shards[k];
+    if (!s.alive) return "down";
+    return `${s.primary.size}/${CAP} keys · ${b ? b.load[k] || 0 : 0}/s`;
+  }
+  function draw() {
+    const nar = narrowMQ.matches, VW = nar ? 340 : 610, VH = nar ? 560 : 400;
+    $("arch").setAttribute("viewBox", `0 0 ${VW} ${VH}`);
+    let s = "";
+    edgesOf().forEach(([a, b, dash]) => {
+      if (cl.shards[b] && !cl.shards[b].alive) dash = "dash";
+      const p = P(a), q = P(b);
+      s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"${dash ? ` stroke-dasharray="5 4"` : ""}/>`;
+    });
+    const colors = { hit: "var(--accent)", miss: "var(--amber)", write: "var(--ink)" };
+    dots.forEach(d => { if (d.wait > 0) return; s += `<circle cx="${d.x}" cy="${d.y}" r="6" fill="${colors[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    const b = cl.last;
+    nodesOf().forEach(k => {
+      const n = P(k), w = nar ? 150 : 136, h = nar ? 54 : 52;
+      const isShard = SH.includes(k) || k[0] === "r";
+      const ld = b ? b.load[k] || 0 : 0;
+      const down = cl.shards[k] && !cl.shards[k].alive;
+      const hot = isShard && ld > NODECAP;
+      const round = k === "db" || k === "config";
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${round ? 14 : 6}" fill="var(--panel)" stroke="${hot || down ? "var(--bad)" : isShard ? "var(--accent)" : "var(--ink)"}" stroke-width="${hot ? 2.6 : 1.6}"${down ? ` stroke-dasharray="5 4"` : ""}/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="${nar ? 14 : 14.5}" font-weight="700" fill="${down ? "var(--muted)" : "var(--ink)"}">${label(k)}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 15}" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="${hot || down ? "var(--bad)" : "var(--muted)"}">${sub(k)}</text>`;
+    });
+    s += nar
+      ? `<text x="12" y="${VH - 30}" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue hit · amber miss → DB</text><text x="12" y="${VH - 12}" font-family="var(--mono)" font-size="12" fill="var(--muted)">dark write · red over capacity</text>`
+      : `<text x="12" y="392" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue hit · amber miss, then DB · dark write · red over capacity</text>`;
+    $("arch").innerHTML = s;
+  }
+  function render() {
+    const b = cl.last, bb = b ? busiest(b) : { n: 0 };
+    $("cost").innerHTML = `
+      <div><span>Simulated time</span><b>${cl.secs} s</b></div>
+      <div><span>Hit rate, last second</span><b style="color:${b ? (hitRate(b) > 0.7 ? "var(--ok)" : "var(--amber)") : "var(--ink)"}">${b ? pct(hitRate(b)) : "—"}</b></div>
+      <div><span>DB reads, last second</span><b>${b ? b.db : 0}</b></div>
+      <div><span>Busiest node, last second</span><b style="color:${bb.n > NODECAP ? "var(--bad)" : "var(--ink)"}">${bb.n} / ${NODECAP}</b></div>
+      ${stage === 3 ? `<div><span>Near-cache hits, last second</span><b>${b ? b.near : 0}</b></div>` : ""}
+      <div><span>Stale reads so far</span><b style="color:${cl.tot.stale + cl.tot.nearStale ? "var(--amber)" : "var(--ink)"}">${cl.tot.stale + cl.tot.nearStale}</b></div>`;
+    $("simNote").innerHTML = note || (b ? "" : "Press Send to run one second of traffic.");
+    $("board").innerHTML = `<span class="stage-label">Nodes, last second</span>` + Object.values(cl.shards).map(s => {
+      if (!s.alive) return `<div class="nodeline down"><span><b>Shard ${s.n}</b></span><span class="t">down · its keys now belong to its ring neighbours</span></div>`;
+      const ld = b ? b.load[s.n] || 0 : 0, rl = b ? b.load["r" + s.n] || 0 : 0;
+      return `<div class="nodeline ${ld > NODECAP ? "hot" : ""}"><span><b>${stage === 0 ? "Cache node" : "Shard " + s.n}</b>${s.replica ? ` <span class="t">+ replica ${s.resync ? "(re-syncing)" : `${s.replica.size} keys, ${rl} req/s`}</span>` : ""}</span><span class="t">${s.primary.size}/${CAP} keys · ${ld} req/s${ld > NODECAP ? " · over capacity" : ""}</span></div>`;
+    }).join("");
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks()}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); render(); };
+  $("send").onclick = () => { dots = []; const b = burst(cl, false); note = `One second: ${b.reads} reads (${b.hits} hits${stage === 3 ? `, ${b.near} near-cache` : ""}, ${b.miss} misses) and ${b.writes} writes.`; render(); };
+  $("hot").onclick = () => { dots = []; const b = burst(cl, true); const bb = busiest(b); note = `${KEY(HOT)} went viral: ${pct(HOT_P)} of this second's requests were for it. ${bb.n > NODECAP ? `<b style="color:var(--bad)">${bb.w[0] === "r" ? bb.w[1] + " replica" : stage === 0 ? "The node" : "Shard " + bb.w} took ${bb.n} requests, over its capacity of ${NODECAP}.</b>` : `The busiest node took ${bb.n} requests, within capacity.`}${stage === 3 ? ` Near-caches answered ${b.near} reads.` : ""}`; render(); };
+  $("kill").onclick = () => {
+    const k = kill(cl); dots = [];
+    if (!k) note = "Only one node is left; reset to start again.";
+    else if (k.kind === "restart") note = `<b style="color:var(--bad)">The node restarted empty.</b> ${k.lost} cached keys are gone; every read misses until the cache refills from the database.`;
+    else if (k.kind === "removed") note = `<b style="color:var(--bad)">Shard ${k.s} died</b> with ${k.lost} keys. The config service removed it from the ring, so its keys now map to its neighbours, which don't have them yet. Send traffic to see the misses.`;
+    else if (k.kind === "busy") note = `Shard ${k.s} is still re-syncing its new replica; send traffic first.`;
+    else note = `<b style="color:var(--ok)">Shard ${k.s}'s primary died; its replica was promoted</b> with ${k.kept} keys. ${k.lostOps} in-flight operation${k.lostOps === 1 ? "" : "s"} never reached it${k.lostDel ? `, <b style="color:var(--amber)">including ${k.lostDel} delete${k.lostDel === 1 ? "" : "s"}: those keys may now serve stale values</b>` : ""}. A new replica re-syncs during the next second.`;
+    lastKill = k; render();
+  };
+  $("reset").onclick = () => { resetSim(); render(); };
+  narrowMQ.addEventListener("change", () => { dots = []; });
+
+  // ================= 5a: LRU stepper =================
+  let L = null;
+  function lruReset() {
+    const cap = +$("lcap").value; $("lcapOut").textContent = cap;
+    const seq = $("lseq").value.trim().split(/[\s,]+/).filter(Boolean).map(x => x.slice(0, 3).toUpperCase()).slice(0, 28);
+    L = { cap, seq, i: 0, list: [], hits: 0, misses: 0, last: null };
+    drawLru();
+  }
+  function lruStep() {
+    if (L.i >= L.seq.length) return false;
+    const k = L.seq[L.i++], idx = L.list.indexOf(k);
+    if (idx >= 0) { L.list.splice(idx, 1); L.list.unshift(k); L.hits++; L.last = { k, kind: "hit", from: idx }; }
+    else { L.misses++; L.list.unshift(k); const ev = L.list.length > L.cap ? L.list.pop() : null; L.last = { k, kind: "miss", ev }; }
+    return true;
+  }
+  function drawLru() {
+    const W = 384, per = 12, rowsSeq = Math.max(1, Math.ceil(L.seq.length / per));
+    const y0 = 16 + rowsSeq * 30, H = y0 + 168;
+    $("lruSvg").setAttribute("viewBox", `0 0 ${W} ${H}`);
+    let s = `<text x="10" y="14" font-family="var(--mono)" font-size="11" fill="var(--muted)">REQUESTS</text>`;
+    L.seq.forEach((k, j) => {
+      const x = 10 + (j % per) * 30, y = 22 + Math.floor(j / per) * 30, cur = j === L.i - 1, done = j < L.i;
+      s += `<rect x="${x}" y="${y}" width="26" height="22" rx="4" fill="${cur ? "var(--accent-soft)" : "var(--panel)"}" stroke="${cur ? "var(--accent)" : "var(--line)"}"/>`;
+      s += `<text x="${x + 13}" y="${y + 15}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="${done ? "var(--ink)" : "var(--muted)"}">${k}</text>`;
+    });
+    s += `<text x="10" y="${y0 + 12}" font-family="var(--mono)" font-size="11" fill="var(--muted)">HASH MAP (key → node)</text>`;
+    s += `<text x="10" y="${y0 + 164}" font-family="var(--mono)" font-size="11" fill="var(--muted)">LIST: head = most recent → tail = evict next</text>`;
+    const nx = j => 10 + j * 54;
+    for (let j = 0; j < L.cap; j++) {
+      const k = L.list[j], x = nx(j);
+      // map slot
+      s += `<rect x="${x}" y="${y0 + 20}" width="42" height="24" rx="4" fill="var(--paper)" stroke="var(--line)" stroke-dasharray="${k ? "0" : "3 3"}"/>`;
+      if (k) {
+        s += `<text x="${x + 21}" y="${y0 + 36}" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--ink)">${k} →</text>`;
+        s += `<line x1="${x + 21}" y1="${y0 + 44}" x2="${x + 21}" y2="${y0 + 94}" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 3"/>`;
+      }
+      const cur = L.last && k === L.last.k;
+      const stroke = !k ? "var(--line)" : cur ? (L.last.kind === "hit" ? "var(--ok)" : "var(--accent)") : "var(--ink)";
+      s += `<rect x="${x}" y="${y0 + 96}" width="42" height="32" rx="6" fill="var(--panel)" stroke="${stroke}" stroke-width="${cur ? 2.4 : 1.4}"${k ? "" : ` stroke-dasharray="3 3"`}/>`;
+      if (k) s += `<text x="${x + 21}" y="${y0 + 117}" text-anchor="middle" font-family="var(--display)" font-size="15" font-weight="700" fill="var(--ink)">${k}</text>`;
+      if (j < L.cap - 1 && L.list[j + 1]) s += `<text x="${x + 48}" y="${y0 + 117}" text-anchor="middle" font-family="var(--mono)" font-size="13" fill="var(--muted)">⇄</text>`;
+    }
+    if (L.list.length) {
+      s += `<text x="${nx(0)}" y="${y0 + 144}" font-family="var(--mono)" font-size="11" fill="var(--accent)">head</text>`;
+      s += `<text x="${nx(L.list.length - 1) + 42}" y="${y0 + 144}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--amber)">tail</text>`;
+    }
+    if (L.last && L.last.ev) {
+      const x = nx(L.cap);
+      if (x + 42 <= W) {
+        s += `<rect x="${x}" y="${y0 + 96}" width="42" height="32" rx="6" fill="none" stroke="var(--bad)" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+        s += `<text x="${x + 21}" y="${y0 + 117}" text-anchor="middle" font-family="var(--display)" font-size="15" font-weight="700" fill="var(--bad)">${L.last.ev}</text>`;
+        s += `<text x="${x + 21}" y="${y0 + 144}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--bad)">evicted</text>`;
+      }
+    }
+    $("lruSvg").innerHTML = s;
+    const l = L.last, total = L.hits + L.misses;
+    $("lruLog").innerHTML = (l ? `Request ${L.i}: <b>get ${l.k}</b> → ${l.kind === "hit" ? `<b style="color:var(--ok)">hit</b>. The map finds its node; it is unlinked from position ${l.from + 1} and relinked at the head.` : `<b style="color:var(--amber)">miss</b>. Load from the database, insert at the head${l.ev ? `, and the cache is over capacity, so the tail <b style="color:var(--bad)">${l.ev}</b> is unlinked and removed from the map` : ""}.`} ` : "Press Step. ")
+      + `So far ${L.hits} hit${L.hits === 1 ? "" : "s"}, ${L.misses} miss${L.misses === 1 ? "" : "es"}${total ? ` (${pct(L.hits / total)} hit rate)` : ""}${L.i >= L.seq.length && L.seq.length ? ". End of the sequence." : "."}`;
+  }
+  $("lstep").onclick = () => { if (L.i >= L.seq.length) lruReset(); lruStep(); drawLru(); };
+  $("lall").onclick = () => { while (lruStep()); drawLru(); };
+  $("lreset").onclick = lruReset;
+  $("lcap").oninput = lruReset; $("lseq").onchange = lruReset;
+
+  // ================= 5a: expiry simulation =================
+  let tmode = 1;
+  const TMODES = ["Lazy only", "Lazy + active sampling"];
+  function simTTL(rate, S, thr, active) {
+    const r = rng(31), store = [], DT = 0.1, READS = 1000, MAXR = 200, series = [];
+    let lazyDel = 0, activeDel = 0, rounds = 0;
+    const del = j => { store[j] = store[store.length - 1]; store.pop(); };
+    for (let step = 1; step <= 600; step++) {
+      const t = step * DT, n = Math.round(rate * DT);
+      for (let i = 0; i < n; i++) store.push(t + 5 + 10 * r());
+      for (let i = 0; i < READS * DT && store.length; i++) { const j = Math.floor(r() * store.length); if (store[j] <= t) { del(j); lazyDel++; } }
+      if (active) for (let rd = 0; rd < MAXR; rd++) {
+        rounds++; let ex = 0; const m = Math.min(S, store.length);
+        for (let q = 0; q < m; q++) { const j = Math.floor(r() * store.length); if (store[j] <= t) { del(j); ex++; activeDel++; } }
+        if (ex <= thr * m) break;
+      }
+      if (step % 5 === 0) { let e = 0; for (const x of store) if (x <= t) e++; series.push({ t, total: store.length, expired: e }); }
+    }
+    const end = series[series.length - 1];
+    return { series, end, lazyDel, activeDel, rounds: rounds / 60 };
+  }
+  function renderTTL() {
+    const rate = +$("trate").value, S = +$("tsamp").value, thr = +$("tthr").value;
+    $("trateOut").textContent = fmt(rate); $("tsampOut").textContent = S; $("tthrOut").textContent = pct(thr);
+    $("tmodes").innerHTML = TMODES.map((m, i) => `<button aria-pressed="${i === tmode}" data-m="${i}">${m}</button>`).join("");
+    const sim = simTTL(rate, S, thr, tmode === 1), other = simTTL(rate, S, thr, tmode !== 1);
+    const nar = narrowMQ.matches, Wd = nar ? 400 : 720, Hh = 220, L0 = nar ? 46 : 56, top = 14, bot = 30;
+    const yMax = Math.max(...sim.series.map(p => p.total), ...other.series.map(p => p.total)) * 1.05;
+    const X = t => L0 + t / 60 * (Wd - L0 - 10), Y = v => Hh - bot - v / yMax * (Hh - bot - top);
+    $("ttlChart").setAttribute("viewBox", `0 0 ${Wd} ${Hh}`);
+    let s = "";
+    for (let k = 0; k <= 4; k++) { const v = yMax / 4 * k; s += `<line x1="${L0}" y1="${Y(v)}" x2="${Wd - 10}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L0 - 4}" y="${Y(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--muted)">${fmt(v)}</text>`; }
+    const bw = (Wd - L0 - 10) / sim.series.length;
+    sim.series.forEach(p => {
+      const x = X(p.t) - bw, live = p.total - p.expired;
+      s += `<rect x="${x + 0.5}" y="${Y(live)}" width="${Math.max(1, bw - 1)}" height="${Y(0) - Y(live)}" fill="var(--accent)"/>`;
+      s += `<rect x="${x + 0.5}" y="${Y(p.total)}" width="${Math.max(1, bw - 1)}" height="${Y(live) - Y(p.total)}" fill="var(--bad)"/>`;
+    });
+    for (let t = 0; t <= 60; t += nar ? 20 : 10) s += `<text x="${X(t)}" y="${Hh - 10}" text-anchor="${t === 0 ? "start" : t === 60 ? "end" : "middle"}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${t} s</text>`;
+    $("ttlChart").innerHTML = s;
+    const e = sim.end, live = e.total - e.expired, oe = other.end;
+    const KB = 100;
+    $("ttlResults").innerHTML = `
+      <div><span>Keys in memory at 60 s</span><b>${fmt(e.total)}</b></div>
+      <div><span>Of which already expired</span><b style="color:${e.expired / e.total > 0.3 ? "var(--bad)" : "var(--ink)"}">${fmt(e.expired)} (${pct(e.expired / e.total)})</b></div>
+      <div><span>Wasted memory at 100 B per key</span><b>${bytes(e.expired * KB)}</b></div>
+      <div><span>Deleted on read (lazy)</span><b>${fmt(sim.lazyDel)}</b></div>
+      <div><span>Deleted by sampling (active)</span><b>${fmt(sim.activeDel)}</b></div>
+      <div><span>Sampling rounds per second</span><b>${fmt(sim.rounds)}</b></div>`;
+    $("ttlNotes").innerHTML = [
+      `About ${fmt(rate * 10)} keys are alive at any moment (${fmt(rate)} a second × 10 s average TTL); here ${fmt(live)} are. Everything above that is memory held by keys that no read will ever return.`,
+      tmode === 0
+        ? `Lazy only: reads touch ${fmt(1000)} random keys a second, so most expired keys are never found. ${fmt(e.expired)} expired keys (${pct(e.expired / e.total)} of memory) are still there after a minute, and the number keeps growing. LRU would eventually evict them, but only by also pushing out live keys.`
+        : `With sampling, the expired share settles at ${pct(e.expired / e.total)}, versus ${pct(oe.expired / oe.total)} with lazy deletes only, and it stops growing. It sits ${e.expired / e.total > thr ? "above" : "near"} the ${pct(thr)} threshold because a cycle ends as soon as one sample of ${S} happens to look clean; it balances where the rounds delete as many keys as expire (${fmt(rate)} a second). The cost is ${fmt(sim.rounds)} rounds of ${S} random lookups a second, a few microseconds each.`,
+      `Lower the threshold and memory gets cleaner at the price of more rounds; the loop has a time cap per cycle so it can never stall the node.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  $("tmodes").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; tmode = +b.dataset.m; renderTTL(); };
+  ["trate", "tsamp", "tthr"].forEach(id => $(id).oninput = renderTTL);
+
+  // ================= 5b: sizing + ring =================
+  let sizeTotal = 1e12;
+  function renderSize() {
+    const data = 1e12 * Math.pow(10, +$("sdata").value), val = 1000 * Math.pow(10, +$("sval").value), over = +$("sover").value, ram = +$("sram").value * 1e9,
+      ops = Math.pow(10, +$("sops").value), node = Math.pow(10, +$("snode").value), rf = +$("srf").value, USE = 0.7;
+    $("sdataOut").textContent = bytes(data); $("svalOut").textContent = bytes(val); $("soverOut").textContent = over + " B"; $("sramOut").textContent = $("sram").value + " GB";
+    $("sopsOut").textContent = fmt(ops); $("snodeOut").textContent = fmt(node); $("srfOut").textContent = rf;
+    const keys = data / val, mem = data + keys * over, byMem = Math.ceil(mem / (ram * USE)), byOps = Math.ceil(ops / node), shards = Math.max(byMem, byOps);
+    sizeTotal = mem;
+    $("sizeResults").innerHTML = `
+      <div><span>Keys</span><b>${fmt(keys)}</b></div>
+      <div><span>Memory incl. overhead</span><b>${bytes(mem)}</b></div>
+      <div><span>Shards for memory</span><b>${byMem}</b></div>
+      <div><span>Shards for throughput</span><b>${byOps}</b></div>
+      <div><span>Shards needed</span><b style="color:var(--accent)">${shards}</b></div>
+      <div><span>Machines (× ${rf} copies)</span><b>${shards * rf}</b></div>
+      <div><span>Per shard</span><b>${fmt(keys / shards)} keys</b></div>`;
+    $("sizeFormula").textContent =
+`keys        = data / value size          = ${bytes(data)} / ${bytes(val)} = ${fmt(keys)}
+memory      = data + keys × overhead     = ${bytes(mem)}
+for memory  = ⌈memory / (RAM × ${USE})⌉     = ${byMem}    (${Math.round((1 - USE) * 100)}% headroom: fragmentation, spikes)
+for ops     = ⌈ops/s / ops per node⌉      = ${byOps}
+shards      = max(${byMem}, ${byOps}) = ${shards}; machines = ${shards} × ${rf} = ${shards * rf}
+${byMem > byOps ? "Memory is the binding limit: bigger-RAM nodes would cut the count." : byOps > byMem ? "Throughput is the binding limit: memory alone would need fewer nodes." : "Both limits agree."}`;
+    renderRing();
+  }
+  const RK = 20000, RKEYS = Array.from({ length: RK }, (_, i) => keyHash("key:" + i));
+  function renderRing() {
+    const N = +$("rn").value, V = Math.pow(2, +$("rv").value);
+    $("rnOut").textContent = N; $("rvOut").textContent = V;
+    const names = Array.from({ length: N + 1 }, (_, i) => "node" + i);
+    const before = buildRing(names.slice(0, N), V), after = buildRing(names, V);
+    const cntB = new Map(), cntA = new Map(), movedTo = new Map(); let moved = 0, modMoved = 0;
+    RKEYS.forEach(h => {
+      const a = owner(before, h), b = owner(after, h);
+      cntB.set(a, (cntB.get(a) || 0) + 1); cntA.set(b, (cntA.get(b) || 0) + 1);
+      if (a !== b) { moved++; movedTo.set(a, (movedTo.get(a) || 0) + 1); }
+      if (h % N !== h % (N + 1)) modMoved++;
+    });
+    const fair = RK / (N + 1), counts = names.map(n => cntA.get(n) || 0), mx = Math.max(...counts), mxB = Math.max(...names.slice(0, N).map(n => cntB.get(n) || 0));
+    // chart: after adding, each old node's bar split into kept (accent) and what it gave (amber, shown above)
+    const nar = narrowMQ.matches, Wd = nar ? 400 : 720, Hh = 200, L0 = nar ? 40 : 50, top = 12, bot = 26;
+    const yMax = Math.max(mxB, mx, fair) * 1.08, Y = v => Hh - bot - v / yMax * (Hh - bot - top);
+    const bw = (Wd - L0 - 10) / (N + 1);
+    let s = "";
+    for (let k = 0; k <= 3; k++) { const v = yMax / 3 * k; s += `<line x1="${L0}" y1="${Y(v)}" x2="${Wd - 10}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L0 - 4}" y="${Y(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--muted)">${fmt(v)}</text>`; }
+    names.forEach((n, i) => {
+      const x = L0 + i * bw + bw * 0.15, w = Math.max(2, bw * 0.7);
+      if (i < N) {
+        const kept = (cntB.get(n) || 0) - (movedTo.get(n) || 0), gave = movedTo.get(n) || 0;
+        s += `<rect x="${x}" y="${Y(kept)}" width="${w}" height="${Y(0) - Y(kept)}" fill="var(--accent)"/>`;
+        s += `<rect x="${x}" y="${Y(kept + gave)}" width="${w}" height="${Y(kept) - Y(kept + gave)}" fill="var(--amber)" opacity="0.45"/>`;
+      } else s += `<rect x="${x}" y="${Y(cntA.get(n) || 0)}" width="${w}" height="${Y(0) - Y(cntA.get(n) || 0)}" fill="var(--amber)"/>`;
+      if (N + 1 <= 16 || i % 5 === 0 || i === N) s += `<text x="${x + w / 2}" y="${Hh - 9}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="${i === N ? "var(--amber)" : "var(--muted)"}">${i === N ? "new" : i + 1}</text>`;
+    });
+    s += `<line x1="${L0}" y1="${Y(fair)}" x2="${Wd - 10}" y2="${Y(fair)}" stroke="var(--muted)" stroke-dasharray="5 4" stroke-width="1.4"/>`;
+    $("ringChart").setAttribute("viewBox", `0 0 ${Wd} ${Hh}`);
+    $("ringChart").innerHTML = s;
+    const frac = moved / RK, modFrac = modMoved / RK, newGot = cntA.get(names[N]) || 0;
+    $("ringResults").innerHTML = `
+      <div><span>Keys moved, ring (measured)</span><b style="color:var(--ok)">${pct(frac)}</b></div>
+      <div><span>Ring, expected 1/(N+1)</span><b>${pct(1 / (N + 1))}</b></div>
+      <div><span>Keys moved, mod N (measured)</span><b style="color:var(--bad)">${pct(modFrac)}</b></div>
+      <div><span>mod N, expected N/(N+1)</span><b>${pct(N / (N + 1))}</b></div>
+      <div><span>Busiest node ÷ fair share</span><b style="color:${mx / fair > 1.3 ? "var(--bad)" : "var(--ink)"}">${(mx / fair).toFixed(2)}×</b></div>
+      <div><span>Data to copy at your sizing</span><b>${bytes(sizeTotal * frac)}</b></div>`;
+    $("ringNotes").innerHTML = [
+      `Adding node ${N + 1} to ${N}: on the ring, ${fmt(moved)} of ${fmt(RK)} keys changed owner (${pct(frac)}), and every one of them moved <i>to the new node</i> (it now has ${fmt(newGot)}). With mod N, ${pct(modFrac)} changed owner, mostly between old nodes: a near-total cache flush.`,
+      V < 16 ? `With only ${V} point${V === 1 ? "" : "s"} per node, arcs have very uneven lengths: the busiest node holds ${(mx / fair).toFixed(2)}× its fair share, and the new node takes keys from just one or two neighbours. Raise the virtual nodes.` : `With ${V} points per node the arcs average out: the busiest node holds ${(mx / fair).toFixed(2)}× its fair share, and the new node takes a little from every old node instead of a lot from one neighbour.`,
+      `At the sizing above (${bytes(sizeTotal)}), adding one node means copying about ${bytes(sizeTotal * frac)} into it, or simply letting those keys miss and refill. At 10 Gbps that copy takes about ${Math.max(1, Math.round(sizeTotal * frac * 8 / 1e10))} s.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["sdata", "sval", "sover", "sram", "sops", "snode", "srf"].forEach(id => $(id).oninput = renderSize);
+  ["rn", "rv"].forEach(id => $(id).oninput = renderRing);
+
+  // ================= 5c: replication =================
+  function renderRep() {
+    const N = +$("pn").value;
+    ["pw", "pr"].forEach(id => { $(id).max = N; if (+$(id).value > N) $(id).value = N; });
+    const W = +$("pw").value, R = +$("pr").value, lag = +$("plag").value, wr = +$("pwr").value, rtt = +$("prtt").value, LOCAL = 0.1;
+    $("pnOut").textContent = N; $("pwOut").textContent = W; $("prOut").textContent = R; $("plagOut").textContent = ms(lag); $("pwrOut").textContent = fmt(wr); $("prttOut").textContent = ms(rtt);
+    const wLat = LOCAL + (W > 1 ? rtt : 0), rLat = LOCAL + (R > 1 ? rtt : 0), overlap = R + W > N;
+    const lost = W === 1 && N > 1 ? wr * lag / 1000 : 0, lostAll = N === 1;
+    const wTol = N - W, rTol = N - R, durable = W - 1;
+    $("repResults").innerHTML = `
+      <div><span>Write latency</span><b>${ms(wLat)}</b></div>
+      <div><span>Read latency</span><b>${ms(rLat)}</b></div>
+      <div><span>Read can see a stale copy?</span><b style="color:${overlap ? "var(--ok)" : "var(--amber)"}">${overlap ? "no (R+W>N)" : "yes"}</b></div>
+      <div><span>Writes lost if the primary dies</span><b style="color:${lostAll ? "var(--bad)" : lost ? "var(--amber)" : "var(--ok)"}">${lostAll ? "whole shard" : fmt(lost)}</b></div>
+      <div><span>Failures writes survive</span><b>${wTol}</b></div>
+      <div><span>Failures reads survive</span><b>${rTol}</b></div>
+      <div><span>Memory, × data size</span><b>${N}×</b></div>`;
+    $("repFormula").textContent =
+`write latency ≈ local + (W > 1 ? RTT : 0)        = ${ms(LOCAL)} + ${W > 1 ? ms(rtt) : "0"} = ${ms(wLat)}
+read latency  ≈ local + (R > 1 ? RTT : 0)        = ${ms(rLat)}
+fresh reads   ⇔ R + W > N                        : ${R} + ${W} ${overlap ? ">" : "≤"} ${N}
+lost on crash ≈ writes/s × lag  (only if W = 1)  = ${W === 1 && N > 1 ? `${fmt(wr)} × ${ms(lag)} = ${fmt(lost)}` : N === 1 ? "everything on the shard" : "0"}
+writes need W live copies → tolerate N − W = ${wTol} down; reads tolerate N − R = ${rTol}`;
+    $("repNotes").innerHTML = [
+      N === 1 ? `One copy: a dead node takes its whole shard of cache with it, and its share of reads goes to the database until it refills.` : W === 1 ? `W = 1 is the usual choice for a cache: the write is acknowledged by the primary alone, so it costs ${ms(wLat)}. If the primary dies, about ${fmt(lost)} operations still in the replication stream are lost. Lost sets become misses; lost deletes become stale values, bounded by the TTL.` : `W = ${W} waits for ${W - 1} replica${W > 2 ? "s" : ""}, adding a round trip (${ms(wLat)} per write), and an acknowledged write survives ${durable} failure${durable === 1 ? "" : "s"}. That is database thinking; most caches don't pay it, because the database already has the write.`,
+      overlap ? `R + W > N means every read set overlaps every write set, so a read always reaches a copy with the latest acknowledged write. This is the quorum rule; reads now cost ${ms(rLat)}.` : `R + W ≤ N: a read may ask only copies the latest write hasn't reached, and return the old value for up to the replication lag (${ms(lag)} here). The requirements allow that.`,
+      `Memory grows to ${N}× the data. Replicas can also serve reads, which helps with hot keys (5d), at the price of the same staleness.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["pn", "pw", "pr", "plag", "pwr", "prtt"].forEach(id => $(id).oninput = renderRep);
+
+  // ================= 5d: hot keys =================
+  let hmode = 0;
+  const HMODES = ["No fix", "Copies of the hot key", "Near-cache in the app"];
+  function renderHot() {
+    const T = Math.pow(10, +$("hops").value), S = +$("hshards").value, cap = Math.pow(10, +$("hcap").value), share = +$("hshare").value,
+      c = +$("hcopies").value, A = +$("happ").value, ttl = +$("httl").value;
+    $("hopsOut").textContent = fmt(T); $("hshardsOut").textContent = S; $("hcapOut").textContent = fmt(cap); $("hshareOut").textContent = pct(share);
+    $("hcopiesOut").textContent = c; $("happOut").textContent = fmt(A); $("httlOut").textContent = ttl.toFixed(1) + " s";
+    $("hmodes").innerHTML = HMODES.map((m, i) => `<button aria-pressed="${i === hmode}" data-m="${i}">${m}</button>`).join("");
+    const hot = T * share, bg = (T - hot) / S;
+    const nearIn = Math.min(hot, A / ttl);
+    // hot reads landing on each shard, per mode
+    const hotOn = Array.from({ length: S }, () => 0);
+    if (hmode === 0) hotOn[0] = hot;
+    else if (hmode === 1) { const cc = Math.min(c, S); for (let i = 0; i < cc; i++) hotOn[i] = hot / cc; }
+    else hotOn[0] = nearIn;
+    const loads = hotOn.map(h => bg + h), peak = Math.max(...loads), need = bg >= cap ? Infinity : Math.ceil(hot / (cap - bg));
+    // chart
+    const nar = narrowMQ.matches, Wd = nar ? 400 : 720, Hh = 220, L0 = nar ? 44 : 56, top = 14, bot = 26;
+    const yMax = Math.max(peak, cap) * 1.1, Y = v => Hh - bot - v / yMax * (Hh - bot - top), bw = (Wd - L0 - 10) / S;
+    let s = "";
+    for (let k = 0; k <= 4; k++) { const v = yMax / 4 * k; s += `<line x1="${L0}" y1="${Y(v)}" x2="${Wd - 10}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L0 - 4}" y="${Y(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--muted)">${fmt(v)}</text>`; }
+    loads.forEach((ld, i) => {
+      const x = L0 + i * bw + bw * 0.15, w = Math.max(2, bw * 0.7);
+      s += `<rect x="${x}" y="${Y(bg)}" width="${w}" height="${Y(0) - Y(bg)}" fill="var(--accent)"/>`;
+      if (hotOn[i] > 0) s += `<rect x="${x}" y="${Y(ld)}" width="${w}" height="${Y(bg) - Y(ld)}" fill="var(--bad)"/>`;
+      if (S <= 20 || i % 5 === 0) s += `<text x="${x + w / 2}" y="${Hh - 9}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${i + 1}</text>`;
+    });
+    s += `<line x1="${L0}" y1="${Y(cap)}" x2="${Wd - 10}" y2="${Y(cap)}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    $("hotChart").setAttribute("viewBox", `0 0 ${Wd} ${Hh}`);
+    $("hotChart").innerHTML = s;
+    const over = peak > cap;
+    $("hotResults").innerHTML = `
+      <div><span>Hot key reads per second</span><b>${fmt(hot)}</b></div>
+      <div><span>Ordinary load per shard</span><b>${fmt(bg)}</b></div>
+      <div><span>Busiest shard</span><b style="color:${over ? "var(--bad)" : "var(--ok)"}">${fmt(peak)} (${pct(peak / cap)})</b></div>
+      <div><span>Copies needed to fit</span><b>${need === Infinity ? "∞" : Math.max(1, need)}</b></div>
+      ${hmode === 2 ? `<div><span>Hot reads reaching the cache</span><b>${fmt(nearIn)}</b></div><div><span>Worst staleness</span><b>${ttl.toFixed(1)} s</b></div>` : ""}
+      ${hmode === 1 ? `<div><span>Writes to the hot key cost</span><b>${Math.min(c, S)}×</b></div>` : ""}`;
+    $("hotFormula").textContent =
+`hot      = total × share                    = ${fmt(T)} × ${pct(share)} = ${fmt(hot)}
+ordinary = (total − hot) / shards          = ${fmt(bg)} per shard
+no fix   : busiest = ordinary + hot         = ${fmt(bg + hot)}
+copies   : busiest = ordinary + hot / c     = ${fmt(bg + hot / Math.min(c, S))}   (needs c ≥ ⌈hot / (cap − ordinary)⌉ = ${need === Infinity ? "∞" : Math.max(1, need)})
+near     : busiest = ordinary + min(hot, apps / TTL) = ${fmt(bg)} + ${fmt(nearIn)} = ${fmt(bg + nearIn)}`;
+    const notes = [];
+    if (hmode === 0) notes.push(over ? `One key alone sends ${fmt(hot)} reads a second to one shard, ${pct((bg + hot) / cap)} of a node's capacity. Adding shards doesn't help: it lowers the ordinary load (${fmt(bg)}), not the hot key's.` : `At this share the hot key fits: its shard runs at ${pct(peak / cap)}. Raise the share until the red bar crosses the line.`);
+    if (hmode === 1) notes.push(`Store the key under ${Math.min(c, S)} names (<span class="mono">key#0</span> … <span class="mono">key#${Math.min(c, S) - 1}</span>) that hash to different shards, and let each read pick one at random, or read from a shard's replicas. Each copy takes ${fmt(hot / Math.min(c, S))} reads. ${Math.min(c, S) >= need ? "Enough to fit." : `Not enough: you need ${need === Infinity ? "more capacity, since ordinary load already fills a node" : need}.`} Every write or delete must now reach all ${Math.min(c, S)} copies.`);
+    if (hmode === 2) notes.push(`Each of ${fmt(A)} app servers keeps the hot value in its own memory for ${ttl.toFixed(1)} s and asks the cache at most once per TTL: ${fmt(A)} / ${ttl.toFixed(1)} s = ${fmt(A / ttl)} reads a second${A / ttl > hot ? `, which is more than the key's ${fmt(hot)}, so here the near-cache barely helps` : ` instead of ${fmt(hot)}, ${(hot / nearIn).toFixed(0)}× fewer`}. The cost: a delete doesn't reach the near-caches, so readers can see a value up to ${ttl.toFixed(1)} s old.`);
+    notes.push(`Finding hot keys: the client (or node) counts reads per key over a short window, or keeps a small top-K sketch, and marks a key hot above a threshold. Only a handful of keys are ever hot at once, so the near-cache stays tiny.`);
+    $("hotNotes").innerHTML = notes.map(x => `<li>${x}</li>`).join("");
+  }
+  $("hmodes").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; hmode = +b.dataset.m; renderHot(); };
+  ["hops", "hshards", "hcap", "hshare", "hcopies", "happ", "httl"].forEach(id => $(id).oninput = renderHot);
+
+  // ================= 5e: stampede =================
+  let smode = 0;
+  const SMODES = ["No protection", "Lease (one rebuilder)", "Early refresh"];
+  // times in ms; the cached value expires at t = 0
+  function simStampede(Q, T, mode) {
+    const r = rng(13), start = mode === 2 ? -Math.max(3000, T * (Math.log(Q * T / 1000 + 1) + 4)) : -50, end = T * 2 + 200;
+    let t = start, valueUntil = 0, refreshAt = null, db = [], waited = 0, maxWait = 0, served = 0;
+    while (t < end) {
+      t += -Math.log(1 - r()) * 1000 / Q;
+      if (refreshAt !== null && t >= refreshAt) { valueUntil = Infinity; refreshAt = null; }
+      if (t < valueUntil) {
+        served++;
+        // early refresh: recompute with probability that rises as expiry nears (XFetch rule)
+        if (mode === 2 && valueUntil !== Infinity && t - T * Math.log(1 - r()) >= valueUntil) { db.push({ t, early: true }); if (refreshAt === null || t + T < refreshAt) refreshAt = t + T; }
+        continue;
+      }
+      // the key is missing
+      if (mode === 1) { if (refreshAt === null) { db.push({ t, early: false }); refreshAt = t + T; } else { waited++; maxWait = Math.max(maxWait, refreshAt - t); } }
+      else { db.push({ t, early: false }); if (refreshAt === null || t + T < refreshAt) refreshAt = t + T; waited++; maxWait = Math.max(maxWait, T); }
+    }
+    return { db, waited, maxWait, start, end };
+  }
+  function renderStampede() {
+    const Q = Math.round(Math.pow(10, +$("sq").value)), T = +$("st").value;
+    $("sqOut").textContent = fmt(Q); $("stOut").textContent = ms(T);
+    $("smodes").innerHTML = SMODES.map((m, i) => `<button aria-pressed="${i === smode}" data-m="${i}">${m}</button>`).join("");
+    const all = SMODES.map((_, i) => simStampede(Q, T, i)), r = all[smode];
+    const firstEarly = all[2].db.length ? all[2].db[0].t : null;
+    const x0 = Math.min(-T * 0.5, firstEarly !== null ? firstEarly - T * 0.5 : 0), x1 = T * 1.6;
+    const nar = narrowMQ.matches, Wd = nar ? 400 : 720, Hh = 200, L0 = nar ? 44 : 54, top = 14, bot = 28, NB = nar ? 40 : 70;
+    const bwT = (x1 - x0) / NB, bins = new Array(NB).fill(0), kinds = new Array(NB).fill(false);
+    r.db.forEach(d => { const i = Math.floor((d.t - x0) / bwT); if (i >= 0 && i < NB) { bins[i]++; if (d.early) kinds[i] = true; } });
+    const yMax = Math.max(1, ...bins) * 1.1, X = t => L0 + (t - x0) / (x1 - x0) * (Wd - L0 - 10), Y = v => Hh - bot - v / yMax * (Hh - bot - top);
+    let s = "";
+    for (let k = 0; k <= 3; k++) { const v = yMax / 3 * k; s += `<line x1="${L0}" y1="${Y(v)}" x2="${Wd - 10}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L0 - 4}" y="${Y(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--muted)">${fmt(Math.round(v))}</text>`; }
+    bins.forEach((v, i) => { if (!v) return; const x = X(x0 + i * bwT); s += `<rect x="${x + 0.5}" y="${Y(v)}" width="${Math.max(1.5, X(x0 + bwT) - X(x0) - 1)}" height="${Y(0) - Y(v)}" fill="${kinds[i] ? "var(--ok)" : "var(--bad)"}"/>`; });
+    s += `<line x1="${X(0)}" y1="${top - 4}" x2="${X(0)}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1.5"/><text x="${X(0) + 4}" y="${top + 8}" font-family="var(--mono)" font-size="11" fill="var(--ink)">expiry</text>`;
+    const tickStep = (x1 - x0) / (nar ? 3 : 5);
+    for (let k = 0; k <= (nar ? 3 : 5); k++) { const t = x0 + k * tickStep; s += `<text x="${X(t)}" y="${Hh - 10}" text-anchor="${k === 0 ? "start" : k === (nar ? 3 : 5) ? "end" : "middle"}" font-family="var(--mono)" font-size="11" fill="var(--muted)">${t >= 0 ? "+" : "−"}${ms(Math.abs(t))}</text>`; }
+    $("stChart").setAttribute("viewBox", `0 0 ${Wd} ${Hh}`);
+    $("stChart").innerHTML = s;
+    const expected = Q * T / 1000;
+    $("stResults").innerHTML = `
+      <div><span>DB queries for this key</span><b style="color:${r.db.length > 3 ? "var(--bad)" : "var(--ok)"}">${fmt(r.db.length)}</b></div>
+      <div><span>Formula Q × T (no protection)</span><b>${fmt(expected)}</b></div>
+      <div><span>Requests that waited</span><b>${fmt(r.waited)}</b></div>
+      <div><span>Longest wait</span><b>${r.waited ? ms(r.maxWait) : "0"}</b></div>`;
+    $("stTable").innerHTML = all.map((x, i) => `<tr class="${i === smode ? "cur" : ""}"><td><b>${SMODES[i]}</b></td><td class="mono ${x.db.length > 3 ? "n" : "y"}">${fmt(x.db.length)}</td><td class="mono">${fmt(x.waited)}</td><td class="mono">${x.waited ? ms(x.maxWait) : "0"}</td></tr>`).join("");
+    const [a, b, c] = all;
+    $("stNotes").innerHTML = [
+      `No protection: every request in the ${ms(T)} it takes the first one to rebuild the value misses and rebuilds it too. Expected Q × T = ${fmt(Q)}/s × ${ms(T)} ≈ ${fmt(expected)}; the simulation counted ${fmt(a.db.length)} identical queries.`,
+      `Lease: the first miss gets a token and rebuilds; the others are told to wait and retry (or are served the old value if the cache kept it). One database query, but ${fmt(b.waited)} requests wait up to ${ms(b.maxWait)}.`,
+      c.db.length ? `Early refresh: before expiry, each read rebuilds with a probability that grows as expiry nears (recompute if now − T·ln(rand) ≥ expiry). The first rebuild started ${ms(-c.db[0].t)} before expiry, ${fmt(c.db.length)} rebuild${c.db.length === 1 ? "" : "s"} in total, and ${fmt(c.waited)} requests waited. No coordination needed, just the rebuild time stored next to the value.` : `Early refresh found no rebuild before expiry at this rate.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  $("smodes").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; smode = +b.dataset.m; renderStampede(); };
+  ["sq", "st"].forEach(id => $(id).oninput = renderStampede);
+
+  function renderJitter() {
+    const K = Math.round(Math.pow(10, +$("jk").value)), ttl = +$("jt").value, j = +$("jj").value;
+    $("jkOut").textContent = fmt(K); $("jtOut").textContent = ttl >= 3600 ? (ttl / 3600).toFixed(ttl % 3600 ? 1 : 0) + " h" : ttl / 60 + " min"; $("jjOut").textContent = pct(j);
+    const spread = 2 * j * ttl, peak = spread < 1 ? K : K / spread;
+    $("jResults").innerHTML = `
+      <div><span>Expiries in the worst second, no jitter</span><b style="color:var(--bad)">${fmt(K)}</b></div>
+      <div><span>Spread window with jitter (2 × j × TTL)</span><b>${spread < 1 ? "< 1 s" : fmt(spread) + " s"}</b></div>
+      <div><span>Expiries per second, with jitter (K ÷ window)</span><b style="color:${peak < K / 10 ? "var(--ok)" : "var(--amber)"}">${fmt(peak)}</b></div>`;
+  }
+  ["jk", "jt", "jj"].forEach(id => $(id).oninput = renderJitter);
+
+  // ================= boot =================
+  function renderAll() { renderTTL(); renderSize(); renderRep(); renderHot(); renderStampede(); drawLru(); }
+  resetSim(); renderExplain(); render(); lruReset(); renderTTL(); renderSize(); renderRep(); renderHot(); renderStampede(); renderJitter();
+  let resizeT = null;
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(renderAll, 60); });
+  narrowMQ.addEventListener("change", renderAll);
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; stepDots(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

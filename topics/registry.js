@@ -100,8 +100,15 @@ window.TOPICS = [
     usedIn: "Redis, Apache Spark, Twitter Algebird",
     glyph: "sketch"
   },
-  { slug: "distributed-lock", title: "Contention and Distributed Locks", area: "Patterns", status: "planned",
-    blurb: "Two buyers, one ticket: compare locks, optimistic concurrency and leases with expiry." },
+  {
+    slug: "distributed-lock",
+    title: "Contention and Distributed Locks",
+    area: "Patterns",
+    status: "ready",
+    blurb: "Race buyers for the last seat with no coordination, a row lock, a version check, a lease or fencing tokens; freeze a buyer past its lease and watch the store sell twice or reject token 33.",
+    usedIn: "Google Chubby, ZooKeeper, etcd, Redis",
+    glyph: "lock"
+  },
   { slug: "crdt", title: "Collaborative Editing (OT and CRDTs)", area: "Real-time updates", status: "planned",
     blurb: "Two people type at the same spot offline. See how both edits survive the merge." },
   { slug: "vector-clocks", title: "Vector Clocks", area: "Distributed systems", status: "planned",
@@ -175,7 +182,14 @@ window.QUESTIONS = [
     blurb: "Crawl a toy web through four design stages, schedule per-host back queues against a crawl delay, catch duplicate URLs and pages with a Bloom filter and SimHash, and size the fetcher fleet live.",
     concepts: ["bloom-filter", "kafka", "consistent-hashing", "rate-limiter", "lru-cache"]
   },
-  { slug: "distributed-cache", title: "Design a Distributed Cache", level: "hld", status: "planned", blurb: "Eviction, sharding, replication and hot keys." },
+  {
+    slug: "distributed-cache",
+    title: "Design a Distributed Cache",
+    level: "hld",
+    status: "ready",
+    blurb: "Grow a cache from one LRU node to a sharded, replicated cluster, kill nodes and make a key go viral, then measure keys moved by consistent hashing, hot-key load and stampede queries.",
+    concepts: ["lru-cache", "consistent-hashing", "quorum", "bloom-filter"]
+  },
   { slug: "google-docs", title: "Design Google Docs", level: "hld", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
   { slug: "dropbox", title: "Design Dropbox", level: "hld", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." },
   {
@@ -196,7 +210,15 @@ window.QUESTIONS = [
     concepts: ["lru-cache"],
     patterns: ["Strategy", "Observer", "Decorator"]
   },
-  { slug: "lld-rate-limiter", title: "Design a Rate Limiter (classes)", level: "lld", status: "planned", blurb: "Swappable limiting algorithms behind one interface, with per-client state." },
+  {
+    slug: "lld-rate-limiter",
+    title: "Design a Rate Limiter (classes)",
+    level: "lld",
+    status: "ready",
+    blurb: "Send requests from free and pro clients on a clock you control, swap token bucket, fixed window, sliding log and sliding counter behind one interface, and race two threads for the last token.",
+    concepts: ["rate-limiter"],
+    patterns: ["Strategy", "Factory", "Decorator", "Observer"]
+  },
   { slug: "lld-elevator", title: "Design an Elevator System", level: "lld", status: "planned", blurb: "Cars, requests and a dispatcher, with elevator state and scheduling strategies." },
   { slug: "lld-vending-machine", title: "Design a Vending Machine", level: "lld", status: "planned", blurb: "Inventory, coins and change, driven by the State pattern." },
   { slug: "lld-splitwise", title: "Design Splitwise", level: "lld", status: "planned", blurb: "Users, groups, expenses and balances, with equal, exact and percent splits." },
@@ -250,7 +272,9 @@ window.DSA = [
       problems: ["Find a target", "Insert position", "Rotated sorted array", "Slowest speed that finishes"] }
   ] },
   { area: "Tree", patterns: [
-    { slug: "tree-traversal", title: "DFS and BFS on Trees", status: "planned", blurb: "Preorder, inorder, postorder and level order, with the call stack drawn." }
+    { slug: "tree-traversal", title: "DFS and BFS on Trees", status: "ready",
+      blurb: "Step through preorder, inorder and postorder with the call stack drawn, sweep a tree level by level with a queue, and see values flow up and bounds flow down.",
+      problems: ["Traversal orders", "Level order", "Maximum depth", "Validate a BST"] }
   ] },
   { area: "Heap", patterns: [
     { slug: "top-k", title: "Top K and Two Heaps", status: "planned", blurb: "Keep the k largest with a min-heap, and a running median with two heaps." }
@@ -280,7 +304,8 @@ window.LESSONS = [
       blurb: "Shrink a secant into a tangent, read the slope's sign as the downhill direction, and let it walk a loss knob to its best value." },
     { num: 6, slug: "06-probability", title: "Probability basics for ML", math: [3], status: "ready",
       blurb: "Probability as counting a part out of a whole: rules, conditional probability, distributions and expected value, the language a model uses to say how sure it is." },
-    { num: 7, slug: "07-loss-functions", title: "Loss functions", math: [2, 3, 4], status: "planned", blurb: "One number that measures how wrong a model is." },
+    { num: 7, slug: "07-loss-functions", title: "Loss functions", math: [2, 3, 4], status: "ready",
+      blurb: "Turn a line's knobs over five flats and watch MAE and MSE react, see one typo pull the squared-error fit off course, and price confident wrong spam guesses with log loss." },
     { num: 8, slug: "08-gradient-descent", title: "Gradient descent", math: [5], status: "planned", blurb: "Walk downhill on the loss, one small step at a time." },
     { num: 9, slug: "09-linear-regression", title: "Linear regression end to end", math: [1, 3, 5, 7], status: "planned", blurb: "Fit a line to data: model, loss and training together." },
     { num: 10, slug: "10-logistic-regression", title: "Logistic regression and classification", math: [4], status: "planned", blurb: "Turn a score into a probability and a yes/no answer." },

@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DFS and BFS on Trees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 8px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .note { font-size: 14px; color: var(--muted); }
+  .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .tv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: start; }
+  .tv-cols > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .tv-stack { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .tv-stack li { font: 600 12px/1.25 var(--mono); padding: 6px 8px; border: 1.5px solid var(--amber); background: var(--amber-soft); color: var(--ink); border-radius: var(--radius); overflow-wrap: anywhere; }
+  .tv-stack li.top { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+  .tv-stack li.nil { border-style: dashed; }
+  .tv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 28px; }
+  .tv-chips span { font: 600 13px/1 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); }
+  .tv-chips span.q { border-color: var(--amber); background: var(--amber-soft); }
+  .tv-chips span.q.front { border-color: var(--accent); }
+  .tv-chips span.o { border-color: var(--ok); color: var(--ok); }
+  .tv-chips span.new { background: var(--ok); color: var(--panel); border-color: var(--ok); }
+  .tv-chips em, .tv-stack em { font-size: 13px; color: var(--muted); }
+  .tv-chips .lvl { display: inline-flex; gap: 4px; padding: 3px; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .orders { display: grid; gap: 4px; font: 500 13px/1.5 var(--mono); }
+  .orders b { color: var(--accent); display: inline-block; min-width: 7.5em; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="tree-traversal" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Tree</span>
+  </div>
+
+  <header class="intro">
+    <h1>DFS and BFS on Trees</h1>
+    <p class="lede">A tree problem almost always comes down to visiting every node once in a sensible order. Depth-first search follows one branch all the way down before backing up, and the call stack remembers the way back. Breadth-first search sweeps the tree one level at a time with a queue. Pick the order that hands each node the information it needs, and most tree questions turn into a few lines of code.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>A tree is a node plus two smaller trees</h2>
+    <p>A binary tree is either empty or a node with a value, a left subtree and a right subtree. That definition is recursive, so the natural way to process a tree is too: handle the node, and ask the same function to handle each subtree. The empty tree is the base case, where there is nothing to do.</p>
+    <p>That leaves one real decision: <b>when</b> you do the work for a node relative to its children. Before both (preorder), between them (inorder), or after both (postorder). Or forget about subtrees and go level by level from the top (level order). Every node is visited exactly once in all four, so each runs in O(n). What changes is what you know at the moment you handle a node.</p>
+    <div id="ideaViz"></div>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Order matters</h3><p>The output is the visiting order itself, or the order is what makes the answer easy, like the sorted order an inorder walk gives on a search tree.</p><a href="#p1">Problem 1: Traversal orders</a></div>
+      <div><h3>Level by level</h3><p>Anything about depth from the top, rows, "the first node at each level" or the shortest path down: use a queue.</p><a href="#p2">Problem 2: Level order</a></div>
+      <div><h3>Bottom-up or top-down</h3><p>Children return facts to their parent (heights, sizes, sums), or the parent passes facts down (bounds, the path so far).</p><a href="#p3">Problem 3: Maximum depth</a><a href="#p4">Problem 4: Validate a search tree</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The input is a <b>tree</b> (or something tree-shaped: folders, an org chart, a parsed expression) and the answer needs every node or every root-to-leaf path.</li>
+      <li>The answer for a node can be built from the answers for its children: <b>height, size, sum, balanced or not</b>. That's a postorder DFS that returns values.</li>
+      <li>Each node needs something from <b>above</b>: the path so far, a running sum, the range its value must fall in. Pass it down as an argument (preorder style).</li>
+      <li>The words <b>level, row, depth from the top, closest to the root</b>, or "the view from the right side". That's BFS with a queue.</li>
+      <li>The tree is a <b>binary search tree</b> and you need values in sorted order, the k-th smallest, or neighbours in value. That's inorder.</li>
+    </ul>
+    <div class="aside"><p><b>Watch the depth:</b> recursion uses one stack frame per level. A balanced tree of a million nodes is about 20 levels deep, but a tree that is really a linked list is a million levels deep, and Python stops at about 1,000 by default. If the input can be that lopsided, use the iterative version with an explicit stack.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>Three skeletons: recursive DFS, iterative DFS, BFS</h2>
+    <div class="tmpl-pair">
+      <div>
+        <h3>DFS, recursive</h3>
+<pre class="tmpl">def dfs(node):
+    if node is None:
+        return            <span class="c"># empty tree: base case</span>
+    <span class="c"># preorder work here</span>
+    dfs(node.left)
+    <span class="c"># inorder work here</span>
+    dfs(node.right)
+    <span class="c"># postorder work here</span></pre>
+        <h3>DFS, iterative (preorder)</h3>
+<pre class="tmpl">stack = [root] if root else []
+while stack:
+    node = stack.pop()
+    visit(node)
+    if node.right: stack.append(node.right)
+    if node.left:  stack.append(node.left)
+<span class="c"># left pushed last, so popped first</span></pre>
+      </div>
+      <div>
+        <h3>BFS, one level at a time</h3>
+<pre class="tmpl">from collections import deque
+q = deque([root]) if root else deque()
+while q:
+    <span class="c"># the queue now holds exactly one level</span>
+    for _ in range(len(q)):
+        node = q.popleft()
+        visit(node)
+        if node.left:  q.append(node.left)
+        if node.right: q.append(node.right)</pre>
+      </div>
+    </div>
+    <p>The recursive DFS is the one to reach for first: put the work where the node has what it needs. The iterative version does the same walk with a list you manage yourself, which is exactly what the call stack does for you in the recursive one. BFS swaps the stack for a queue: first in, first out, so nodes come out in order of depth.</p>
+    <p>Two habits prevent most bugs. Handle the empty tree first, both at the top and as the base case. And for BFS, read <span class="mono">len(q)</span> <i>before</i> the inner loop, so the children you add during this level wait for the next one.</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Traversal orders" data-num="P1">
+    <span class="eyebrow">Problem 1 · Order matters</span>
+    <h2>Preorder, inorder and postorder</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the root of a binary tree, return its node values in preorder (node, then left subtree, then right subtree), inorder (left, node, right) and postorder (left, right, node).</p>
+      <div class="io"><div><span>Input</span>[1, 2, 3, 4, 5, null, 6]</div><div><span>Preorder</span>[1, 2, 4, 5, 3, 6]</div><div><span>Inorder</span>[4, 2, 5, 1, 3, 6]</div><div><span>Postorder</span>[4, 5, 2, 6, 3, 1]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: do you need three different functions?</summary><p>No. All three make the same calls in the same order: the node, then everything on its left, then everything on its right. The only difference is which line appends the value: before the left call, between the two calls, or after the right call. Step through and watch the call stack: it is identical for all three orders.</p></details>
+    <div id="viz1"></div>
+    <p class="legend">Blue = the running call. Amber = paused on the call stack, waiting for a child. Green ring = call finished. Dashed ∅ = a call on an empty child.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h) for the stack</span><span class="meh">Skewed tree: h = n</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="Level order" data-num="P2">
+    <span class="eyebrow">Problem 2 · Level by level</span>
+    <h2>Level order traversal</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given the root of a non-empty binary tree, return its values level by level: a list of lists where the first list holds the root, the next holds its children from left to right, and so on.</p>
+      <div class="io"><div><span>Input</span>[3, 9, 20, null, null, 15, 7]</div><div><span>Output</span>[[3], [9, 20], [15, 7]]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: how do you know where one level ends?</summary><p>Use a queue. When you start a level, the queue holds exactly the nodes of that level and nothing else, so its current length is the size of the level. Pop that many nodes, adding their children to the back. The children pile up behind the current level and become the next one.</p></details>
+    <div id="viz2"></div>
+    <p class="legend">Blue = the node just popped. Amber = waiting in the queue. Green ring = already added to a level.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(w), w = widest level</span><span class="meh">Full tree: w ≈ n / 2</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Maximum depth" data-num="P3">
+    <span class="eyebrow">Problem 3 · Bottom-up DFS</span>
+    <h2>Maximum depth of a binary tree</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Return the number of nodes on the longest path from the root down to a leaf. An empty tree has depth 0 and a single node has depth 1.</p>
+      <div class="io"><div><span>Input</span>[3, 9, 20, null, null, 15, 7]</div><div><span>Output</span>3 (3 → 20 → 15)</div></div>
+    </div>
+    <details class="hint"><summary>Think first: if you knew the depths of both subtrees, what is the answer?</summary><p>One more than the deeper of the two. So ask each child for its depth, wait for both answers, then return <span class="mono">1 + max(left, right)</span>. The work happens after both calls, which makes this a postorder walk. The empty tree answers 0, and that stops the recursion.</p></details>
+    <div id="viz3"></div>
+    <p class="legend">The number under a finished node is the depth its call returned. At the end, filled green nodes mark one deepest path.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h)</span><span class="meh">BFS also works: count the levels</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Validate a search tree" data-num="P4">
+    <span class="eyebrow">Problem 4 · Top-down DFS</span>
+    <h2>Is it a valid binary search tree?</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Decide whether a binary tree is a binary search tree: for every node, all values in its left subtree are strictly smaller than it and all values in its right subtree are strictly larger. Duplicates are not allowed.</p>
+      <div class="io"><div><span>Input</span>[8, 4, 12, 2, 9, 10, 14]</div><div><span>Output</span>false</div><div><span>Why</span>9 sits in 8's left subtree but is bigger than 8</div></div>
+    </div>
+    <details class="hint"><summary>Think first: why isn't checking each node against its children enough?</summary><p>In the example, 9 is a fine right child of 4, yet it breaks the rule for 8, two levels up. Each node must fall inside a range set by <i>all</i> its ancestors. Pass that range down: going left, the parent's value becomes the new upper bound; going right, it becomes the new lower bound. The root starts with (−∞, ∞).</p></details>
+    <div id="viz4"></div>
+    <p class="legend">Each stack frame shows the node and its allowed range (lo, hi). Red ring = the value falls outside its range.</p>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h)</span><span class="meh">Comparing only with children: wrong answer</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>Why every node is handled once, in the right order</h2>
+    <div class="qa">
+      <div><span class="q">Induction</span><p>Assume dfs handles every node of any tree smaller than the current one correctly. The left and right subtrees are smaller, so the two calls cover them, and the node itself is handled by the one line of work. The empty tree is the base case. So every node is visited exactly once: O(n) time.</p></div>
+      <div><span class="q">The stack</span><p>At any moment the call stack holds exactly the path from the root to the current node: each frame is paused, waiting for a child to finish. So the extra memory is the height h, which is about log₂ n for a balanced tree and n for a chain.</p></div>
+      <div><span class="q">Inorder sorts a BST</span><p>Inorder lists the left subtree, then the node, then the right subtree. In a search tree the left values are all smaller and the right ones all larger, and by induction each subtree is listed in sorted order. So the whole list is sorted.</p></div>
+      <div><span class="q">BFS goes by depth</span><p>The queue always holds nodes from at most two neighbouring depths d and d + 1, the d ones in front. A node at depth d only adds children at depth d + 1 to the back, so all of depth d leaves the queue before any of depth d + 1. That is why the first time BFS reaches something is along a shortest path from the root.</p></div>
+      <div><span class="q">In an interview</span><p>Say which direction the information flows. "The answer needs both children's results, so postorder and return a value" or "each node needs a bound from above, so pass it down." Then name the base case and the stack depth.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const MAX_NODES = 12, MAX_LEVELS = 5;
+
+  // ---------- parse a level-order list like "3, 9, 20, null, null, 15, 7" into a tree ----------
+  function parseTree(text) {
+    const toks = String(text).split(/[\s,\[\]]+/).filter(Boolean);
+    if (!toks.length) return { error: "Enter the tree as a level-order list, for example 3, 9, 20, null, null, 15, 7." };
+    const vals = [];
+    for (const t of toks) {
+      if (/^(null|none|nil|#)$/i.test(t)) { vals.push(null); continue; }
+      if (!/^-?\d+$/.test(t)) return { error: `"${t}" isn't a whole number or null.` };
+      const v = Number(t);
+      if (Math.abs(v) > 99) return { error: "Keep node values between -99 and 99 so they fit inside the circles." };
+      vals.push(v);
+    }
+    if (vals[0] === null) return { error: "The first value is the root, so it can't be null." };
+    const nodes = [];
+    const mk = v => { const n = { id: nodes.length, val: v, left: null, right: null, depth: 0, x: 0 }; nodes.push(n); return n; };
+    const root = mk(vals[0]), q = [root];
+    let i = 1;
+    while (i < vals.length) {
+      if (!q.length) {
+        if (vals.slice(i).every(v => v === null)) break;
+        return { error: `Value ${vals.slice(i).find(v => v !== null)} has no parent: every earlier slot is already filled or null.` };
+      }
+      const p = q.shift();
+      for (const side of ["left", "right"]) {
+        if (i >= vals.length) break;
+        const v = vals[i++];
+        if (v !== null) { const c = mk(v); p[side] = c; q.push(c); }
+      }
+    }
+    if (nodes.length > MAX_NODES) return { error: `Use at most ${MAX_NODES} nodes so the tree fits on screen.` };
+    // layout: x = position in inorder, y = depth
+    let xi = 0, height = 0;
+    (function lay(n, d) {
+      if (!n) return;
+      n.depth = d; height = Math.max(height, d);
+      lay(n.left, d + 1); n.x = xi++; lay(n.right, d + 1);
+    })(root, 0);
+    if (height + 1 > MAX_LEVELS) return { error: `Keep the tree to ${MAX_LEVELS} levels so it fits on screen.` };
+    return { root, nodes, height };
+  }
+
+  // ---------- draw the tree as SVG ----------
+  // st: {id: "cur"|"stack"|"done"|"bad"|"hit"}; badge: {id: text}; opts.path: highlight edges into stack nodes;
+  // opts.ghost: {parent, side} draws the empty child currently being called
+  function drawTree(T, st = {}, badge = {}, opts = {}) {
+    const n = T.nodes.length, slot = 34, r = 14, W = Math.max(240, n * slot + 32), off = (W - n * slot) / 2, dy = 54;
+    const X = nd => off + nd.x * slot + slot / 2, Y = nd => 22 + nd.depth * dy;
+    const H = 22 + T.height * dy + 44;
+    let s = "";
+    T.nodes.forEach(p => ["left", "right"].forEach(side => {
+      const c = p[side]; if (!c) return;
+      const on = opts.path && (st[c.id] === "cur" || st[c.id] === "stack" || st[c.id] === "bad");
+      s += `<line x1="${X(p)}" y1="${Y(p)}" x2="${X(c)}" y2="${Y(c)}" stroke="${on ? "var(--amber)" : "var(--line)"}" stroke-width="${on ? 3 : 2}"/>`;
+    }));
+    if (opts.ghost) {
+      const p = T.nodes[opts.ghost.parent], gx = X(p) + (opts.ghost.side === "left" ? -slot / 2 : slot / 2), gy = Y(p) + 40;
+      s += `<line x1="${X(p)}" y1="${Y(p)}" x2="${gx}" y2="${gy}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>`;
+      s += `<circle cx="${gx}" cy="${gy}" r="9" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 2"/>`;
+      s += `<text x="${gx}" y="${gy + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--accent)">∅</text>`;
+    }
+    T.nodes.forEach(nd => {
+      const m = st[nd.id];
+      const fill = m === "cur" ? "var(--accent)" : m === "hit" ? "var(--ok)" : m === "stack" ? "var(--amber-soft)" : "var(--panel)";
+      const stroke = m === "cur" ? "var(--accent)" : m === "hit" || m === "done" ? "var(--ok)" : m === "stack" ? "var(--amber)" : m === "bad" ? "var(--bad)" : "var(--muted)";
+      const text = m === "cur" || m === "hit" ? "var(--panel)" : m === "done" ? "var(--ok)" : m === "bad" ? "var(--bad)" : "var(--ink)";
+      s += `<circle cx="${X(nd)}" cy="${Y(nd)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${m ? 2.5 : 1.3}"/>`;
+      s += `<text x="${X(nd)}" y="${Y(nd) + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${String(nd.val).length > 2 ? 11 : 13}" font-weight="600" fill="${text}">${nd.val}</text>`;
+      if (badge[nd.id] !== undefined) s += `<text x="${X(nd)}" y="${Y(nd) + r + 13}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="var(--ok)">${esc(badge[nd.id])}</text>`;
+    });
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto;display:block;margin:0 auto" role="img" aria-label="Binary tree">${s}</svg></div>`;
+  }
+  const stackHTML = (frames, title = "Call stack · top first") => `<div><span class="stage-label">${title}</span><ol class="tv-stack">${frames.length ? frames.slice().reverse().map((f, k) => `<li class="${k === 0 ? "top" : ""}${f.nil ? " nil" : ""}">${esc(f.label)}</li>`).join("") : `<li style="border-style:dashed;background:none"><em>empty</em></li>`}</ol></div>`;
+  const chipsHTML = (vals, cls = "o", empty = "nothing yet") => `<div class="tv-chips">${vals.length ? vals.map((v, k) => `<span class="${typeof cls === "function" ? cls(k) : cls}">${esc(v)}</span>`).join("") : `<em>${empty}</em>`}</div>`;
+  // state map from a call stack (list of {id}) and a finished set
+  function stateOf(stack, done) {
+    const st = {};
+    done.forEach(id => { st[id] = "done"; });
+    stack.forEach(f => { if (f.id !== undefined) st[f.id] = "stack"; });
+    const top = stack[stack.length - 1];
+    if (top && top.id !== undefined) st[top.id] = "cur";
+    return st;
+  }
+
+  // ---------- The idea: one tree, four orders, computed ----------
+  (function () {
+    const T = parseTree("1, 2, 3, 4, 5, null, 6"), pre = [], ino = [], post = [];
+    (function d(n) { if (!n) return; pre.push(n.val); d(n.left); ino.push(n.val); d(n.right); post.push(n.val); })(T.root);
+    const lv = []; let q = [T.root];
+    while (q.length) { lv.push(q.map(n => n.val)); q = q.flatMap(n => [n.left, n.right].filter(Boolean)); }
+    document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawTree(T)}
+      <div class="orders"><div><b>Preorder</b>${pre.join(" ")}</div><div><b>Inorder</b>${ino.join(" ")}</div><div><b>Postorder</b>${post.join(" ")}</div><div><b>Level order</b>${lv.map(l => "[" + l.join(" ") + "]").join(" ")}</div></div>
+      <p class="note">Same ${T.nodes.length} nodes, four orders. Preorder puts every parent before its children, postorder puts it after them, inorder puts it between its left and right subtrees, and level order lists row by row.</p></div>`;
+  })();
+
+  // ---------- Problem 1: the three DFS orders ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def dfs(node):",
+      "  if node is None: return",
+      "  if order == 'pre':  out.append(node.val)",
+      "  dfs(node.left)",
+      "  if order == 'in':   out.append(node.val)",
+      "  dfs(node.right)",
+      "  if order == 'post': out.append(node.val)",
+      "  # return to the caller"
+    ],
+    inputs: [{ key: "t", label: "Tree (level order, null for empty)", value: "1, 2, 3, 4, 5, null, 6" }, { key: "o", label: "Order: pre, in or post", value: "in" }],
+    presets: [
+      { label: "Inorder", values: { t: "1, 2, 3, 4, 5, null, 6", o: "in" } },
+      { label: "Preorder", values: { t: "1, 2, 3, 4, 5, null, 6", o: "pre" } },
+      { label: "Postorder", values: { t: "1, 2, 3, 4, 5, null, 6", o: "post" } },
+      { label: "Inorder of a BST is sorted", values: { t: "8, 4, 12, 2, 6, 10, 14", o: "in" } },
+      { label: "Lopsided: deep stack", values: { t: "1, 2, null, 3, null, 4, null, 5", o: "pre" } }
+    ],
+    build({ t, o }) {
+      const T = parseTree(t); if (T.error) return T;
+      const order = String(o).trim().toLowerCase().replace(/order$/, "");
+      if (!["pre", "in", "post"].includes(order)) return { error: 'Order must be "pre", "in" or "post".' };
+      const frames = [], stack = [], done = new Set(), out = [];
+      let maxDepth = 0;
+      const snap = (line, msg, extra = {}) => {
+        maxDepth = Math.max(maxDepth, stack.filter(f => !f.nil).length);
+        frames.push({ line, msg, T, st: stateOf(stack, done), stack: stack.slice(), out: out.slice(), ...extra,
+          vars: { order, "stack depth": stack.length, "deepest node chain": maxDepth, "output size": out.length } });
+      };
+      const word = { pre: "Preorder", in: "Inorder", post: "Postorder" }[order];
+      snap(0, `${word} walk. Call dfs on the root, ${T.root.val}.`);
+      (function dfs(node, parent, side) {
+        if (!node) {
+          stack.push({ label: "dfs(None)", nil: true });
+          snap(1, `dfs(${parent.val}) calls dfs on its empty ${side} child. Base case: it returns at once.`, { ghost: { parent: parent.id, side } });
+          stack.pop();
+          return;
+        }
+        stack.push({ id: node.id, label: `dfs(${node.val})` });
+        snap(0, parent ? `dfs(${parent.val}) pauses and calls dfs(${node.val}) for its ${side} child. The stack is now ${stack.length} deep.` : `dfs(${node.val}) starts. It is the only frame on the stack.`);
+        if (order === "pre") { out.push(node.val); snap(2, `Preorder: output ${node.val} now, before either child.`, { fresh: true }); }
+        dfs(node.left, node, "left");
+        if (order === "in") { out.push(node.val); snap(4, `Back in dfs(${node.val}): its whole left subtree is done. Inorder: output ${node.val} now.`, { fresh: true }); }
+        dfs(node.right, node, "right");
+        if (order === "post") { out.push(node.val); snap(6, `Back in dfs(${node.val}): both subtrees are done. Postorder: output ${node.val} now.`, { fresh: true }); }
+        stack.pop(); done.add(node.id);
+        snap(7, `dfs(${node.val}) is finished and pops off the stack.${stack.length ? ` dfs(${stack[stack.length - 1].label.slice(4, -1)}) resumes where it paused.` : ""}`);
+      })(T.root, null, null);
+      snap(7, `<b class="ok">${word}: [${out.join(", ")}]</b>. ${T.nodes.length} nodes. The longest chain of paused node calls was ${maxDepth}, the number of levels (h), plus at most one frame for an empty child.`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawTree(f.T, f.st, {}, { path: true, ghost: f.ghost })}
+        <div class="tv-cols">${stackHTML(f.stack)}<div><span class="stage-label">Output</span>${chipsHTML(f.out, k => f.fresh && k === f.out.length - 1 ? "new" : "o")}</div></div></div>`;
+    }
+  });
+
+  // ---------- Problem 2: level order with a queue ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def level_order(root):",
+      "  q, levels = deque([root]), []",
+      "  while q:",
+      "    level = []",
+      "    for _ in range(len(q)):",
+      "      node = q.popleft()",
+      "      level.append(node.val)",
+      "      if node.left: q.append(node.left)",
+      "      if node.right: q.append(node.right)",
+      "    levels.append(level)",
+      "  return levels"
+    ],
+    inputs: [{ key: "t", label: "Tree (level order, null for empty)", value: "3, 9, 20, null, null, 15, 7" }],
+    presets: [
+      { label: "Classic example", values: { t: "3, 9, 20, null, null, 15, 7" } },
+      { label: "Full tree", values: { t: "1, 2, 3, 4, 5, 6, 7" } },
+      { label: "Gaps in the levels", values: { t: "5, 1, 8, null, 4, 7, null, 2, null, null, 9" } },
+      { label: "Single node", values: { t: "42" } }
+    ],
+    build({ t }) {
+      const T = parseTree(t); if (T.error) return T;
+      const frames = [], done = new Set(), levels = [];
+      let q = [], level = [], cur = null, size = null;
+      const snap = (line, msg, extra = {}) => {
+        const st = {};
+        done.forEach(id => { st[id] = "done"; });
+        q.forEach(nd => { st[nd.id] = "stack"; });
+        if (cur) st[cur.id] = "cur";
+        frames.push({ line, msg, T, st, q: q.map(nd => nd.val), level: level.slice(), levels: levels.map(l => l.slice()), ...extra,
+          vars: { "len(q)": q.length, "level size": size === null ? "–" : size, "levels so far": levels.length } });
+      };
+      q = [T.root];
+      snap(1, `Put the root ${T.root.val} in the queue. The queue holds level 0.`);
+      while (q.length) {
+        cur = null; level = []; size = q.length;
+        snap(4, `The queue holds ${size} node${size > 1 ? "s" : ""}: exactly level ${levels.length}. Pop ${size} time${size > 1 ? "s" : ""}.`);
+        for (let k = 0; k < size; k++) {
+          cur = q.shift(); level.push(cur.val);
+          snap(6, `Pop ${cur.val} from the front and add it to this level.`);
+          const kids = [cur.left, cur.right].filter(Boolean);
+          kids.forEach(c => q.push(c));
+          snap(cur.right ? 8 : 7, kids.length ? `Add ${cur.val}'s children ${kids.map(c => c.val).join(" and ")} to the back. They wait behind the rest of this level.` : `${cur.val} has no children, so nothing joins the queue.`);
+          done.add(cur.id);
+        }
+        cur = null; levels.push(level.slice());
+        snap(9, `Level ${levels.length - 1} is complete: [${level.join(", ")}].${q.length ? ` The queue now holds exactly the next level.` : ""}`);
+      }
+      level = []; size = null;
+      snap(10, `The queue is empty. <b class="ok">Return [${levels.map(l => "[" + l.join(", ") + "]").join(", ")}]</b>.`);
+      return { frames };
+    },
+    draw(f) {
+      const lv = f.levels.length ? `<div class="tv-chips">${f.levels.map(l => `<span class="lvl">${l.map(v => `<span class="o">${v}</span>`).join("")}</span>`).join("")}</div>` : chipsHTML([]);
+      return `<div class="stage-row">${drawTree(f.T, f.st)}
+        <div class="tv-cols"><div><span class="stage-label">Queue · front first</span>${chipsHTML(f.q, k => k === 0 ? "q front" : "q", "empty")}</div>
+        <div><span class="stage-label">Current level</span>${chipsHTML(f.level, "o", "–")}</div></div>
+        <span class="stage-label">Levels returned</span>${lv}</div>`;
+    }
+  });
+
+  // ---------- Problem 3: maximum depth (values flow up) ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def max_depth(node):",
+      "  if node is None: return 0",
+      "  left = max_depth(node.left)",
+      "  right = max_depth(node.right)",
+      "  return 1 + max(left, right)"
+    ],
+    inputs: [{ key: "t", label: "Tree (level order, null for empty)", value: "3, 9, 20, null, null, 15, 7" }],
+    presets: [
+      { label: "Classic example", values: { t: "3, 9, 20, null, null, 15, 7" } },
+      { label: "Deep on the left", values: { t: "1, 2, 3, 4, null, null, null, 5" } },
+      { label: "Balanced", values: { t: "4, 2, 6, 1, 3, 5, 7" } },
+      { label: "Single node", values: { t: "7" } }
+    ],
+    build({ t }) {
+      const T = parseTree(t); if (T.error) return T;
+      const frames = [], stack = [], done = new Set(), ret = {};
+      const snap = (line, msg, extra = {}) => {
+        const top = stack[stack.length - 1];
+        frames.push({ line, msg, T, st: stateOf(stack, done), stack: stack.map(f => ({ ...f, label: `depth(${f.val ?? "None"})${f.l !== undefined ? ` left=${f.l}` : ""}${f.r !== undefined ? ` right=${f.r}` : ""}` })), badge: { ...ret }, ...extra,
+          vars: { node: top ? top.val ?? "None" : "–", left: top && top.l !== undefined ? top.l : "–", right: top && top.r !== undefined ? top.r : "–", "stack depth": stack.length } });
+      };
+      const result = (function rec(node, parent, side) {
+        if (!node) {
+          stack.push({ val: null, nil: true });
+          snap(1, `${parent.val} has no ${side} child. An empty tree has depth 0.`, { ghost: { parent: parent.id, side } });
+          stack.pop(); return 0;
+        }
+        const fr = { id: node.id, val: node.val }; stack.push(fr);
+        snap(0, parent ? `depth(${parent.val}) asks its ${side} child ${node.val} for its depth, and waits.` : `Ask the root ${node.val} for its depth.`);
+        fr.l = rec(node.left, node, "left");
+        snap(2, `Back in depth(${node.val}): the left subtree is ${fr.l} deep.`);
+        fr.r = rec(node.right, node, "right");
+        snap(3, `The right subtree is ${fr.r} deep.`);
+        const h = 1 + Math.max(fr.l, fr.r);
+        stack.pop(); done.add(node.id); ret[node.id] = h;
+        snap(4, `depth(${node.val}) returns 1 + max(${fr.l}, ${fr.r}) = ${h}.`);
+        return h;
+      })(T.root, null, null);
+      // mark one deepest path for the last frame
+      const st = {}; T.nodes.forEach(nd => { st[nd.id] = "done"; });
+      let nd = T.root, path = [];
+      while (nd) { st[nd.id] = "hit"; path.push(nd.val); const l = nd.left ? ret[nd.left.id] : 0, r = nd.right ? ret[nd.right.id] : 0; nd = l >= r ? nd.left : nd.right; }
+      frames.push({ line: 4, msg: `<b class="ok">Maximum depth = ${result}</b>, for example ${path.join(" → ")}. Every node returned its answer only after both children did: a postorder walk.`, T, st, stack: [], badge: { ...ret }, vars: { result, "stack depth": 0 } });
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawTree(f.T, f.st, f.badge, { path: true, ghost: f.ghost })}${stackHTML(f.stack)}</div>`;
+    }
+  });
+
+  // ---------- Problem 4: validate a BST (bounds flow down) ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def valid(node, lo=-inf, hi=inf):",
+      "  if node is None: return True",
+      "  if not (lo < node.val < hi): return False",
+      "  return (valid(node.left, lo, node.val) and",
+      "          valid(node.right, node.val, hi))"
+    ],
+    inputs: [{ key: "t", label: "Tree (level order, null for empty)", value: "8, 4, 12, 2, 9, 10, 14" }],
+    presets: [
+      { label: "Breaks two levels up", values: { t: "8, 4, 12, 2, 9, 10, 14" } },
+      { label: "Valid BST", values: { t: "8, 4, 12, 2, 6, 10, 14" } },
+      { label: "Duplicate value", values: { t: "5, 3, 7, null, 5" } },
+      { label: "Valid, uneven shape", values: { t: "20, 10, 30, 5, 15, null, 40, null, null, 12" } }
+    ],
+    build({ t }) {
+      const T = parseTree(t); if (T.error) return T;
+      const frames = [], stack = [], done = new Set();
+      let badId = null;
+      const B = v => v === -Infinity ? "−∞" : v === Infinity ? "∞" : v;
+      const snap = (line, msg, extra = {}) => {
+        const st = stateOf(stack, done), top = stack[stack.length - 1];
+        if (badId !== null) st[badId] = "bad";
+        frames.push({ line, msg, T, st, stack: stack.slice(), ...extra,
+          vars: { node: top ? top.v : "–", lo: top ? B(top.lo) : "–", hi: top ? B(top.hi) : "–", "stack depth": stack.length } });
+      };
+      const ok = (function rec(node, lo, hi, parent, side) {
+        if (!node) {
+          stack.push({ label: `valid(None, ${B(lo)}, ${B(hi)})`, nil: true, v: "None", lo, hi });
+          snap(1, `${parent.val} has no ${side} child. An empty tree is always valid.`, { ghost: { parent: parent.id, side } });
+          stack.pop(); return true;
+        }
+        stack.push({ id: node.id, label: `valid(${node.val}, ${B(lo)}, ${B(hi)})`, v: node.val, lo, hi });
+        snap(0, parent ? `Go ${side} from ${parent.val}: ${side === "left" ? `${parent.val} becomes the upper bound` : `${parent.val} becomes the lower bound`}. ${node.val} must lie in (${B(lo)}, ${B(hi)}).` : `Start at the root ${node.val} with no limits: (−∞, ∞).`);
+        if (!(lo < node.val && node.val < hi)) {
+          badId = node.id;
+          snap(2, `${node.val} is not strictly between ${B(lo)} and ${B(hi)}. <b class="bad">Return False.</b>`);
+          stack.pop(); done.add(node.id); return false;
+        }
+        snap(2, `${B(lo)} < ${node.val} < ${B(hi)}: ${node.val} is fine. Now check its subtrees with tighter ranges.`);
+        if (!rec(node.left, lo, node.val, node, "left")) {
+          snap(3, `The left subtree of ${node.val} failed, so <span class="mono">and</span> stops early: the right subtree is never checked. valid(${node.val}) returns False.`);
+          stack.pop(); done.add(node.id); return false;
+        }
+        if (!rec(node.right, node.val, hi, node, "right")) {
+          snap(4, `The right subtree of ${node.val} failed. valid(${node.val}) returns False.`);
+          stack.pop(); done.add(node.id); return false;
+        }
+        stack.pop(); done.add(node.id);
+        snap(4, `Both subtrees of ${node.val} are valid, so valid(${node.val}) returns True.`);
+        return true;
+      })(T.root, -Infinity, Infinity, null, null);
+      snap(ok ? 4 : 2, ok ? `<b class="ok">True</b>: every node fit inside the range set by all of its ancestors.` : `<b class="bad">False</b>: ${T.nodes[badId].val} breaks the search-tree rule. The False travelled up through every caller.`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${drawTree(f.T, f.st, {}, { path: true, ghost: f.ghost })}${stackHTML(f.stack, "Call stack · node, lo, hi · top first")}</div>`;
+    }
+  });
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

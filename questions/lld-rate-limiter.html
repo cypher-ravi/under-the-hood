@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design a Rate Limiter (classes)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #uml { width: 100%; height: auto; display: block; }
+  .diagram-wrap.zoomed #uml { min-width: 680px; }
+  .zoom-row { display: none; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+  .zoom-row button { white-space: nowrap; flex: none; }
+  @media (max-width: 700px) { .zoom-row { display: flex; } }
+  #uml .cls rect { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+  #uml .cls line { stroke: var(--line); stroke-width: 1.2; }
+  #uml .nm { font: 700 13px var(--display); fill: var(--ink); }
+  #uml .nm.sm { font-size: 12px; }
+  #uml .nm.ab { font-style: italic; }
+  #uml .st { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .st2 { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .mb { font: 500 11px var(--mono); fill: var(--ink); }
+  #uml .mult { font: 600 11px var(--mono); fill: var(--accent); }
+  #uml .rel { fill: none; stroke: var(--ink); stroke-width: 1.3; }
+  #uml .rel.dash { stroke-dasharray: 5 4; }
+  .legend-uml { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .legend-uml span { display: flex; gap: 8px; align-items: center; }
+  .legend-uml svg { flex: none; }
+  .pats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .pat { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; background: var(--paper); align-content: start; }
+  .pat h3 { font-size: 15px; }
+  .pat p { font-size: 14px; }
+  .pat .no { color: var(--muted); }
+  .pat .no b { color: var(--bad); }
+  .sim { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(250px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+  .simbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .simbar label.field { flex: 1 1 180px; }
+  .simbar select { font: 500 13px/1.3 var(--body); padding: 8px 9px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .simbar .grp { display: flex; flex-wrap: wrap; gap: 6px; }
+  #tl { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  .ccard { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); display: grid; gap: 4px; min-width: 0; }
+  .ccard.hot { border-color: var(--accent); }
+  .ccard h4 { margin: 0; font: 600 13px/1.3 var(--body); }
+  .ccard h4 span { font: 500 11px/1.3 var(--mono); color: var(--muted); }
+  .ccard p { margin: 0; font: 500 11.5px/1.45 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .ccard p b { color: var(--ink); font-weight: 600; }
+  .ccard svg { width: 100%; height: auto; display: block; }
+  .verdict { font: 600 14px/1.4 var(--body); padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); margin: 0; }
+  .verdict.bad { color: var(--bad); border-color: var(--bad); }
+  .verdict.ok { color: var(--ok); border-color: var(--ok); }
+  .trace { margin: 0; padding: 0 0 0 1.4em; display: grid; gap: 4px; font: 500 12.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+  .trace li::marker { color: var(--muted); }
+  .trace .hl { color: var(--accent); font-weight: 600; }
+  .trace .bad { color: var(--bad); font-weight: 600; }
+  .trace .ok { color: var(--ok); font-weight: 600; }
+  pre.log { margin: 0; font: 500 12px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; max-height: 260px; overflow-y: auto; }
+  pre.log .last { color: var(--accent); font-weight: 600; }
+  .meter { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  pre.code { margin: 0; font: 500 12.5px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; max-height: 560px; overflow-y: auto; }
+  pre.code .c { color: var(--muted); }
+  .race-th { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .race-th div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); display: grid; gap: 3px; font-size: 13px; min-width: 0; }
+  .race-th div.moved { border-color: var(--accent); }
+  .race-th b { font-family: var(--mono); }
+  .race-th span { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+  .race-store { border: 2px dashed var(--line); border-radius: var(--radius); padding: 10px 12px; font: 500 13px/1.5 var(--mono); background: var(--panel); overflow-wrap: anywhere; }
+  .race-store.ok { border-style: solid; border-color: var(--ok); }
+  .race-store.bad { border-style: solid; border-color: var(--bad); color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="lld-rate-limiter" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Low-level design</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design a Rate Limiter (classes)</h1>
+    <p class="lede">One process, one library: before a request reaches its handler, ask "may this client do this right now?" and get back yes, or no with a time to come back. The four classic algorithms are each a dozen lines. What the interviewer is really looking for is the shape around them: rules that differ per endpoint and per plan, an algorithm you can swap without touching the caller, a clock you can fake in tests, state that lives behind an interface so it can move to Redis later, and a check that stays correct when eight threads ask about the same client at once.</p>
+    <p class="sources">The interview flow is adapted from Hello Interview's delivery framework for a 45-minute round. The breakdown, diagram and code on this page are our own. For the algorithms on their own, see the <a href="../topics/rate-limiter.html">Rate Limiters</a> concept page; for many servers sharing one limit, the <a href="rate-limiter-design.html">high-level design</a>.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Say early that this is the in-process version. Sharing a limit across a fleet of servers, Redis sharding and failing open are the high-level question; here they show up only as a seam (a pluggable store) you leave for later.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the limiter should</h3>
+        <ul>
+          <li>Limit each <b>client</b> (user ID, API key or IP) separately: one noisy client never uses up another's quota.</li>
+          <li>Apply <b>rules per endpoint and per tier</b>: <span class="mono">/search</span> allows 3 requests per 10 s on the free plan and 6 on pro; <span class="mono">/login</span> has its own rule; anything else falls back to a default.</li>
+          <li>Support <b>several algorithms</b>: token bucket, fixed window, sliding log and sliding counter, chosen per rule.</li>
+          <li>Answer <b>allow or deny</b>, with how many requests are left and, on a deny, how many seconds to wait (the <span class="mono">Retry-After</span> header).</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the code should</h3>
+        <ul>
+          <li>Be <b>thread-safe</b>: concurrent requests from one client never get more than the limit between them.</li>
+          <li>Be <b>fast</b>: O(1) work per check for every algorithm except the log, and no global lock that makes unrelated clients queue.</li>
+          <li>Be <b>testable</b>: time comes from an injected clock, so a test can say "now it's 10.5 s" instead of sleeping.</li>
+          <li>Keep state behind a <b>store interface</b>: in memory today, a shared store such as Redis later, with no change for the limiter's callers.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>Ask this early:</b> is the limit per server or global? If the answer is "global across 50 gateways", the in-memory store below is wrong on its own and the conversation becomes the high-level design. Pinning it down decides whether the store is a dictionary or a network call.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="3m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities and their responsibilities</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">The trap is one <span class="mono">RateLimiter</span> class with a dictionary of counters and an <span class="mono">if algorithm == ...</span> chain. Pull apart the three things that change for different reasons: <i>which</i> rule applies, <i>how</i> a rule is enforced, and <i>where</i> the counts live.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>RateLimiter</h3><code>the facade: check(client,
+endpoint, tier) → Decision;
+wires rule, algorithm,
+store and clock together</code></div>
+      <div class="entity"><h3>Rule</h3><code>name, limit, window and
+algorithm name; plain
+immutable data</code></div>
+      <div class="entity"><h3>RuleProvider</h3><code>finds the rule for an
+(endpoint, tier), with
+fallbacks to a default</code></div>
+      <div class="entity"><h3>LimiterStrategy</h3><code>interface: given a client's
+old state and the time,
+return new state + verdict</code></div>
+      <div class="entity"><h3>TokenBucket and co.</h3><code>the four algorithms;
+each knows its own state
+shape, none stores it</code></div>
+      <div class="entity"><h3>LimiterFactory</h3><code>turns "token_bucket"
+in a rule into the class</code></div>
+      <div class="entity"><h3>StateStore</h3><code>per-key state; runs one
+read-modify-write per key
+atomically</code></div>
+      <div class="entity"><h3>Clock</h3><code>now(); the system clock
+in production, a fake
+one in tests</code></div>
+      <div class="entity"><h3>Decision</h3><code>allowed, remaining,
+retry_after, rule name</code></div>
+    </div>
+    <div class="aside"><p><b>The key split:</b> a strategy object holds the <i>rule's</i> numbers (limit, window), not any <i>client's</i> numbers. So one <span class="mono">TokenBucket</span> serves a million clients, and their buckets are just small tuples in the store. That is what lets the store move out of the process later.</p></div>
+  </section>
+
+  <section class="panel article" id="classes" data-nav="Class diagram" data-num="3" data-time="6m">
+    <div class="step-head"><span class="step-num">3</span><h2>Class diagram</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">The limiter <i>owns</i> one strategy per rule it has seen (composition, filled diamond): it built them through the factory and nothing else holds them. The rule provider, the store and the clock are handed in from outside (association), so tests can pass a fake clock and production can pass a Redis store. Everything that varies sits behind an interface.</p>
+    <div class="zoom-row"><button id="zoomUml" aria-pressed="false">Zoom in</button><span id="zoomHint">The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.</span></div>
+    <div class="diagram-wrap" id="umlWrap"><svg id="uml" viewBox="0 0 761 600" role="img" aria-label="Class diagram of the rate limiter"><defs>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></marker>
+<marker id="dia" viewBox="0 0 18 12" refX="1" refY="6" markerWidth="18" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,6 L9,1 L17,6 L9,11 z" fill="var(--ink)"/></marker>
+<marker id="arr" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="var(--ink)" stroke-width="1.3"/></marker>
+</defs>
+<g class="cls"><rect x="16" y="16" width="210" height="102" rx="3"/><text class="nm" x="121" y="34" text-anchor="middle">RateLimitedHandler</text><line x1="16" y1="42" x2="226" y2="42"/><text class="mb" x="24" y="58">inner: handler</text><text class="mb" x="24" y="73">limiter: RateLimiter</text><text class="mb" x="24" y="88">endpoint: str</text><line x1="16" y1="95" x2="226" y2="95"/><text class="mb" x="24" y="111">__call__(client, tier)</text></g>
+<g class="cls"><rect x="275" y="16" width="222" height="162" rx="3"/><text class="nm" x="386" y="34" text-anchor="middle">RateLimiter</text><line x1="275" y1="42" x2="497" y2="42"/><text class="mb" x="283" y="58">rules: RuleProvider</text><text class="mb" x="283" y="73">store: StateStore</text><text class="mb" x="283" y="88">clock: Clock</text><text class="mb" x="283" y="103">limiters: {Rule: Strategy}</text><text class="mb" x="283" y="118">listeners: list</text><line x1="275" y1="125" x2="497" y2="125"/><text class="mb" x="283" y="141">check(client, endpoint,</text><text class="mb" x="283" y="156">      tier): Decision</text><text class="mb" x="283" y="171">subscribe(listener)</text></g>
+<g class="cls"><rect x="545" y="16" width="200" height="61" rx="3"/><text class="st" x="645" y="32" text-anchor="middle">«interface»</text><text class="nm ab" x="645" y="46" text-anchor="middle">DecisionListener</text><line x1="545" y1="54" x2="745" y2="54"/><text class="mb" x="553" y="70">on_decision(client, d)</text></g>
+<g class="cls"><rect x="545" y="118" width="200" height="72" rx="3"/><text class="nm" x="645" y="136" text-anchor="middle">Metrics</text><line x1="545" y1="144" x2="745" y2="144"/><text class="mb" x="553" y="160">counts: Counter</text><line x1="545" y1="167" x2="745" y2="167"/><text class="mb" x="553" y="183">on_decision(client, d)</text></g>
+<g class="cls"><rect x="16" y="200" width="210" height="102" rx="3"/><text class="nm" x="121" y="218" text-anchor="middle">RuleProvider</text><line x1="16" y1="226" x2="226" y2="226"/><text class="mb" x="24" y="242">rules: {(ep, tier): Rule}</text><text class="mb" x="24" y="257">default: Rule</text><line x1="16" y1="264" x2="226" y2="264"/><text class="mb" x="24" y="280">add(ep, tier, rule)</text><text class="mb" x="24" y="295">resolve(ep, tier): Rule</text></g>
+<g class="cls"><rect x="16" y="350" width="210" height="94" rx="3"/><text class="nm" x="121" y="368" text-anchor="middle">Rule</text><line x1="16" y1="376" x2="226" y2="376"/><text class="mb" x="24" y="392">name: str</text><text class="mb" x="24" y="407">limit: int</text><text class="mb" x="24" y="422">window: float (seconds)</text><text class="mb" x="24" y="437">algorithm: str</text></g>
+<g class="cls"><rect x="16" y="490" width="210" height="94" rx="3"/><text class="nm" x="121" y="508" text-anchor="middle">Decision</text><line x1="16" y1="516" x2="226" y2="516"/><text class="mb" x="24" y="532">allowed: bool</text><text class="mb" x="24" y="547">remaining: int</text><text class="mb" x="24" y="562">retry_after: float</text><text class="mb" x="24" y="577">rule: str</text></g>
+<g class="cls"><rect x="275" y="215" width="222" height="72" rx="3"/><text class="nm" x="386" y="233" text-anchor="middle">LimiterFactory</text><line x1="275" y1="241" x2="497" y2="241"/><text class="mb" x="283" y="257">kinds: {str: type}</text><line x1="275" y1="264" x2="497" y2="264"/><text class="mb" x="283" y="280">create(rule): Strategy</text></g>
+<g class="cls"><rect x="275" y="330" width="222" height="76" rx="3"/><text class="st" x="386" y="346" text-anchor="middle">«interface»</text><text class="nm ab" x="386" y="360" text-anchor="middle">LimiterStrategy</text><line x1="275" y1="368" x2="497" y2="368"/><text class="mb" x="283" y="384">acquire(state, now)</text><text class="mb" x="283" y="399">describe(state, now)</text></g>
+<g class="cls"><rect x="275" y="440" width="100" height="41" rx="3"/><text class="nm sm" x="325" y="458" text-anchor="middle">TokenBucket</text><text class="mb" x="325" y="475" text-anchor="middle">tokens, last</text></g>
+<g class="cls"><rect x="397" y="440" width="100" height="41" rx="3"/><text class="nm sm" x="447" y="458" text-anchor="middle">FixedWindow</text><text class="mb" x="447" y="475" text-anchor="middle">start, count</text></g>
+<g class="cls"><rect x="275" y="495" width="100" height="41" rx="3"/><text class="nm sm" x="325" y="513" text-anchor="middle">SlidingLog</text><text class="mb" x="325" y="530" text-anchor="middle">deque of t</text></g>
+<g class="cls"><rect x="397" y="495" width="100" height="41" rx="3"/><text class="nm sm" x="447" y="513" text-anchor="middle">SlidingCounter</text><text class="mb" x="447" y="530" text-anchor="middle">prev, curr</text></g>
+<g class="cls"><rect x="545" y="230" width="200" height="61" rx="3"/><text class="st" x="645" y="246" text-anchor="middle">«interface»</text><text class="nm ab" x="645" y="260" text-anchor="middle">Clock</text><line x1="545" y1="268" x2="745" y2="268"/><text class="mb" x="553" y="284">now(): float</text></g>
+<g class="cls"><rect x="545" y="330" width="96" height="41" rx="3"/><text class="nm sm" x="593" y="348" text-anchor="middle">SystemClock</text><text class="mb" x="593" y="365" text-anchor="middle">monotonic</text></g>
+<g class="cls"><rect x="649" y="330" width="96" height="41" rx="3"/><text class="nm sm" x="697" y="348" text-anchor="middle">FakeClock</text><text class="mb" x="697" y="365" text-anchor="middle">settable t</text></g>
+<g class="cls"><rect x="545" y="420" width="200" height="61" rx="3"/><text class="st" x="645" y="436" text-anchor="middle">«interface»</text><text class="nm ab" x="645" y="450" text-anchor="middle">StateStore</text><line x1="545" y1="458" x2="745" y2="458"/><text class="mb" x="553" y="474">atomic(key, fn)</text></g>
+<g class="cls"><rect x="545" y="520" width="96" height="41" rx="3"/><text class="nm sm" x="593" y="538" text-anchor="middle">InMemoryStore</text><text class="mb" x="593" y="555" text-anchor="middle">lock per key</text></g>
+<g class="cls"><rect x="649" y="520" width="96" height="41" rx="3"/><text class="nm sm" x="697" y="538" text-anchor="middle">RedisStore</text><text class="mb" x="697" y="555" text-anchor="middle">WATCH or Lua</text></g>
+<path class="rel" d="M226,73 L275,73" marker-end="url(#arr)"/><text class="mult" x="270" y="67" text-anchor="end">1</text>
+<path class="rel" d="M497,46 L545,46" marker-end="url(#arr)"/><text class="mult" x="540" y="40" text-anchor="end">0..*</text>
+<path class="rel dash" d="M645,118 L645,77" marker-end="url(#tri)"/>
+<path class="rel" d="M275,108 L250,108 L250,250 L226,250" marker-end="url(#arr)"/><text class="mult" x="231" y="244" text-anchor="start">1</text>
+<path class="rel dash" d="M275,150 L262,150 L262,530 L226,530" marker-end="url(#arr)"/><text class="st2" x="256" y="470" text-anchor="middle" transform="rotate(-90 256 470)">«creates»</text>
+<path class="rel" d="M121,302 L121,350" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="127" y="344" text-anchor="start">1..*</text>
+<path class="rel dash" d="M386,178 L386,215" marker-end="url(#arr)"/><text class="st2" x="394" y="201" text-anchor="start">«uses»</text>
+<path class="rel dash" d="M386,287 L386,330" marker-end="url(#arr)"/><text class="st2" x="378" y="312" text-anchor="end">«creates»</text>
+<path class="rel" d="M497,160 L508,160 L508,315 L470,315 L470,330" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="476" y="327" text-anchor="start">0..*</text><text class="st2" x="462" y="309" text-anchor="end">one per rule</text>
+<path class="rel" d="M497,112 L534,112 L534,260 L545,260" marker-end="url(#arr)"/><text class="mult" x="540" y="254" text-anchor="end">1</text>
+<path class="rel" d="M497,136 L521,136 L521,450 L545,450" marker-end="url(#arr)"/><text class="mult" x="540" y="444" text-anchor="end">1</text>
+<path class="rel dash" d="M386,425 L386,406" marker-end="url(#tri)"/><path class="rel dash" d="M386,425 L386,515"/><path class="rel dash" d="M375,460 L397,460"/><path class="rel dash" d="M375,515 L397,515"/>
+<path class="rel dash" d="M645,316 L645,291" marker-end="url(#tri)"/><path class="rel dash" d="M593,316 L697,316"/><path class="rel dash" d="M593,330 L593,316"/><path class="rel dash" d="M697,330 L697,316"/>
+<path class="rel dash" d="M645,506 L645,481" marker-end="url(#tri)"/><path class="rel dash" d="M593,506 L697,506"/><path class="rel dash" d="M593,520 L593,506"/><path class="rel dash" d="M697,520 L697,506"/>
+</svg></div>
+    <div class="legend-uml" aria-label="Notation">
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>implements an interface</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M1,7 L9,2 L17,7 L9,12 z" fill="var(--ink)"/><path d="M17,7 H42" stroke="var(--ink)" stroke-width="1.3"/></svg>composition (owns, same lifetime)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>association (knows about)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>dependency (uses, creates)</span>
+      <span><b class="mono" style="color:var(--accent)">0..*</b>multiplicity: how many at that end</span>
+    </div>
+    <div class="aside"><p><b>Reading it:</b> "RuleProvider ◆— 1..* Rule" says the provider holds at least one rule (the default). "RateLimiter ◆— 0..* LimiterStrategy" is the cache of strategies, one per rule seen so far. The three "1" arrows out of <span class="mono">RateLimiter</span> are its injected collaborators: exactly one rule provider, one store and one clock. Per-client state appears nowhere as a class: it is a tuple inside the store, keyed by <span class="mono">"rule:client"</span>.</p></div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="Interfaces" data-num="4" data-time="5m">
+    <div class="step-head"><span class="step-num">4</span><h2>Interfaces of the main classes</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">The strategy interface is the one to get right. It takes the client's old state and the time, and returns new state plus a verdict. It never reads a clock, never touches a dictionary and never takes a lock, which makes each algorithm a pure function you can test with three lines.</p>
+<pre class="api"><span class="verb">class</span> RateLimiter:
+    __init__(rules: RuleProvider, store: StateStore, clock: Clock)
+    check(client: str, endpoint: str, tier: str) -> Decision
+    subscribe(listener: DecisionListener) -> None
+
+<span class="verb">interface</span> LimiterStrategy:                <span class="c"># built once per Rule, shared by all clients</span>
+    acquire(state | None, now: float) -> (new_state, allowed, remaining, retry_after)
+
+<span class="verb">interface</span> StateStore:
+    atomic(key: str, fn: state -> (state, result)) -> result
+                                           <span class="c"># no other update to key runs in between</span>
+<span class="verb">interface</span> Clock:
+    now() -> float                         <span class="c"># seconds; must never go backwards</span>
+
+<span class="verb">class</span> RuleProvider:
+    resolve(endpoint, tier) -> Rule        <span class="c"># exact, then (endpoint, "*"), then default</span>
+
+<span class="verb">record</span> Decision(allowed: bool, remaining: int, retry_after: float, rule: str)</pre>
+    <div class="aside"><p><b>Why <span class="mono">atomic(key, fn)</span> and not <span class="mono">get</span> plus <span class="mono">set</span>:</b> a get-then-set pair invites every caller to forget the lock between them. Passing the whole read-modify-write as one function puts the atomicity where the data lives, so an in-memory store can use a lock and a Redis store can use a transaction, and the limiter can't tell the difference. <b>Why deny is not an exception:</b> being over the limit is a normal answer, so it comes back as a <span class="mono">Decision</span>; exceptions stay for bugs like an unknown algorithm name.</p></div>
+  </section>
+
+  <section class="panel article" id="patterns" data-nav="Design patterns" data-num="5" data-time="5m">
+    <div class="step-head"><span class="step-num">5</span><h2>Design patterns, and why</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Each pattern below answers a line in the requirements. The last card is the one people reach for and shouldn't.</p>
+    <div class="pats">
+      <div class="pat">
+        <h3>Strategy: the algorithm</h3>
+        <p>"Several algorithms, chosen per rule" is the textbook case. <span class="mono">RateLimiter</span> calls <span class="mono">acquire</span> on whatever <span class="mono">LimiterStrategy</span> the rule names, so login can use a strict sliding log while search uses a forgiving token bucket. The walkthrough swaps all four with one dropdown.</p>
+        <p class="no"><b>Not worth it</b> if the product only ever wants a token bucket. One class is clearer; extract the interface when a second algorithm is asked for.</p>
+      </div>
+      <div class="pat">
+        <h3>Factory: rule to algorithm</h3>
+        <p>Rules come from config as data: <span class="mono">algorithm: "sliding_log"</span>. One dictionary maps that name to a class, so a new algorithm is one class and one entry, and a rule that names an algorithm that doesn't exist fails loudly instead of silently allowing everything.</p>
+        <p class="no"><b>Not worth it</b> as a hierarchy of factory classes. The dictionary is the whole pattern.</p>
+      </div>
+      <div class="pat">
+        <h3>Decorator: the middleware</h3>
+        <p><span class="mono">RateLimitedHandler</span> wraps any handler and has the same call shape, so it can sit in front of an endpoint without the endpoint knowing. It turns a deny into <span class="mono">429</span> with <span class="mono">Retry-After</span>. Some call this a proxy; the point is the same: limiting is added around the handler, not inside it.</p>
+        <p class="no"><b>Watch out:</b> put it after authentication (identify the client first, then limit), or every anonymous request counts against one "unknown" bucket.</p>
+      </div>
+      <div class="pat">
+        <h3>Observer: metrics and alerts</h3>
+        <p>Dashboards want deny rates per rule; security wants an alert when one IP keeps hitting login. <span class="mono">DecisionListener</span>s hear about every decision without the limiter knowing who listens.</p>
+        <p class="no"><b>Watch out:</b> listeners run on the request path, after the lock is released. Keep them to a counter bump; anything slow goes on a queue.</p>
+      </div>
+      <div class="pat">
+        <h3>Singleton: resist it</h3>
+        <p>"One limiter per process" tempts a global <span class="mono">RateLimiter.instance()</span>. That hard-wires the real clock and the in-memory store, and tests start sleeping. Build one at startup and pass it in: the demo builds a fresh limiter per algorithm because nothing is global.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="walkthrough" data-nav="Walkthrough" data-num="6" data-time="5m">
+    <div class="step-head"><span class="step-num">6</span><h2>Walkthrough: the objects at work</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">The same classes as the Python below, with a fake clock you control. <b>Step</b> plays the demo's requests one at a time: <span class="mono">ann</span> is on the free plan (3 per 10 s), <span class="mono">bob</span> on pro (6 per 10 s). Switch the algorithm and the same requests replay. Watch the 10-second boundary: the fixed window lets ann through three times right after it, while the sliding log refuses all three. Send your own requests and move the clock at any time.</p>
+    <div class="simbar">
+      <label class="field" for="selAlgo"><span>Algorithm in both /search rules (Strategy)</span><select id="selAlgo"><option value="token_bucket">token_bucket</option><option value="fixed_window">fixed_window</option><option value="sliding_log">sliding_log</option><option value="sliding_counter">sliding_counter</option></select></label>
+      <div class="grp">
+        <button id="bReset">Reset</button>
+        <button class="primary" id="bStep">Step ▶</button>
+        <button id="bPlay">Play</button>
+      </div>
+    </div>
+    <div class="simbar">
+      <div class="grp">
+        <button id="sAnn">ann sends</button>
+        <button id="sBob">bob sends</button>
+        <button id="sBurst">ann × 3</button>
+        <button id="cHalf">Clock +0.5 s</button>
+        <button id="cOne">+1 s</button>
+        <button id="cFive">+5 s</button>
+      </div>
+      <span class="meter" id="clock"></span>
+    </div>
+    <div class="sim">
+      <div style="display:grid;gap:10px;min-width:0">
+        <svg id="tl" viewBox="0 0 360 166" role="img" aria-label="Timeline of requests per client"></svg>
+        <div class="cards" id="cards" aria-live="polite"></div>
+      </div>
+      <div style="display:grid;gap:8px;min-width:0">
+        <h3 style="font-size:14px" id="traceTitle">What ran</h3>
+        <ol class="trace" id="trace"></ol>
+        <p class="verdict" id="verdict" hidden></p>
+        <p class="meter" id="metrics"></p>
+      </div>
+    </div>
+    <h3 style="font-size:14px">Log (same format as the Python demo's output)</h3>
+    <pre class="log" id="log" aria-live="polite"></pre>
+  </section>
+
+  <section class="panel article" id="code" data-nav="Code" data-num="7" data-time="7m">
+    <div class="step-head"><span class="step-num">7</span><h2>Code</h2><span class="step-time">about 7 minutes</span></div>
+    <p class="kicker">Runnable Python 3, standard library only. In an interview, write <span class="mono">RateLimiter.check</span>, <span class="mono">InMemoryStore</span> and one algorithm (the token bucket) in full, then sketch the others. The demo replays the walkthrough's nine requests under each algorithm, puts the decorator in front of a handler, and has eight threads race for one client's 50 tokens.</p>
+<pre class="code" tabindex="0" aria-label="Python code">import math, threading, time
+from abc import ABC, abstractmethod
+from collections import Counter, deque
+from dataclasses import dataclass
+
+class Clock(ABC):
+    @abstractmethod
+    def now(self): ...
+class SystemClock(Clock):
+    def now(self): return time.monotonic()   <span class="c"># never jumps back, unlike time.time()</span>
+class FakeClock(Clock):                      <span class="c"># tests and the demo move time by hand</span>
+    def __init__(self, t=0.0): self.t = t
+    def now(self): return self.t
+
+@dataclass(frozen=True)
+class Rule:
+    name: str
+    limit: int                               <span class="c"># this many requests ...</span>
+    window: float                            <span class="c"># ... per this many seconds</span>
+    algorithm: str                           <span class="c"># a LimiterFactory key</span>
+
+@dataclass(frozen=True)
+class Decision:
+    allowed: bool
+    remaining: int
+    retry_after: float                       <span class="c"># seconds; 0 when allowed</span>
+    rule: str
+
+class RuleProvider:
+    def __init__(self, default): self.rules, self.default = {}, default
+    def add(self, endpoint, tier, rule): self.rules[(endpoint, tier)] = rule
+    def resolve(self, endpoint, tier):       <span class="c"># most specific match wins</span>
+        return (self.rules.get((endpoint, tier)) or self.rules.get((endpoint, "*"))
+                or self.default)
+
+class LimiterStrategy(ABC):                  <span class="c"># Strategy: one algorithm, no per-client state</span>
+    def __init__(self, rule): self.L, self.W = rule.limit, rule.window
+    @abstractmethod
+    def acquire(self, state, now): ...       <span class="c"># -&gt; (new_state, allowed, remaining, retry_after)</span>
+    @abstractmethod
+    def describe(self, state, now): ...
+
+class TokenBucket(LimiterStrategy):          <span class="c"># state: (tokens, last_refill)</span>
+    def acquire(self, s, now):
+        tokens, last = s if s else (self.L, now)
+        tokens = min(self.L, tokens + (now - last) * self.L / self.W)
+        if tokens &gt;= 1:
+            return (tokens - 1, now), True, math.floor(tokens - 1), 0.0
+        return (tokens, now), False, 0, (1 - tokens) * self.W / self.L
+    def describe(self, s, now): return f"tokens={s[0]:.2f}"
+
+class FixedWindow(LimiterStrategy):          <span class="c"># state: (window_start, count)</span>
+    def acquire(self, s, now):
+        start = math.floor(now / self.W) * self.W
+        count = s[1] if s and s[0] == start else 0
+        if count &lt; self.L:
+            return (start, count + 1), True, self.L - count - 1, 0.0
+        return (start, count), False, 0, start + self.W - now
+    def describe(self, s, now): return f"window {s[0]:g}-{s[0] + self.W:g}s count={s[1]}"
+
+class SlidingLog(LimiterStrategy):           <span class="c"># state: deque of allowed times</span>
+    def acquire(self, log, now):
+        log = log if log is not None else deque()
+        while log and log[0] &lt;= now - self.W: log.popleft()
+        if len(log) &lt; self.L:
+            log.append(now)
+            return log, True, self.L - len(log), 0.0
+        return log, False, 0, log[0] + self.W - now
+    def describe(self, log, now): return "log=[" + " ".join(f"{t:g}" for t in log) + "]"
+
+class SlidingCounter(LimiterStrategy):       <span class="c"># state: (window_start, prev, curr)</span>
+    def roll(self, s, now):
+        start = math.floor(now / self.W) * self.W
+        old, prev, curr = s if s else (start, 0, 0)
+        if start != old:                     <span class="c"># moved into a new window</span>
+            prev, curr = (curr if start - old == self.W else 0), 0
+        weight = (self.W - (now - start)) / self.W   <span class="c"># share of prev still in view</span>
+        return start, prev, curr, prev * weight + curr
+    def acquire(self, s, now):
+        start, prev, curr, est = self.roll(s, now)
+        if est &lt; self.L:
+            return (start, prev, curr + 1), True, max(0, math.ceil(self.L - est - 1)), 0.0
+        if curr &lt; self.L:                    <span class="c"># wait until prev's share fades enough</span>
+            wait = start + self.W * (1 - (self.L - curr) / prev) - now
+        else:                                <span class="c"># wait for the next window</span>
+            wait = start + self.W * (2 - self.L / curr) - now
+        return (start, prev, curr), False, 0, wait
+    def describe(self, s, now):
+        start, prev, curr, est = self.roll(s, now)
+        return f"prev={prev} curr={curr} est={est:.2f}"
+
+class LimiterFactory:                        <span class="c"># Factory: rule.algorithm -&gt; class</span>
+    kinds = {"token_bucket": TokenBucket, "fixed_window": FixedWindow,
+             "sliding_log": SlidingLog, "sliding_counter": SlidingCounter}
+    @classmethod
+    def create(cls, rule): return cls.kinds[rule.algorithm](rule)
+
+class StateStore(ABC):
+    @abstractmethod
+    def atomic(self, key, fn): ...           <span class="c"># run fn(old) -&gt; (new, result) with no other</span>
+                                             <span class="c"># update to key in between; return result</span>
+class InMemoryStore(StateStore):
+    def __init__(self): self.data, self.locks, self.guard = {}, {}, threading.Lock()
+    def atomic(self, key, fn):
+        with self.guard:                     <span class="c"># held only to find or make the key's lock</span>
+            lock = self.locks.setdefault(key, threading.Lock())
+        with lock:                           <span class="c"># two clients never wait on each other</span>
+            self.data[key], result = fn(self.data.get(key))
+            return result
+
+class DecisionListener(ABC):                 <span class="c"># Observer: metrics, logs, alerts</span>
+    @abstractmethod
+    def on_decision(self, client, decision): ...
+
+class RateLimiter:
+    def __init__(self, rules, store, clock):
+        self.rules, self.store, self.clock = rules, store, clock
+        self.limiters, self.listeners = {}, []
+    def subscribe(self, listener): self.listeners.append(listener)
+    def check(self, client, endpoint, tier):
+        rule = self.rules.resolve(endpoint, tier)
+        if rule not in self.limiters:        <span class="c"># strategies hold no client state,</span>
+            self.limiters[rule] = LimiterFactory.create(rule)   <span class="c"># so a racing duplicate is harmless</span>
+        limiter = self.limiters[rule]
+        def step(state):
+            now = self.clock.now()           <span class="c"># read time inside the critical section</span>
+            new, ok, left, wait = limiter.acquire(state, now)
+            return new, Decision(ok, left, wait, rule.name)
+        decision = self.store.atomic(f"{rule.name}:{client}", step)
+        for listener in self.listeners: listener.on_decision(client, decision)
+        return decision
+
+class RateLimitedHandler:                    <span class="c"># Decorator: same call shape as the handler</span>
+    def __init__(self, inner, limiter, endpoint):
+        self.inner, self.limiter, self.endpoint = inner, limiter, endpoint
+    def __call__(self, client, tier):
+        d = self.limiter.check(client, self.endpoint, tier)
+        if not d.allowed:
+            return 429, f"Retry-After: {max(1, math.ceil(d.retry_after))}"
+        return self.inner(client, tier)
+
+<span class="c"># ---------------- demo ----------------</span>
+class Metrics(DecisionListener):
+    def __init__(self): self.counts, self.lock = Counter(), threading.Lock()
+    def on_decision(self, client, d):
+        with self.lock: self.counts["allow" if d.allowed else "deny"] += 1
+
+TIER = {"ann": "free", "bob": "pro"}
+EVENTS = [(2, "ann"), (5, "bob"), (8, "ann"), (9, "ann"), (10.5, "ann"),
+          (10.5, "ann"), (11, "ann"), (14, "ann"), (17, "ann")]
+
+def build(algorithm, clock):
+    rules = RuleProvider(default=Rule("default", 100, 60, "token_bucket"))
+    rules.add("/search", "free", Rule("search-free", 3, 10, algorithm))
+    rules.add("/search", "pro", Rule("search-pro", 6, 10, algorithm))
+    return RateLimiter(rules, InMemoryStore(), clock)
+
+def run(algorithm):
+    clock, metrics = FakeClock(), Metrics()
+    lim = build(algorithm, clock)
+    lim.subscribe(metrics)
+    print(f"== {algorithm}: free 3 per 10 s, pro 6 per 10 s ==")
+    for t, client in EVENTS:
+        clock.t = t
+        d = lim.check(client, "/search", TIER[client])
+        rule = lim.rules.resolve("/search", TIER[client])
+        state = lim.store.data[f"{rule.name}:{client}"]     <span class="c"># a peek, for printing only</span>
+        verdict = f"ALLOW left={d.remaining}" if d.allowed else f"DENY  retry={d.retry_after:.2f}s"
+        print(f"t={t:&gt;4} {client}  {verdict:&lt;19} {lim.limiters[rule].describe(state, t)}")
+    print(f"metrics: {metrics.counts['allow']} allowed, {metrics.counts['deny']} denied")
+
+for algorithm in LimiterFactory.kinds:
+    run(algorithm)
+
+<span class="c"># the decorator in front of a handler</span>
+clock = FakeClock()
+search = RateLimitedHandler(lambda client, tier: (200, "results"), build("token_bucket", clock), "/search")
+print("handler:", [search("cat", "free") for _ in range(4)])
+
+<span class="c"># eight threads, one client, one bucket of 50 tokens, frozen clock</span>
+clock = FakeClock()
+shared = build("token_bucket", clock)
+shared.rules.add("/search", "free", Rule("burst", 50, 10, "token_bucket"))
+results = []
+def worker():
+    for _ in range(25): results.append(shared.check("dan", "/search", "free").allowed)
+threads = [threading.Thread(target=worker) for _ in range(8)]
+for th in threads: th.start()
+for th in threads: th.join()
+print(f"8 threads x 25 calls on 50 tokens: {sum(results)} allowed, {results.count(False)} denied")</pre>
+    <h3>Output</h3>
+<pre class="log" style="max-height:none" aria-label="Program output">== token_bucket: free 3 per 10 s, pro 6 per 10 s ==
+t=   2 ann  ALLOW left=2        tokens=2.00
+t=   5 bob  ALLOW left=5        tokens=5.00
+t=   8 ann  ALLOW left=2        tokens=2.00
+t=   9 ann  ALLOW left=1        tokens=1.30
+t=10.5 ann  ALLOW left=0        tokens=0.75
+t=10.5 ann  DENY  retry=0.83s   tokens=0.75
+t=  11 ann  DENY  retry=0.33s   tokens=0.90
+t=  14 ann  ALLOW left=0        tokens=0.80
+t=  17 ann  ALLOW left=0        tokens=0.70
+metrics: 7 allowed, 2 denied
+== fixed_window: free 3 per 10 s, pro 6 per 10 s ==
+t=   2 ann  ALLOW left=2        window 0-10s count=1
+t=   5 bob  ALLOW left=5        window 0-10s count=1
+t=   8 ann  ALLOW left=1        window 0-10s count=2
+t=   9 ann  ALLOW left=0        window 0-10s count=3
+t=10.5 ann  ALLOW left=2        window 10-20s count=1
+t=10.5 ann  ALLOW left=1        window 10-20s count=2
+t=  11 ann  ALLOW left=0        window 10-20s count=3
+t=  14 ann  DENY  retry=6.00s   window 10-20s count=3
+t=  17 ann  DENY  retry=3.00s   window 10-20s count=3
+metrics: 7 allowed, 2 denied
+== sliding_log: free 3 per 10 s, pro 6 per 10 s ==
+t=   2 ann  ALLOW left=2        log=[2]
+t=   5 bob  ALLOW left=5        log=[5]
+t=   8 ann  ALLOW left=1        log=[2 8]
+t=   9 ann  ALLOW left=0        log=[2 8 9]
+t=10.5 ann  DENY  retry=1.50s   log=[2 8 9]
+t=10.5 ann  DENY  retry=1.50s   log=[2 8 9]
+t=  11 ann  DENY  retry=1.00s   log=[2 8 9]
+t=  14 ann  ALLOW left=0        log=[8 9 14]
+t=  17 ann  DENY  retry=1.00s   log=[8 9 14]
+metrics: 5 allowed, 4 denied
+== sliding_counter: free 3 per 10 s, pro 6 per 10 s ==
+t=   2 ann  ALLOW left=2        prev=0 curr=1 est=1.00
+t=   5 bob  ALLOW left=5        prev=0 curr=1 est=1.00
+t=   8 ann  ALLOW left=1        prev=0 curr=2 est=2.00
+t=   9 ann  ALLOW left=0        prev=0 curr=3 est=3.00
+t=10.5 ann  ALLOW left=0        prev=3 curr=1 est=3.85
+t=10.5 ann  DENY  retry=2.83s   prev=3 curr=1 est=3.85
+t=  11 ann  DENY  retry=2.33s   prev=3 curr=1 est=3.70
+t=  14 ann  ALLOW left=0        prev=3 curr=2 est=3.80
+t=  17 ann  ALLOW left=0        prev=3 curr=3 est=3.90
+metrics: 7 allowed, 2 denied
+handler: [(200, 'results'), (200, 'results'), (200, 'results'), (429, 'Retry-After: 4')]
+8 threads x 25 calls on 50 tokens: 50 allowed, 150 denied</pre>
+    <div class="aside"><p><b>Reading the output:</b> the four algorithms agree until the 10-second boundary, then split. Fixed window resets its count at 10 and lets three through within half a second: 6 requests between 2 and 11 seconds. The sliding log still remembers 2, 8 and 9 and refuses until 12. The counter's estimate (3 × 0.95 + 0 = 2.85) lets one through. The token bucket had 1.30 tokens at 9 s and refills to 1.75 by 10.5, enough for one. The thread line is the safety check: exactly 50, never 51.</p></div>
+  </section>
+
+  <section class="panel article" id="concurrency" data-nav="Deep dive: concurrency" data-num="8a" data-time="4m">
+    <div class="step-head"><span class="step-num">8a</span><h2>Deep dive: one token, two threads</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Every algorithm is read-modify-write: read the state, decide, write it back. Two threads checking the same client can both read "1 token left" before either writes. Below, threads T1 and T2 check one client whose bucket holds exactly <b>1</b> token. The schedule says which thread runs its next line. Try no protection, a lock, and compare-and-set.</p>
+    <div id="raceViz"></div>
+    <h3>Ways to make it safe</h3>
+    <ul>
+      <li><b>One global lock.</b> Correct and two lines long, but every client now queues behind every other client. With thousands of requests a second across cores, that one lock becomes the bottleneck the limiter was supposed to prevent.</li>
+      <li><b>A lock per key</b> (what <span class="mono">InMemoryStore</span> does). Requests for different clients never wait for each other; only one client's own concurrent requests line up, and each holds the lock for microseconds. A small guard lock protects the dictionary of locks itself. With millions of keys, use a fixed array of, say, 64 locks picked by <span class="mono">hash(key) % 64</span> (lock striping) so the lock table doesn't grow forever.</li>
+      <li><b>Compare-and-set.</b> Keep a version with the state; write only if the version is still the one you read, otherwise re-read and decide again. No lock is held while deciding, and it works across processes: it is what Redis <span class="mono">WATCH</span>/<span class="mono">MULTI</span> does. Under heavy contention on one key, retries pile up.</li>
+      <li><b>Do it where the data is.</b> A Lua script in Redis runs read, decide and write as one command, which no other command can interleave with. That's the high-level design's answer, and it fits behind the same <span class="mono">atomic</span> method.</li>
+    </ul>
+    <div class="aside"><p><b>A subtle one: read the clock inside the lock.</b> If thread A reads <span class="mono">now = 10.0</span>, then thread B reads 10.1 and updates first, A then refills with a negative elapsed time and moves <span class="mono">last_refill</span> backwards. Reading time inside <span class="mono">atomic</span> (as <span class="mono">check</span> does) keeps updates in time order. And use a monotonic clock: wall-clock time can jump back when it is synchronised.</p></div>
+  </section>
+
+  <section class="panel article" id="extend" data-nav="Deep dive: extensibility" data-num="8b" data-time="3m">
+    <div class="step-head"><span class="step-num">8b</span><h2>Deep dive: new algorithms, and a shared store</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Count how many existing lines each new requirement edits. Good seams make most of them zero.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>New requirement</th><th>Add</th><th>Edit</th></tr></thead>
+      <tbody>
+        <tr><td>Leaky bucket (smooth output)</td><td class="mono">class LeakyBucket</td><td class="mono okc">one factory entry</td></tr>
+        <tr><td>Limits shared by 20 servers</td><td class="mono">class RedisStore</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Rules reloaded from a file</td><td class="mono">a provider that re-reads</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Alert on repeated login denies</td><td class="mono">a listener</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Two rules at once (per second and per day)</td><td class="mono">resolve_all → list</td><td class="mono warn">check loops; deny if any denies</td></tr>
+        <tr><td>Expensive calls cost 5 units</td><td class="mono">cost argument</td><td class="mono warn">acquire(state, now, cost)</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>The Redis store is the honest stress test.</b> It has to keep the <span class="mono">atomic(key, fn)</span> promise across processes. The direct way is optimistic: watch the key, read, run <span class="mono">fn</span> locally, and commit only if nobody wrote in between, otherwise retry.</p>
+<pre class="api"><span class="verb">class</span> RedisStore(StateStore):              <span class="c"># sketch, using redis-py</span>
+    <span class="verb">def</span> atomic(self, key, fn):
+        <span class="verb">while</span> True:
+            <span class="verb">with</span> self.redis.pipeline() <span class="verb">as</span> p:
+                <span class="verb">try</span>:
+                    p.watch(key)                 <span class="c"># EXEC fails if key changes</span>
+                    new, result = fn(decode(p.get(key)))
+                    p.multi()
+                    p.set(key, encode(new), ex=self.ttl)
+                    p.execute()
+                    <span class="verb">return</span> result
+                <span class="verb">except</span> WatchError:
+                    <span class="verb">continue</span>                 <span class="c"># someone wrote first: retry</span></pre>
+    <p>That costs two or three round trips per check, and each server reads its own clock, so clocks that disagree skew the refill. The faster version moves the algorithm into a Lua script per strategy, which runs in one round trip and can use Redis's own clock. Then each strategy gains a <span class="mono">script</span> next to <span class="mono">acquire</span>. That is the one honest edit: the in-memory design let the algorithm run anywhere; a shared store wants it to run in the store.</p>
+    <p><b>Idle clients:</b> the in-memory store never forgets a key. Give each entry an expiry of one window after its last use (Redis does this with <span class="mono">ex=</span>), or sweep keys whose state has fully refilled: a full bucket and a missing bucket behave the same.</p>
+  </section>
+
+  <section class="panel article" id="solid" data-nav="Deep dive: SOLID" data-num="8c" data-time="2m">
+    <div class="step-head"><span class="step-num">8c</span><h2>Deep dive: SOLID, and where to stop</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="qa">
+      <div><span class="q">Single responsibility</span><p>The provider picks a rule, a strategy does arithmetic, the store does atomicity, the limiter wires them. The limiter also caches strategies; splitting that into a <span class="mono">StrategyRegistry</span> would be a class with one dictionary in it.</p></div>
+      <div><span class="q">Open/closed</span><p>New algorithms, stores and listeners arrive as new classes (see 8b). Weighted costs and multiple rules per request do edit the core, because they change the question being asked.</p></div>
+      <div><span class="q">Liskov</span><p>Every strategy must accept <span class="mono">None</span> as "new client" and return a non-negative <span class="mono">retry_after</span>. A store that runs <span class="mono">fn</span> twice after a conflict is fine; one that writes a stale result would break the limit while keeping the same signature.</p></div>
+      <div><span class="q">Interface segregation</span><p>Listeners see a client and a decision, never state. Strategies never see the store. The decorator sees only <span class="mono">check</span>.</p></div>
+      <div><span class="q">Dependency inversion</span><p>The limiter depends on <span class="mono">Clock</span> and <span class="mono">StateStore</span>, not on <span class="mono">time</span> or a dictionary. That is why the demo can set the time to 10.5 and why the store can become Redis.</p></div>
+      <div><span class="q">Where to stop</span><p>No interface for <span class="mono">Rule</span> or <span class="mono">Decision</span>: plain records. Per-client state is a tuple, not a <span class="mono">BucketState</span> class hierarchy; it has to be serialisable for Redis anyway.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>Ann across the 10-second boundary, by hand</h2>
+    <p class="kicker">Free plan: 3 requests per 10 s. Ann's requests arrive at 2, 8, 9, 10.5, 10.5 and 11 seconds (bob's single request at 5 s uses a different key, <span class="mono">search-pro:bob</span>, and never touches her state). These match the Python output.</p>
+    <ol class="steps">
+      <li><div><h3>2, 8 and 9 s: everyone agrees</h3><p>Three requests, limit three: all four algorithms allow all three. The fixed window's count is 3 in window 0–10; the log holds [2 8 9]; the counter's <span class="mono">curr</span> is 3.</p></div></li>
+      <li><div><h3>Token bucket at 10.5 s</h3><p>The bucket starts full at 3 and is 2 after the first request. By 8 s it has refilled to the cap of 3 (it can't hold more), and spending leaves 2; by 9 s it gains 0.3 to 2.30, and spending leaves 1.30. At 10.5 s: 1.30 + 1.5 × 3/10 = <b>1.75</b>. That's at least 1, so spend: 0.75 left, allowed. The second request at 10.5 finds 0.75 and is denied with retry (1 − 0.75) × 10/3 = <b>0.83 s</b>.</p></div></li>
+      <li><div><h3>Fixed window at 10.5 s</h3><p><span class="mono">floor(10.5 / 10) × 10 = 10</span>, a new window, so the count restarts at 0. 10.5, 10.5 and 11 are all allowed. Ann made 6 requests between 2 and 11 seconds against a limit of 3 per 10 s: the boundary burst.</p></div></li>
+      <li><div><h3>Sliding log at 10.5 s</h3><p>Drop times ≤ 10.5 − 10 = 0.5: none. Three remain, so deny; the oldest, 2, leaves the window at 12, so retry = <b>1.50 s</b>. At 14 s, 2 is dropped and ann gets in again.</p></div></li>
+      <li><div><h3>Sliding counter at 10.5 s</h3><p>New window: <span class="mono">prev = 3, curr = 0</span>. Half a second in, 95% of the previous window still overlaps the last 10 s: est = 3 × 0.95 + 0 = <b>2.85</b> &lt; 3, allowed. Now est = 3.85, so the next one is denied until 3 × weight + 1 &lt; 3, which means weight &lt; 2/3, reached at 13.33 s: retry <b>2.83 s</b>.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A tiny state machine per (rule, client), advanced by time and by requests, answering yes or no.</p></div>
+      <div><span class="q">Why it's hard</span><p>Not the arithmetic. It's that the state is shared by concurrent requests, and that time is an input you must control to test anything.</p></div>
+      <div><span class="q">Key insight</span><p>Make each algorithm a pure function of (old state, now). Then the clock, the storage and the locking are separate pieces you can swap, and the same function runs in memory, in a test, or inside Redis.</p></div>
+      <div><span class="q">Same shape elsewhere</span><p>Login lockouts after N failures, per-user quotas, circuit breakers counting recent errors, debouncing a button: a counter over a time window, keyed by who.</p></div>
+    </div>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Burst plus steady rate:</b> a token bucket with capacity 20 and refill 5 a second allows a burst of 20, then 5 a second. That needs two numbers in <span class="mono">Rule</span> (capacity and rate), not one limit.</li>
+        <li><b>Per second and per day together:</b> resolve a list of rules and deny if any denies. Decide whether a denied request still spends from the rules that allowed it (usually: check all, then spend only if all allow).</li>
+        <li><b>Response headers:</b> <span class="mono">Decision.remaining</span> and <span class="mono">retry_after</span> become <span class="mono">RateLimit-Remaining</span> and <span class="mono">Retry-After</span> (rounded up to whole seconds, and at least 1: at an exact window edge the sliding counter can compute a wait of 0).</li>
+        <li><b>Memory with ten million clients:</b> a token bucket is two floats per key; a sliding log is up to <i>limit</i> timestamps per key. Expire idle keys.</li>
+        <li><b>Shadow mode for a new rule:</b> decide as usual but never deny, with a listener that logs what would have been blocked.</li>
+        <li><b>Testing:</b> because time is injected, a test sets the fake clock to 9.999 and then 10.0 and checks the boundary exactly, with no sleeps and no flakiness.</li>
+        <li><b>Now across 50 servers:</b> that's the high-level question: Redis sharded by key, one atomic script per check, and a decision on failing open or closed.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Related on this site</h2>
+      <p>The four algorithms side by side, and the same limiter shared across a fleet of gateways.</p>
+      <div class="concepts">
+        <a href="../topics/rate-limiter.html">Rate Limiters (concept)</a>
+        <a href="rate-limiter-design.html">Design a Rate Limiter (high-level)</a>
+        <a href="lld-lru-cache.html">Design an LRU Cache (classes)</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Interview flow adapted from <a href="https://www.hellointerview.com/">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  $("zoomUml").addEventListener("click", e => {
+    const on = $("umlWrap").classList.toggle("zoomed");
+    e.target.setAttribute("aria-pressed", on); e.target.textContent = on ? "Fit to screen" : "Zoom in";
+    $("zoomHint").textContent = on ? "Scroll the diagram sideways to see the clock and store on the right." : "The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.";
+  });
+
+  // ================= the model: a line-for-line mirror of the Python classes =================
+  // Each acquire() also pushes a plain-words reason into `why`, for the trace.
+  const f2 = x => x.toFixed(2);
+  class TokenBucket {
+    constructor(rule) { this.L = rule.limit; this.W = rule.window; }
+    acquire(s, now, why) {
+      let [tokens, last] = s ? s : [this.L, now];
+      const before = tokens;
+      tokens = Math.min(this.L, tokens + (now - last) * this.L / this.W);
+      why.push(s ? `refill: min(${this.L}, ${f2(before)} + (${now} − ${last}) × ${this.L}/${this.W}) = ${f2(tokens)}` : `no state yet: a full bucket of ${this.L}`);
+      if (tokens >= 1) { why.push(`${f2(tokens)} ≥ 1, spend one: ${f2(tokens - 1)} left`); return [[tokens - 1, now], true, Math.floor(tokens - 1), 0]; }
+      const wait = (1 - tokens) * this.W / this.L;
+      why.push(`${f2(tokens)} &lt; 1: wait (1 − ${f2(tokens)}) × ${this.W}/${this.L} = ${f2(wait)} s for the next token`);
+      return [[tokens, now], false, 0, wait];
+    }
+    describe(s) { return `tokens=${f2(s[0])}`; }
+    peek(s, now) { const t = Math.min(this.L, s[0] + (now - s[1]) * this.L / this.W); return { v: t, label: `${f2(t)} tokens available`, good: true }; }
+  }
+  class FixedWindow {
+    constructor(rule) { this.L = rule.limit; this.W = rule.window; }
+    acquire(s, now, why) {
+      const start = Math.floor(now / this.W) * this.W;
+      const count = s && s[0] === start ? s[1] : 0;
+      why.push(`window ${start}–${start + this.W} s${s && s[0] !== start ? ` is new (was ${s[0]}–${s[0] + this.W}): count resets to 0` : `: count = ${count}`}`);
+      if (count < this.L) { why.push(`${count} &lt; ${this.L}, count becomes ${count + 1}`); return [[start, count + 1], true, this.L - count - 1, 0]; }
+      const wait = start + this.W - now;
+      why.push(`${count} = limit: wait for the window to end at ${start + this.W} s (${f2(wait)} s)`);
+      return [[start, count], false, 0, wait];
+    }
+    describe(s) { return `window ${s[0]}-${s[0] + this.W}s count=${s[1]}`; }
+    peek(s, now) { const start = Math.floor(now / this.W) * this.W, c = s[0] === start ? s[1] : 0; return { v: c, label: `${c} used in window ${start}–${start + this.W} s`, good: false }; }
+  }
+  class SlidingLog {
+    constructor(rule) { this.L = rule.limit; this.W = rule.window; }
+    acquire(log, now, why) {
+      log = log !== null ? log : [];
+      const dropped = [];
+      while (log.length && log[0] <= now - this.W) dropped.push(log.shift());
+      why.push(`drop times ≤ ${now} − ${this.W} = ${now - this.W}: ${dropped.length ? "removed " + dropped.join(", ") : "none"}; ${log.length} left`);
+      if (log.length < this.L) { log.push(now); why.push(`${log.length - 1} &lt; ${this.L}, append ${now}`); return [log, true, this.L - log.length, 0]; }
+      const wait = log[0] + this.W - now;
+      why.push(`${log.length} = limit: oldest (${log[0]}) leaves the window at ${log[0] + this.W} s (${f2(wait)} s)`);
+      return [log, false, 0, wait];
+    }
+    describe(log) { return "log=[" + log.join(" ") + "]"; }
+    peek(log, now) { const n = log.filter(t => t > now - this.W).length; return { v: n, label: `${n} in the last ${this.W} s`, good: false }; }
+  }
+  class SlidingCounter {
+    constructor(rule) { this.L = rule.limit; this.W = rule.window; }
+    roll(s, now) {
+      const start = Math.floor(now / this.W) * this.W;
+      let [old, prev, curr] = s ? s : [start, 0, 0];
+      if (start !== old) { prev = start - old === this.W ? curr : 0; curr = 0; }
+      const weight = (this.W - (now - start)) / this.W;
+      return [start, prev, curr, prev * weight + curr, weight];
+    }
+    acquire(s, now, why) {
+      const [start, prev, curr, est, weight] = this.roll(s, now);
+      if (s && s[0] !== start) why.push(`new window ${start}–${start + this.W} s: prev = ${prev}, curr = 0`);
+      why.push(`est = prev × ${f2(weight)} + curr = ${prev} × ${f2(weight)} + ${curr} = ${f2(est)}`);
+      if (est < this.L) { why.push(`${f2(est)} &lt; ${this.L}: allow, curr becomes ${curr + 1}`); return [[start, prev, curr + 1], true, Math.max(0, Math.ceil(this.L - est - 1)), 0]; }
+      let wait;
+      if (curr < this.L) wait = start + this.W * (1 - (this.L - curr) / prev) - now;
+      else wait = start + this.W * (2 - this.L / curr) - now;
+      why.push(`${f2(est)} ≥ ${this.L}: deny until prev's share fades (${f2(wait)} s)`);
+      return [[start, prev, curr], false, 0, wait];
+    }
+    describe(s, now) { const [, prev, curr, est] = this.roll(s, now); return `prev=${prev} curr=${curr} est=${f2(est)}`; }
+    peek(s, now) { const est = this.roll(s, now)[3]; return { v: est, label: `estimate ${f2(est)} now`, good: false }; }
+  }
+  const LimiterFactory = {
+    kinds: { token_bucket: TokenBucket, fixed_window: FixedWindow, sliding_log: SlidingLog, sliding_counter: SlidingCounter },
+    create(rule) { return new this.kinds[rule.algorithm](rule); }
+  };
+  const Rule = (name, limit, window, algorithm) => Object.freeze({ name, limit, window, algorithm });
+  class RuleProvider {
+    constructor(def) { this.rules = new Map(); this.default = def; }
+    add(endpoint, tier, rule) { this.rules.set(`${endpoint}|${tier}`, rule); }
+    resolve(endpoint, tier) { return this.rules.get(`${endpoint}|${tier}`) || this.rules.get(`${endpoint}|*`) || this.default; }
+  }
+  class FakeClock { constructor(t = 0) { this.t = t; } now() { return this.t; } }
+  class InMemoryStore {
+    constructor() { this.data = new Map(); this.locks = new Set(); }
+    atomic(key, fn, trace) {
+      this.locks.add(key);
+      trace.push(`store.atomic("${key}"): <span class="hl">lock for this key acquired</span>`);
+      const [state, result] = fn(this.data.has(key) ? this.data.get(key) : null);
+      this.data.set(key, state);
+      trace.push(`state written back; lock released`);
+      return result;
+    }
+  }
+  class Metrics { constructor() { this.allow = 0; this.deny = 0; } onDecision(client, d) { d.allowed ? this.allow++ : this.deny++; } }
+  class RateLimiter {
+    constructor(rules, store, clock) { this.rules = rules; this.store = store; this.clock = clock; this.limiters = new Map(); this.listeners = []; }
+    subscribe(l) { this.listeners.push(l); }
+    check(client, endpoint, tier, trace = []) {
+      const rule = this.rules.resolve(endpoint, tier);
+      trace.push(`rules.resolve("${endpoint}", "${tier}") → ${rule.name} (${rule.limit} per ${rule.window} s, ${rule.algorithm})`);
+      if (!this.limiters.has(rule)) { this.limiters.set(rule, LimiterFactory.create(rule)); trace.push(`first use of this rule: LimiterFactory.create → new ${this.limiters.get(rule).constructor.name}`); }
+      const limiter = this.limiters.get(rule);
+      const decision = this.store.atomic(`${rule.name}:${client}`, state => {
+        const now = this.clock.now(), why = [];
+        trace.push(`clock.now() → ${now} (read inside the lock)`);
+        const [nw, ok, left, wait] = limiter.acquire(state, now, why);
+        trace.push(`${limiter.constructor.name}.acquire: ${why.join("; ")}`);
+        return [nw, { allowed: ok, remaining: left, retry_after: wait, rule: rule.name }];
+      }, trace);
+      trace.push(`→ Decision(allowed=${decision.allowed ? '<span class="ok">True</span>' : '<span class="bad">False</span>'}, remaining=${decision.remaining}, retry_after=${f2(decision.retry_after)})`);
+      this.listeners.forEach(l => l.onDecision(client, decision));
+      return decision;
+    }
+  }
+
+  // ================= the demo (same TIER and EVENTS as the Python) =================
+  const TIER = { ann: "free", bob: "pro" };
+  const EVENTS = [[2, "ann"], [5, "bob"], [8, "ann"], [9, "ann"], [10.5, "ann"], [10.5, "ann"], [11, "ann"], [14, "ann"], [17, "ann"]];
+  const CLIENTS = ["ann", "bob"];
+
+  let S;
+  function build(algorithm) {
+    const clock = new FakeClock(), metrics = new Metrics();
+    const rules = new RuleProvider(Rule("default", 100, 60, "token_bucket"));
+    rules.add("/search", "free", Rule("search-free", 3, 10, algorithm));
+    rules.add("/search", "pro", Rule("search-pro", 6, 10, algorithm));
+    const lim = new RateLimiter(rules, new InMemoryStore(), clock);
+    lim.subscribe(metrics);
+    return { clock, metrics, rules, lim };
+  }
+  function reset(history = []) {
+    stopPlay();
+    const algorithm = $("selAlgo").value;
+    S = Object.assign(build(algorithm), { algorithm, history: [], marks: [], last: {}, cursor: 0, manual: 0, log: [`== ${algorithm}: free 3 per 10 s, pro 6 per 10 s ==`], hot: null, verdict: null });
+    S.trace = [`RateLimiter(RuleProvider(...), InMemoryStore(), FakeClock())`, `rules: search-free = 3 per 10 s, search-pro = 6 per 10 s, both ${algorithm}`, `lim.subscribe(Metrics())`];
+    S.title = "New limiter, empty store";
+    history.forEach(h => { if (h.demo) S.cursor++; else S.manual++; send(h.t, h.client, h.demo); });
+    render();
+  }
+  function send(t, client, demo) {
+    S.clock.t = t;
+    const trace = [`lim.check("${client}", "/search", "${TIER[client]}") at t = ${t}`];
+    const d = S.lim.check(client, "/search", TIER[client], trace);
+    trace.push(`Metrics.on_decision → ${S.metrics.allow} allowed, ${S.metrics.deny} denied so far`);
+    const rule = S.rules.resolve("/search", TIER[client]);
+    const state = S.lim.store.data.get(`${rule.name}:${client}`);
+    const verdict = d.allowed ? `ALLOW left=${d.remaining}` : `DENY  retry=${d.retry_after.toFixed(2)}s`;
+    S.log.push(`t=${String(t).padStart(4)} ${client}  ${verdict.padEnd(19)} ${S.lim.limiters.get(rule).describe(state, t)}`);
+    S.history.push({ t, client, demo });
+    S.marks.push({ t, client, ok: d.allowed });
+    S.last[client] = { t, text: S.lim.limiters.get(rule).describe(state, t) };
+    S.trace = trace; S.title = `What ran: ${client} at ${t} s`; S.hot = client; S.verdict = d;
+  }
+  function stepDemo() {
+    if (S.cursor >= EVENTS.length) return;
+    const [t, client] = EVENTS[S.cursor++];
+    send(Math.max(t, S.clock.t), client, true);
+    render();
+  }
+  function manual(client, n = 1) { stopPlay(); for (let k = 0; k < n; k++) { S.manual++; send(S.clock.t, client, false); } render(); }
+  function tick(dt) {
+    stopPlay();
+    S.clock.t += dt; S.title = `Clock moved to ${S.clock.t} s`; S.hot = null; S.verdict = null;
+    S.trace = [`clock.t += ${dt} → ${S.clock.t}. No check ran, so the store is unchanged; the cards show what a check would see now.`];
+    render();
+  }
+
+  // ---------- drawing (reads the model only) ----------
+  function drawTimeline() {
+    const now = S.clock.t, W = 10;
+    const t1 = Math.max(20, Math.ceil(now) + 3), t0 = t1 - 20;
+    const X = t => 36 + (t - t0) / 20 * 314;
+    let s = "";
+    for (let b = Math.ceil(t0 / W) * W; b <= t1; b += W) s += `<line x1="${X(b)}" y1="18" x2="${X(b)}" y2="128" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    const bx = X(Math.max(t0, now - W));
+    s += `<rect x="${bx}" y="22" width="${X(now) - bx}" height="100" fill="var(--accent-soft)" opacity=".7"/>`;
+    const lx = X(now), left = lx > 110;
+    s += `<text x="${left ? lx - 4 : lx + 4}" y="14" text-anchor="${left ? "end" : "start"}" font-family="var(--mono)" font-size="10" fill="var(--accent)">${left ? "← last 10 s" : "now"}</text>`;
+    for (let k = Math.ceil(t0 / 5) * 5; k <= t1; k += 5) s += `<text x="${X(k)}" y="142" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${k}s</text>`;
+    CLIENTS.forEach((c, r) => {
+      const y = 52 + r * 46;
+      s += `<line x1="36" y1="${y}" x2="350" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+      s += `<text x="4" y="${y + 4}" font-family="var(--mono)" font-size="11" font-weight="600" fill="var(--ink)">${c}</text>`;
+      const seen = {};
+      S.marks.filter(m => m.client === c && m.t >= t0).forEach(m => {
+        const k = seen[m.t] = (seen[m.t] || 0) + 1, x = X(m.t), yy = y - 14 + (k - 1) * 10;
+        s += m.ok ? `<circle cx="${x}" cy="${yy}" r="4" fill="var(--ok)"/>` : `<path d="M${x - 4},${yy - 4} L${x + 4},${yy + 4} M${x + 4},${yy - 4} L${x - 4},${yy + 4}" stroke="var(--bad)" stroke-width="2"/>`;
+      });
+    });
+    s += `<line x1="${lx}" y1="18" x2="${lx}" y2="128" stroke="var(--amber)" stroke-width="2"/>`;
+    s += `<circle cx="40" cy="158" r="4" fill="var(--ok)"/><text x="48" y="162" font-family="var(--mono)" font-size="10" fill="var(--muted)">allowed</text>`;
+    s += `<path d="M104,154 L112,162 M112,154 L104,162" stroke="var(--bad)" stroke-width="2"/><text x="118" y="162" font-family="var(--mono)" font-size="10" fill="var(--muted)">denied</text>`;
+    s += `<line x1="176" y1="152" x2="176" y2="164" stroke="var(--amber)" stroke-width="2"/><text x="182" y="162" font-family="var(--mono)" font-size="10" fill="var(--muted)">now</text>`;
+    s += `<line x1="216" y1="152" x2="216" y2="164" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4 3"/><text x="222" y="162" font-family="var(--mono)" font-size="10" fill="var(--muted)">window edge</text>`;
+    $("tl").innerHTML = s;
+  }
+  function meter(v, L, good) {
+    const w = 300 / L;
+    let s = "";
+    for (let i = 0; i < L; i++) {
+      const f = Math.max(0, Math.min(1, v - i));
+      s += `<rect x="${i * w + 2}" y="2" width="${w - 4}" height="18" rx="3" fill="var(--paper)" stroke="var(--line)"/>`;
+      if (f > 0) s += `<rect x="${i * w + 2}" y="2" width="${(w - 4) * f}" height="18" rx="3" fill="${good ? "var(--ok)" : "var(--accent)"}" opacity=".85"/>`;
+    }
+    return `<svg viewBox="0 0 304 22" aria-hidden="true">${s}</svg>`;
+  }
+  function render() {
+    drawTimeline();
+    const now = S.clock.t;
+    $("cards").innerHTML = CLIENTS.map(c => {
+      const rule = S.rules.resolve("/search", TIER[c]), key = `${rule.name}:${c}`, lim = S.lim.limiters.get(rule);
+      const head = `<h4>${c} <span>· ${TIER[c]} · ${rule.name}, ${rule.limit} per ${rule.window} s</span></h4>`;
+      if (!S.lim.store.data.has(key)) return `<div class="ccard">${head}<p>store["${key}"]: no state yet. The first check creates it.</p>${meter(0, rule.limit, false)}</div>`;
+      const pk = lim.peek(S.lim.store.data.get(key), now);
+      return `<div class="ccard${S.hot === c ? " hot" : ""}">${head}
+        <p>after its last check (t = ${S.last[c].t}): <b>${esc(S.last[c].text)}</b></p>${meter(pk.v, rule.limit, pk.good)}<p>as of t = ${now}: ${pk.label}${pk.v > rule.limit ? ` (over the limit of ${rule.limit})` : ""}</p></div>`;
+    }).join("");
+    $("traceTitle").textContent = S.title;
+    $("trace").innerHTML = S.trace.map(x => `<li>${x}</li>`).join("");
+    const v = $("verdict");
+    if (S.verdict) {
+      v.hidden = false; v.className = "verdict " + (S.verdict.allowed ? "ok" : "bad");
+      v.textContent = S.verdict.allowed ? `Allowed: ${S.verdict.remaining} left right now` : `Denied: 429, Retry-After: ${Math.max(1, Math.ceil(S.verdict.retry_after))} (${S.verdict.retry_after.toFixed(2)} s)`;
+    } else v.hidden = true;
+    $("metrics").textContent = `Metrics (an observer): ${S.metrics.allow} allowed, ${S.metrics.deny} denied`;
+    const lines = S.log.slice();
+    if (S.cursor === EVENTS.length && !S.manual) lines.push(`metrics: ${S.metrics.allow} allowed, ${S.metrics.deny} denied`);
+    $("log").innerHTML = lines.map((l, k) => `<span${k === lines.length - 1 && k > 0 ? ' class="last"' : ""}>${esc(l)}</span>`).join("\n");
+    $("log").scrollTop = $("log").scrollHeight;
+    $("clock").textContent = `clock ${now} s · demo request ${S.cursor}/${EVENTS.length}`;
+    $("bStep").disabled = S.cursor >= EVENTS.length;
+  }
+  let timer = null;
+  function stopPlay() { clearInterval(timer); timer = null; $("bPlay").textContent = "Play"; }
+  $("bPlay").addEventListener("click", () => {
+    if (timer) return stopPlay();
+    if (S.cursor >= EVENTS.length) reset();
+    $("bPlay").textContent = "Pause";
+    timer = setInterval(() => { stepDemo(); if (S.cursor >= EVENTS.length) stopPlay(); }, 1000);
+  });
+  $("bStep").addEventListener("click", () => { stopPlay(); stepDemo(); });
+  $("bReset").addEventListener("click", () => reset());
+  $("selAlgo").addEventListener("change", () => { const h = S.history, t = S.clock.t; reset(h); S.clock.t = t; render(); });
+  $("sAnn").addEventListener("click", () => manual("ann"));
+  $("sBob").addEventListener("click", () => manual("bob"));
+  $("sBurst").addEventListener("click", () => manual("ann", 3));
+  $("cHalf").addEventListener("click", () => tick(0.5));
+  $("cOne").addEventListener("click", () => tick(1));
+  $("cFive").addEventListener("click", () => tick(5));
+  window.addEventListener("resize", () => { if (S) render(); });
+  reset();
+
+  // ================= Deep dive: two threads, one token =================
+  const RACE_CODE = [
+    "def check(key):",
+    "    store.lock(key)                  # lock mode only",
+    "    tokens, ver = store.read(key)",
+    "    ok = tokens >= 1                 # decide locally",
+    "    if ok: tokens -= 1",
+    "    if not store.write(key, tokens, ver):",
+    "        retry from line 3            # cas: ver moved",
+    "    store.unlock(key); return ok     # unlock: lock mode"
+  ];
+  Stepper($("raceViz"), {
+    code: RACE_CODE,
+    inputs: [
+      { key: "s", label: "Schedule (which thread runs its next line)", value: "1 2 1 2 1 2 1 2" },
+      { key: "mode", label: "Protection (none / lock / cas)", value: "none" }
+    ],
+    presets: [
+      { label: "None, interleaved", values: { s: "1 2 1 2 1 2 1 2", mode: "none" } },
+      { label: "None, T1 first", values: { s: "1 1 1 1 1 2 2 2 2", mode: "none" } },
+      { label: "Lock per key", values: { s: "1 2 1 2 1 2 1 2", mode: "lock" } },
+      { label: "Compare-and-set", values: { s: "1 2 1 2 1 2 1 2", mode: "cas" } }
+    ],
+    build({ s, mode }) {
+      const toks = s.split(/[\s,]+/).filter(Boolean).map(t => t.toUpperCase().replace(/^T/, ""));
+      if (!toks.length || toks.some(t => t !== "1" && t !== "2")) return { error: "The schedule is a list of 1 and 2, for example: 1 2 1 2." };
+      if (toks.length > 24) return { error: "Use at most 24 steps." };
+      const M = mode.trim().toLowerCase();
+      if (!["none", "lock", "cas"].includes(M)) return { error: "Protection must be none, lock or cas." };
+      const store = { tokens: 1, ver: 7 };
+      let holder = null;
+      const th = {};
+      ["1", "2"].forEach(n => { th[n] = { pc: M === "lock" ? 1 : 2, tokens: "–", ver: "–", ok: "–", done: false, out: "running" }; });
+      const frames = [];
+      const snap = (line, msg, moved) => frames.push({ line, msg, moved, th: JSON.parse(JSON.stringify(th)), store: { ...store }, allowed: ["1", "2"].filter(n => th[n].out === "allowed").length,
+        vars: { "store.tokens": store.tokens, "store.ver": store.ver, lock: M === "lock" ? (holder ? "T" + holder : "free") : "–", "T1.ok": th["1"].ok, "T2.ok": th["2"].ok } });
+      snap(0, `The bucket for this client holds <b>1</b> token (version 7). T1 and T2 both call <span class="mono">check</span>. Protection: <b>${M}</b>.`, null);
+      function run(n) {
+        const me = th[n];
+        if (me.done) return;
+        const line = me.pc;
+        if (line === 1) {
+          if (holder && holder !== n) { snap(1, `T${n} wants the lock, but T${holder} holds it: T${n} <b>waits</b>.`, n); return; }
+          holder = n; me.pc = 2; snap(1, `T${n} takes the lock for this key.`, n); return;
+        }
+        if (line === 2) { me.tokens = store.tokens; me.ver = store.ver; me.pc = 3; snap(2, `T${n} reads tokens = <b>${me.tokens}</b>, version ${me.ver}.`, n); return; }
+        if (line === 3) { me.ok = me.tokens >= 1; me.pc = 4; snap(3, `T${n} decides: ${me.tokens} ≥ 1 is <b>${me.ok}</b>.`, n); return; }
+        if (line === 4) { if (me.ok) me.tokens -= 1; me.pc = 5; snap(4, me.ok ? `T${n} spends a token in its own copy: tokens = ${me.tokens}.` : `T${n} has nothing to spend.`, n); return; }
+        if (line === 5) {
+          if (M === "cas" && store.ver !== me.ver) { me.pc = 6; snap(5, `T${n} tries to write, but the version is now ${store.ver}, not ${me.ver}: <b>write refused</b>.`, n); return; }
+          store.tokens = me.tokens; store.ver++; me.pc = 7;
+          snap(5, `T${n} writes tokens = ${me.tokens}${M === "cas" ? ` (version still ${me.ver}, so it succeeds)` : ""}; version becomes ${store.ver}.`, n); return;
+        }
+        if (line === 6) { me.pc = 2; me.ok = "–"; snap(6, `T${n} starts again from the read.`, n); return; }
+        if (line === 7) { if (holder === n) holder = null; me.done = true; me.out = me.ok ? "allowed" : "denied"; snap(7, `T${n} ${M === "lock" ? "releases the lock and " : ""}returns <b class="${me.ok ? "ok" : "bad"}">${me.ok ? "allowed" : "denied"}</b>.`, n); }
+      }
+      toks.forEach(run);
+      let guard = 0, turn = "1";
+      while ((!th["1"].done || !th["2"].done) && guard++ < 60) { run(turn); turn = turn === "1" ? "2" : "1"; }
+      const ok = ["1", "2"].filter(n => th[n].out === "allowed").length, last = frames[frames.length - 1];
+      last.msg += ok > 1 ? ` Result: <b class="bad">2 requests allowed with 1 token</b>. Both read before either wrote: a lost update.`
+        : ` Result: <b class="ok">1 allowed, 1 denied</b>. ${M === "lock" ? "The lock made read-decide-write one step." : M === "cas" ? "The stale write was refused, so the loser re-read 0 tokens." : "Lucky timing: T1 wrote before T2 read. Try the interleaved preset."}`;
+      return { frames };
+    },
+    draw(f) {
+      const card = n => { const t = f.th[n]; return `<div class="${f.moved === n ? "moved" : ""}"><b>Thread T${n}</b><span>${t.done ? "finished" : "next: line " + (t.pc + 1)}</span><span>local tokens: ${t.tokens} · ver: ${t.ver}</span><span>${t.out}</span></div>`; };
+      const done = f.th["1"].done && f.th["2"].done, cls = f.allowed > 1 ? "bad" : done ? "ok" : "";
+      return `<div class="race-th">${card("1")}${card("2")}</div>
+        <div class="race-store ${cls}">store["search-free:ann"]: tokens = ${f.store.tokens}, version ${f.store.ver} · allowed so far: ${f.allowed}</div>`;
+    }
+  });
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

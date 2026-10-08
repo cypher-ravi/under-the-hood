@@ -28,8 +28,8 @@ Every push to `main` redeploys through `.github/workflows/pages.yml` (about 1 mi
 
 ## Roadmap (next up first)
 - Math toolkit: M01–M04 shipped. Before each AI lesson ships, ship any missing math it lists in `math` (just in time). Next: M05 Partial derivatives and the gradient (for Lesson 08), then M06–M11 as lessons need them.
-- AI lessons: 01–06 shipped. Next: 07 Loss functions, then 08 Gradient descent, and on through the 60-lesson curriculum in `LESSONS`, then deep dives.
-- DSA: Tree, Heap, Graph, Backtracking, DP.
-- Design questions: Distributed Cache, Google Docs, Dropbox.
-- Concepts: Distributed Locks, CRDTs, Vector Clocks.
-- LLD: Rate limiter (class design), Elevator system, Vending machine, Splitwise, Library management, Snake and ladder, Chess, Movie ticket booking (BookMyShow), Logger framework, Pub-sub / notification service, ATM, Hotel booking, In-memory file system, Tic-tac-toe, Online food ordering, Meeting room scheduler. (Parking lot and LRU cache shipped.)
+- AI lessons: 01–07 shipped. Next: 08 Gradient descent (needs M05 first), then 09 Linear regression, and on through the 60-lesson curriculum in `LESSONS`, then deep dives.
+- DSA: Heap, Graph, Backtracking, DP. (Tree shipped.)
+- Design questions: Google Docs, Dropbox.
+- Concepts: CRDTs, Vector Clocks.
+- LLD: Elevator system, Vending machine, Splitwise, Library management, Snake and ladder, Chess, Movie ticket booking (BookMyShow), Logger framework, Pub-sub / notification service, ATM, Hotel booking, In-memory file system, Tic-tac-toe, Online food ordering, Meeting room scheduler. (Parking lot, LRU cache and Rate limiter shipped.)

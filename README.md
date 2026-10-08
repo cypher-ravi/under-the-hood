@@ -15,6 +15,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [B-Tree Index](topics/b-tree.html) | Database indexing | Insert keys until nodes split upward, search and range-scan the linked leaves, compare random and in-order inserts, and size a real index by page size |
 | [Kafka Partitions](topics/kafka.html) | Key technologies | Produce keyed or keyless messages into partitions, add and kill consumers to trigger rebalances, tune the commit interval, and track lag, duplicates and per-key ordering |
 | [Count-Min Sketch and Top K](topics/count-min-sketch.html) | Big data | Stream skewed views into a d×w counter grid, compare any video's row counters and minimum with its true count, tune w, d and conservative update against the e/w and e^−d bounds, and compare a sketch-fed min-heap's top K with the exact one |
+| [Contention and Distributed Locks](topics/distributed-lock.html) | Patterns | Race buyers for the last seat under five strategies, freeze a lock holder past its lease, and watch fencing tokens stop the double sale |
 
 ## Design questions
 
@@ -28,6 +29,7 @@ Interactive visualizations of the algorithms and systems behind everyday softwar
 | [Design Uber](questions/uber.html) | Geohash and quadtrees, consistent hashing, B-tree index |
 | [Design YouTube Top K](questions/top-k.html) | Kafka partitions, Count-Min Sketch, consistent hashing, LRU cache, Bloom filter |
 | [Design a Web Crawler](questions/web-crawler.html) | Bloom filter, Kafka partitions, consistent hashing, rate limiting, LRU cache |
+| [Design a Distributed Cache](questions/distributed-cache.html) | LRU cache, consistent hashing, quorum replication, Bloom filter |
 
 Each question page follows the same interview steps: requirements, core entities, API, high-level design (drawn live and evolved one component at a time), then deep dives with interactive estimates. The step order follows Hello Interview's delivery framework; the breakdowns are original.
 
@@ -37,6 +39,7 @@ Each question page follows the same interview steps: requirements, core entities
 | --- | --- |
 | [Design a Parking Lot](questions/lld-parking-lot.html) | Strategy, Observer, Factory, Singleton |
 | [Design an LRU Cache (classes)](questions/lld-lru-cache.html) | Strategy, Observer, Decorator |
+| [Design a Rate Limiter (classes)](questions/lld-rate-limiter.html) | Strategy, Factory, Decorator, Observer |
 
 Low-level design pages (`questions/lld-<slug>.html`) cover requirements scoped for a 45-minute interview, core entities, a UML class diagram, the main interfaces, the design patterns used and why, an interactive walkthrough of the objects at work, short runnable Python, and deep dives on thread safety, extensibility and SOLID trade-offs.
 
@@ -52,6 +55,7 @@ Low-level design pages (`questions/lld-<slug>.html`) cover requirements scoped f
 | [In-place Reversal](dsa/reversal.html) | Reverse a list, reverse a segment, reverse every k nodes, palindrome linked list |
 | [Monotonic Stack](dsa/monotonic-stack.html) | Next greater element, days until warmer, stock price span, largest rectangle in a histogram |
 | [Binary Search on the Answer](dsa/binary-search.html) | Find a target, insert position, rotated sorted array, slowest speed that finishes |
+| [DFS and BFS on Trees](dsa/tree-traversal.html) | Traversal orders with the call stack, level order, maximum depth, validate a BST |
 
 Pattern pages teach the idea from first principles, how to spot it, and a template, then step through each problem's solution line by line with editable inputs. Patterns are grouped by data structure; the pattern-first structure is inspired by Codeintuition. `shared/stepper.js` is the reusable step-through engine.
 
@@ -67,6 +71,7 @@ A from-zero AI course in 60 lessons (plus deep dives), one concept per lesson, p
 | [04 · Vectors and matrices, intuitively](lessons/04-vectors-matrices.html) | Foundations | Drag two arrows to watch the dot product and angle change, then re-price four flats at once with ŷ = Xw + b |
 | [05 · Derivatives and slopes](lessons/05-derivatives.html) | Foundations | Shrink a secant's gap until it becomes the tangent, then let the slope walk a loss knob downhill to its best value |
 | [06 · Probability basics for ML](lessons/06-probability.html) | Foundations | Compute P(A \| B) by counting a 20-email inbox, roll a fair or loaded die until frequencies settle, apply Bayes' rule once, and find an expected value |
+| [07 · Loss functions](lessons/07-loss-functions.html) | Foundations | Turn a line's knobs over five flats and watch MAE and MSE react, add a typo flat that drags the squared-error fit, and price spam guesses with log loss |
 
 ### Math toolkit
 
