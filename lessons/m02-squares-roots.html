@@ -99,6 +99,11 @@
   .figctl button[aria-pressed=true] { background: var(--accent); color: var(--panel); }
   .figctl .out { flex-basis: 100%; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .mis figure { margin: .8rem 0 0; padding: 8px; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -551,9 +556,9 @@ print(distance([0, 0, 0], [1, 2, 2]))       <span class="c"># three entries: sam
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. A model's misses on four houses are +3, −3, +1, −1. What are the plain sum, the total absolute error and the total squared error?</p><summary>Show answer</summary><p class="a">Plain sum: <code>3 − 3 + 1 − 1 = 0</code>, which wrongly says "perfect". Absolute: <code>3 + 3 + 1 + 1 = 8</code>. Squared: <code>9 + 9 + 1 + 1 = 20</code>. Set the misses lab to these values (fifth slider at 0) to check.</p></details>
-<details><p class="q">2. Flat E's miss shrinks from 5 to 4. By how much does the total squared error of Lesson 03's guess 1 drop? And the total absolute error?</p><summary>Show answer</summary><p class="a">Squared: <code>25 → 16</code>, so it drops by 9, from 38 to 29. Absolute: <code>5 → 4</code>, a drop of 1, from 12 to 11. The same one-unit fix is worth nine times more under squared error, because the miss was big.</p></details>
-<details><p class="q">3. What is the distance between the points (2, 5) and (8, −3)? What is the length of the vector [6, −8]?</p><summary>Show answer</summary><p class="a">Gaps: <code>dx = 6</code>, <code>dy = −8</code>. Squares: 36 and 64, sum 100, so the distance is <code>√100 = 10</code>. The vector [6, −8] is exactly those gaps measured from the origin, so its length is also 10. The minus sign on −8 disappears when it is squared.</p></details>
+<details><summary><span class="q">1. A model's misses on four houses are +3, −3, +1, −1. What are the plain sum, the total absolute error and the total squared error?</span><span class="sa">Show answer</span></summary><p class="a">Plain sum: <code>3 − 3 + 1 − 1 = 0</code>, which wrongly says "perfect". Absolute: <code>3 + 3 + 1 + 1 = 8</code>. Squared: <code>9 + 9 + 1 + 1 = 20</code>. Set the misses lab to these values (fifth slider at 0) to check.</p></details>
+<details><summary><span class="q">2. Flat E's miss shrinks from 5 to 4. By how much does the total squared error of Lesson 03's guess 1 drop? And the total absolute error?</span><span class="sa">Show answer</span></summary><p class="a">Squared: <code>25 → 16</code>, so it drops by 9, from 38 to 29. Absolute: <code>5 → 4</code>, a drop of 1, from 12 to 11. The same one-unit fix is worth nine times more under squared error, because the miss was big.</p></details>
+<details><summary><span class="q">3. What is the distance between the points (2, 5) and (8, −3)? What is the length of the vector [6, −8]?</span><span class="sa">Show answer</span></summary><p class="a">Gaps: <code>dx = 6</code>, <code>dy = −8</code>. Squares: 36 and 64, sum 100, so the distance is <code>√100 = 10</code>. The vector [6, −8] is exactly those gaps measured from the origin, so its length is also 10. The minus sign on −8 disappears when it is squared.</p></details>
 </section>
 
 <section data-step="Wrap-up">

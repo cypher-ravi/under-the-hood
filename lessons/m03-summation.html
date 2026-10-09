@@ -123,6 +123,11 @@
   .chips button { font: 500 .78rem/1 var(--mono); padding: .45rem .6rem; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
   .chips button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
   .mis figure { margin: .8rem 0 0; padding: 0; border: 0; background: none; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -639,9 +644,9 @@ print(sum(probs), sum(p * v for p, v in zip(probs, values)))   <span class="c">#
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. Unroll and compute <span class="sig"><small>4</small><span class="s">Σ</span><small>i=2</small></span>(2i). How many terms are there?</p><summary>Show answer</summary><p class="a">The counter runs i = 2, 3, 4 (start and stop both included), so three terms: <code>2·2 + 2·3 + 2·4 = 4 + 6 + 8 = 18</code>. In Python: <code>sum(2 * i for i in range(2, 5))</code>. Note the expression can use <code>i</code> itself, not only a list item.</p></details>
-<details><p class="q">2. For the areas <code>x = 4, 6, 8, 10, 12</code> you know <code>Σ xᵢ = 40</code>. Without adding five numbers, find <code>Σ (3xᵢ − 1)</code>.</p><summary>Show answer</summary><p class="a">Split, then pull out the 3, then the constant runs 5 times: <code>3 · 40 − 5 · 1 = 120 − 5 = 115</code>. Check the long way: 11 + 17 + 23 + 29 + 35 = 115.</p></details>
-<details><p class="q">3. Lesson 03's first guess, <code>ŷ = 3x</code>, had squared misses 4, 1, 4, 4, 25. Write its mean squared error with Σ and compute it.</p><summary>Show answer</summary><p class="a"><code>MSE = (1/5) Σ (yᵢ − ŷᵢ)² = (4 + 1 + 4 + 4 + 25) / 5 = 38 / 5 = 7.6</code>. The second guess had MSE 1.2, so it is better by the same factor as the totals, 38 versus 6. Put 14, 19, 22, 28, 31 and 12, 18, 24, 30, 36 into the lab's squared-misses mode to check.</p></details>
+<details><summary><span class="q">1. Unroll and compute <span class="sig"><small>4</small><span class="s">Σ</span><small>i=2</small></span>(2i). How many terms are there?</span><span class="sa">Show answer</span></summary><p class="a">The counter runs i = 2, 3, 4 (start and stop both included), so three terms: <code>2·2 + 2·3 + 2·4 = 4 + 6 + 8 = 18</code>. In Python: <code>sum(2 * i for i in range(2, 5))</code>. Note the expression can use <code>i</code> itself, not only a list item.</p></details>
+<details><summary><span class="q">2. For the areas <code>x = 4, 6, 8, 10, 12</code> you know <code>Σ xᵢ = 40</code>. Without adding five numbers, find <code>Σ (3xᵢ − 1)</code>.</span><span class="sa">Show answer</span></summary><p class="a">Split, then pull out the 3, then the constant runs 5 times: <code>3 · 40 − 5 · 1 = 120 − 5 = 115</code>. Check the long way: 11 + 17 + 23 + 29 + 35 = 115.</p></details>
+<details><summary><span class="q">3. Lesson 03's first guess, <code>ŷ = 3x</code>, had squared misses 4, 1, 4, 4, 25. Write its mean squared error with Σ and compute it.</span><span class="sa">Show answer</span></summary><p class="a"><code>MSE = (1/5) Σ (yᵢ − ŷᵢ)² = (4 + 1 + 4 + 4 + 25) / 5 = 38 / 5 = 7.6</code>. The second guess had MSE 1.2, so it is better by the same factor as the totals, 38 versus 6. Put 14, 19, 22, 28, 31 and 12, 18, 24, 30, 36 into the lab's squared-misses mode to check.</p></details>
 </section>
 
 <section data-step="Wrap-up">

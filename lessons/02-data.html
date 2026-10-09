@@ -101,6 +101,11 @@
   .rules div span:last-child { white-space: nowrap; }
   .rules div.win { color: var(--accent); font-weight: 600; }
   @media (max-width: 520px) { .vec { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -353,9 +358,9 @@ print(Xa[6])                   <span class="c"># [ 1  4  0 70]   one example (em
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. You want to predict a flat's rent from its area, number of bedrooms and distance to the metro. Name the example, the features and the label. Is this classification or regression?</p><summary>Show answer</summary><p class="a">Each flat is one example. Area, bedrooms and metro distance are the three features (<code>d = 3</code>). Rent is the label. Rent is a number on a scale, so it is regression.</p></details>
-<details><p class="q">2. A colleague encodes the feature "city" as Delhi = 1, Mumbai = 2, Chennai = 3. What is the problem, and what should they do?</p><summary>Show answer</summary><p class="a">The numbers imply an order and distances that don't exist (Chennai is not "three times" Delhi, and Mumbai is not "between" them). Use one-hot encoding: three 0/1 columns, so Delhi is <code>[1, 0, 0]</code>, Mumbai <code>[0, 1, 0]</code>, Chennai <code>[0, 0, 1]</code>.</p></details>
-<details><p class="q">3. A spam model gets 100% accuracy in testing. One of its features is "number of times any user reported this email as spam". Should you be happy?</p><summary>Show answer</summary><p class="a">No. That is label leakage: reports only exist after people have already decided it is spam. A brand-new email arriving in someone's inbox has zero reports, so in real use the feature tells the model nothing and the 100% vanishes.</p></details>
+<details><summary><span class="q">1. You want to predict a flat's rent from its area, number of bedrooms and distance to the metro. Name the example, the features and the label. Is this classification or regression?</span><span class="sa">Show answer</span></summary><p class="a">Each flat is one example. Area, bedrooms and metro distance are the three features (<code>d = 3</code>). Rent is the label. Rent is a number on a scale, so it is regression.</p></details>
+<details><summary><span class="q">2. A colleague encodes the feature "city" as Delhi = 1, Mumbai = 2, Chennai = 3. What is the problem, and what should they do?</span><span class="sa">Show answer</span></summary><p class="a">The numbers imply an order and distances that don't exist (Chennai is not "three times" Delhi, and Mumbai is not "between" them). Use one-hot encoding: three 0/1 columns, so Delhi is <code>[1, 0, 0]</code>, Mumbai <code>[0, 1, 0]</code>, Chennai <code>[0, 0, 1]</code>.</p></details>
+<details><summary><span class="q">3. A spam model gets 100% accuracy in testing. One of its features is "number of times any user reported this email as spam". Should you be happy?</span><span class="sa">Show answer</span></summary><p class="a">No. That is label leakage: reports only exist after people have already decided it is spam. A brand-new email arriving in someone's inbox has zero reports, so in real use the feature tells the model nothing and the 100% vanishes.</p></details>
 </section>
 
 <section data-step="Wrap-up">

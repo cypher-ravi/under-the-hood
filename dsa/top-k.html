@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Top K and Two Heaps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
+  .variants h3 { font-size: 15px; }
+  .variants p { font-size: 14px; color: var(--muted); }
+  .variants a { font: 500 12px/1.3 var(--mono); }
+  .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .stage-row { display: grid; gap: 10px; }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
+  .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .hv { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .hv svg { display: block; max-width: 100%; height: auto; }
+  .hv .hv-tree { margin: 0 auto; }
+  .hv-empty { font: 500 13px/1.4 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); padding: 8px 10px; }
+  .hv-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: start; }
+  .hp-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 28px; }
+  .hp-chips span { font: 600 13px/1 var(--mono); padding: 6px 8px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); }
+  .hp-chips span.q { border-color: var(--amber); background: var(--amber-soft); }
+  .hp-chips span.cur { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+  .hp-chips span.o { border-color: var(--ok); color: var(--ok); }
+  .hp-chips span.new { background: var(--ok); color: var(--panel); border-color: var(--ok); }
+  .hp-chips span.gone { color: var(--muted); background: var(--paper); text-decoration: line-through; }
+  .hp-chips em { font-size: 13px; color: var(--muted); }
+  .hp-chips b { font: 600 12px/1 var(--mono); color: var(--muted); min-width: 2.2em; }
+  .lists { display: grid; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-kind="dsa" data-current="top-k" aria-label="Pattern navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#dsa">← All patterns</a>
+    <span class="eyebrow">DSA · Heap</span>
+  </div>
+
+  <header class="intro">
+    <h1>Top K and Two Heaps</h1>
+    <p class="lede">Many problems never need everything in sorted order. They need the biggest few, the smallest of several candidates, or the value in the middle, and they need it again after every new number arrives. A heap gives you the smallest (or largest) item in O(1) and lets you add or remove one in O(log n). Keep a small heap of size k, or two heaps that split the data in half, and a full sort turns into a cheap running summary.</p>
+    <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
+  </header>
+
+  <!-- The idea -->
+  <section class="panel article" id="idea" data-nav="The idea">
+    <span class="eyebrow">The idea, from first principles</span>
+    <h2>A heap is a tree packed into an array</h2>
+    <p>A <b>binary min-heap</b> is a binary tree with two rules. Its shape is <b>complete</b>: every level is full except maybe the last, which fills from the left. And it is <b>ordered</b>: every parent is no larger than its children. Nothing is said about left versus right, so a heap is far from sorted, but the smallest item is always at the root.</p>
+    <p>Because the shape has no gaps, the tree fits in a plain array, level by level. The node at index <span class="mono">i</span> has children at <span class="mono">2i + 1</span> and <span class="mono">2i + 2</span>, and its parent is at <span class="mono">(i − 1) // 2</span>. No pointers needed.</p>
+    <p>Two repairs keep the order rule true. <b>Push</b>: put the new item in the next free slot (the end of the array), then <b>sift it up</b>, swapping with its parent while it is smaller. <b>Pop</b>: take the root, move the last item into the root's place, then <b>sift it down</b>, swapping with its smaller child while that child is smaller. A complete tree with n nodes has about log₂ n levels, and each repair walks one path, so both cost <b>O(log n)</b>. Peeking at the root is O(1).</p>
+    <p>A <b>max-heap</b> is the same with the comparison flipped. Python's <span class="mono">heapq</span> only gives a min-heap, so the usual trick is to store <span class="mono">-x</span>.</p>
+    <p>Below, the values are pushed one by one, then popped until the heap is empty. Watch them come out in sorted order: that is heap sort.</p>
+    <div id="viz0"></div>
+    <p class="legend">Blue = the item being sifted. Amber = the item it is compared with. Green = settled. [i] under a node is its array index.</p>
+    <h3>Three ways the pattern shows up</h3>
+    <div class="variants">
+      <div><h3>Keep the best k</h3><p>A min-heap of size k holds the k largest seen so far. Its root is the weakest member, the one to evict.</p><a href="#p1">Problem 1: Kth largest</a><a href="#p2">Problem 2: K most frequent</a></div>
+      <div><h3>Smallest of k candidates</h3><p>Several sorted sources; the next item overall is the smallest of their fronts. The heap holds one front per source.</p><a href="#p3">Problem 3: Merge k sorted lists</a></div>
+      <div><h3>Two heaps</h3><p>A max-heap for the lower half and a min-heap for the upper half. The middle sits on their two roots.</p><a href="#p4">Problem 4: Running median</a></div>
+    </div>
+  </section>
+
+  <!-- Spot it -->
+  <section class="panel article" id="spot" data-nav="How to spot it">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Signals in the problem statement</h2>
+    <ul class="signals">
+      <li>The words <b>k largest, k smallest, kth, top k, k closest, k most frequent</b>. Keep a heap of size k, with the comparison set so that the item you would throw away first sits at the root.</li>
+      <li>You must answer <b>after every new item</b> (a stream), so sorting once at the end is not an option, and sorting again each time is too slow.</li>
+      <li>You repeatedly need <b>the smallest of several candidates</b> that keep changing: the fronts of k sorted lists, the earliest finishing meeting, the cheapest next node in Dijkstra's algorithm.</li>
+      <li>The answer lives <b>in the middle</b> (median, balance point), or you need the largest of one group and the smallest of another at the same time. That is two heaps.</li>
+      <li>k is much smaller than n. A size-k heap costs O(n log k), which beats sorting's O(n log n) and uses only O(k) memory.</li>
+    </ul>
+    <div class="aside"><p><b>Opposite heap for "largest":</b> to keep the k <i>largest</i>, use a <i>min</i>-heap. It sounds backwards, but the root must be the item you would drop next, and among the k largest that is the smallest one. For the k smallest, use a max-heap.</p></div>
+    <p>The same idea scales up to a whole system. When the stream is too big for one machine to count exactly, see the design question <a href="../questions/top-k.html">Top K at scale</a>, and the <a href="../topics/count-min-sketch.html">count-min sketch</a> that estimates counts in a fixed amount of memory.</p>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>Two skeletons: a bounded heap and a pair of heaps</h2>
+    <div class="tmpl-pair">
+      <div>
+        <h3>Keep the k best (here: largest)</h3>
+<pre class="tmpl">import heapq
+heap = []                      <span class="c"># min-heap, size ≤ k</span>
+for item in stream:
+    heapq.heappush(heap, key(item))
+    if len(heap) > k:
+        heapq.heappop(heap)    <span class="c"># evict the weakest</span>
+<span class="c"># heap holds the k best; heap[0] is the kth best</span></pre>
+      </div>
+      <div>
+        <h3>Two heaps around the middle</h3>
+<pre class="tmpl">low, high = [], []   <span class="c"># low: max-heap via -x</span>
+def add(x):
+    if not low or x &lt;= -low[0]:
+        heapq.heappush(low, -x)
+    else:
+        heapq.heappush(high, x)
+    <span class="c"># rebalance: len(low) is len(high) or one more</span>
+    if len(low) &gt; len(high) + 1:
+        heapq.heappush(high, -heapq.heappop(low))
+    elif len(high) &gt; len(low):
+        heapq.heappush(low, -heapq.heappop(high))</pre>
+      </div>
+    </div>
+    <p>In the first skeleton the heap never grows past k + 1, so each push and pop is O(log k). Pick the key so that the item you want to <i>lose</i> is the smallest: the value itself for "largest", the count for "most frequent", minus the distance for "closest". When items carry extra data, push tuples like <span class="mono">(count, value)</span>: Python compares tuples left to right, so the first field decides and later fields break ties.</p>
+    <p>In the second, every value in <span class="mono">low</span> is at most every value in <span class="mono">high</span>, and the sizes differ by at most one. Both roots are then the one or two middle values, readable in O(1).</p>
+  </section>
+
+  <!-- Problem 1 -->
+  <section class="panel article problem" id="p1" data-nav="Kth largest" data-num="P1">
+    <span class="eyebrow">Problem 1 · Keep the best k</span>
+    <h2>Kth largest element</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a list of integers and a number k, return the kth largest value in the list, counting duplicates separately (so in [5, 5, 4] the 2nd largest is 5). Try to do better than sorting the whole list.</p>
+      <div class="io"><div><span>Input</span>nums = [3, 2, 1, 5, 6, 4], k = 2</div><div><span>Output</span>5</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do you need to remember while scanning?</summary><p>Only the k largest values seen so far. The kth largest of those is the smallest of them, so keep them in a min-heap of size k. A new value either loses to the root (it can't be in the top k, skip it) or beats it (the root is pushed out of the top k; replace it). At the end the root is the answer.</p></details>
+    <div id="viz1"></div>
+    <p class="legend">The top row is the input, with x on the current value. Below: the heap as an array and as a tree.</p>
+    <div class="cx"><span class="good">Time O(n log k)</span><span class="good">Space O(k)</span><span class="meh">Quickselect: O(n) average, but not for streams</span></div>
+  </section>
+
+  <!-- Problem 2 -->
+  <section class="panel article problem" id="p2" data-nav="K most frequent" data-num="P2">
+    <span class="eyebrow">Problem 2 · Keep the best k, by count</span>
+    <h2>K most frequent elements</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Given a list of integers and k, return the k values that appear most often, most frequent first. When two values have the same count, either may be chosen; this version keeps the larger value, because it compares (count, value) pairs.</p>
+      <div class="io"><div><span>Input</span>nums = [1, 1, 1, 2, 2, 3], k = 2</div><div><span>Output</span>[1, 2]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what is the "size" you rank by?</summary><p>Not the value, its count. First count every value with a hash map in one pass. Then it is Problem 1 again over the (count, value) pairs: a min-heap of size k keyed on count, so the rarest of the current top k is at the root, ready to be evicted.</p></details>
+    <div id="viz2"></div>
+    <p class="legend">In the heap, the big number is the value and ×c under it is its count. The heap is ordered by (count, value).</p>
+    <p>Counting exactly needs one map entry per distinct value. For a huge stream (say every search query of the day) that is too much memory, which is where approximate counters such as the <a href="../topics/count-min-sketch.html">count-min sketch</a> come in.</p>
+    <div class="cx"><span class="good">Time O(n + d log k), d = distinct values</span><span class="good">Space O(d)</span><span class="meh">Bucket sort by count: O(n)</span></div>
+  </section>
+
+  <!-- Problem 3 -->
+  <section class="panel article problem" id="p3" data-nav="Merge k sorted lists" data-num="P3">
+    <span class="eyebrow">Problem 3 · Smallest of k candidates</span>
+    <h2>Merge k sorted lists</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>You are given k lists, each already sorted from small to large (some may be empty). Combine them into one sorted list.</p>
+      <div class="io"><div><span>Input</span>[[1, 4, 5], [1, 3, 4], [2, 6]]</div><div><span>Output</span>[1, 1, 2, 3, 4, 4, 5, 6]</div></div>
+    </div>
+    <details class="hint"><summary>Think first: where can the next smallest value be?</summary><p>Only at the front of some list: every list is sorted, so anything behind a front is at least as big as that front. So you only ever compare k values. Keep the fronts in a min-heap as (value, list number, position). Pop the smallest, output it, and push the next value from the same list.</p></details>
+    <div id="viz3"></div>
+    <p class="legend">Lists: amber = the front waiting in the heap, crossed out = already output. In the heap, L0, L1, … under a value says which list it came from.</p>
+    <div class="cx"><span class="good">Time O(N log k), N = total values</span><span class="good">Space O(k) for the heap</span><span class="meh">Concatenate and sort: O(N log N)</span></div>
+  </section>
+
+  <!-- Problem 4 -->
+  <section class="panel article problem" id="p4" data-nav="Running median" data-num="P4">
+    <span class="eyebrow">Problem 4 · Two heaps</span>
+    <h2>Median of a stream</h2>
+    <div class="qbox">
+      <h3>Question</h3>
+      <p>Numbers arrive one at a time. After each one, report the median of everything so far: the middle value when the count is odd, the average of the two middle values when it is even.</p>
+      <div class="io"><div><span>Input</span>5, 15, 1, 3</div><div><span>Output</span>5, 10, 5, 4</div></div>
+    </div>
+    <details class="hint"><summary>Think first: what do you need to see at any moment?</summary><p>Only the one or two values in the middle. Split the numbers into a lower half and an upper half. The middle is the largest of the lower half and the smallest of the upper half, so store the lower half in a max-heap and the upper half in a min-heap. After each insert, move one root across if the sizes drift more than one apart.</p></details>
+    <div id="viz4"></div>
+    <p class="legend">low is a max-heap (largest on top), high is a min-heap (smallest on top). The median is read from their two roots.</p>
+    <div class="cx"><span class="good">add: O(log n)</span><span class="good">median: O(1)</span><span class="meh">Re-sorting each time: O(n log n) per number</span></div>
+  </section>
+
+  <!-- Why it works -->
+  <section class="panel article" id="why" data-nav="Why it works">
+    <span class="eyebrow">Correctness</span>
+    <h2>The invariants behind each heap</h2>
+    <div class="qa">
+      <div><span class="q">Root is the minimum</span><p>Every parent is no larger than its children, so by following parents upward from any node the values only shrink until the root. Nothing is smaller than the root. A sift only swaps a node with a parent or child that is out of order, and stops once the one moving node fits, so the rule holds everywhere again after each push or pop.</p></div>
+      <div><span class="q">Size-k heap</span><p>Invariant: after reading some prefix of the input, the heap holds exactly the k largest values of that prefix (or all of them, if fewer than k). A new value bigger than the root belongs in the top k and pushes the root out; a value no bigger than the root does not belong. So at the end the heap is the top k, and its root, the smallest of them, is the kth largest.</p></div>
+      <div><span class="q">Merging</span><p>The heap holds the front of every list that still has values. Each list is sorted, so the smallest remaining value overall is one of those fronts: the heap's root. Popping it and pushing its successor keeps the invariant, so values come out in sorted order.</p></div>
+      <div><span class="q">Two heaps</span><p>Two invariants: everything in low is ≤ everything in high, and len(low) is len(high) or len(high) + 1. Moving a root across keeps the first, because it is the boundary value. With both true, low's root is the middle value for an odd count, and the two roots are the middle pair for an even count.</p></div>
+      <div><span class="q">Cost</span><p>Each push or pop on a heap of size k is O(log k), and each input value causes a constant number of them: O(n log k) in total. Sorting is O(n log n). With n = 1,000,000 and k = 10, log₂ k ≈ 3.3 against log₂ n ≈ 20, about six times fewer steps, and the heap needs room for only 10 values. When k approaches n, the two converge.</p></div>
+      <div><span class="q">In an interview</span><p>Name what sits at the root and why it is the item to evict or return. "Min-heap of size k, because its root is the weakest of the current top k." Then give O(n log k) and mention the alternatives: sorting, and quickselect for a one-off answer.</p></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- heap helpers: each sift calls show(msg, mark) before every swap and once when it stops ----------
+  function siftUp(h, i, less, show, fmt, word) {
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (less(h[i], h[p])) {
+        show(`${fmt(h[i])} is ${word} than its parent ${fmt(h[p])}: swap them (index ${i} ↔ ${p}).`, { [i]: "active", [p]: "skip" });
+        [h[i], h[p]] = [h[p], h[i]]; i = p;
+      } else {
+        show(`${fmt(h[i])} is not ${word} than its parent ${fmt(h[p])}, so it stays at index ${i}.`, { [i]: "hit", [p]: "skip" });
+        return;
+      }
+    }
+    if (h.length > 1) show(`${fmt(h[0])} reached the root.`, { 0: "hit" });
+  }
+  function siftDown(h, i, less, show, fmt, word) {
+    const n = h.length;
+    if (!n) return;
+    while (true) {
+      const l = 2 * i + 1, r = l + 1;
+      if (l >= n) { if (n > 1) show(`${fmt(h[i])} has no children at index ${i}: it has settled.`, { [i]: "hit" }); return; }
+      let m = l; if (r < n && less(h[r], h[l])) m = r;
+      const mk = { [i]: "active", [m]: "skip" };
+      if (less(h[m], h[i])) {
+        show(`Child ${fmt(h[m])} is ${word} than ${fmt(h[i])}: swap them (index ${i} ↔ ${m}).`, mk);
+        [h[i], h[m]] = [h[m], h[i]]; i = m;
+      } else {
+        mk[i] = "hit";
+        show(`No child is ${word} than ${fmt(h[i])}: it settles at index ${i}.`, mk);
+        return;
+      }
+    }
+  }
+  const minLess = (a, b) => a < b, maxLess = (a, b) => a > b;
+  const tupLess = (a, b) => { for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return a[k] < b[k]; return false; };
+
+  // ---------- draw a heap as an array row and as a tree ----------
+  const MK = { active: ["var(--accent)", "var(--accent)", "var(--panel)"], hit: ["var(--ok)", "var(--ok)", "var(--panel)"], skip: ["var(--amber-soft)", "var(--amber)", "var(--ink)"] };
+  function heapView(h, o = {}) {
+    const n = h.length, txt = o.txt || (v => v), sub = o.sub, mark = o.mark || {}, title = o.title || "Heap";
+    const head = `<span class="stage-label">${esc(title)}</span>`;
+    if (!n) return `<div class="hv">${head}<p class="hv-empty">empty</p></div>`;
+    const sty = k => MK[mark[k]] || ["var(--panel)", "var(--muted)", "var(--ink)"];
+    const fs = t => String(t).length > 3 ? 11 : String(t).length > 2 ? 12 : 14;
+    const cw = 34, gap = 5, AW = n * (cw + gap) - gap + 4, AH = 16 + cw + (sub ? 16 : 3);
+    let a = "";
+    h.forEach((it, k) => {
+      const x = 2 + k * (cw + gap), [f, s, t] = sty(k), v = txt(it);
+      a += `<text x="${x + cw / 2}" y="11" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${k}</text>`;
+      a += `<rect x="${x}" y="16" width="${cw}" height="${cw}" rx="6" fill="${f}" stroke="${s}" stroke-width="${mark[k] ? 2.5 : 1.3}"/>`;
+      a += `<text x="${x + cw / 2}" y="${16 + cw / 2 + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${fs(v)}" font-weight="600" fill="${t}">${esc(v)}</text>`;
+      if (sub) a += `<text x="${x + cw / 2}" y="${16 + cw + 12}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${esc(sub(it))}</text>`;
+    });
+    const D = Math.floor(Math.log2(n)) + 1, slot = 38, r = 15, below = sub || o.idx, dy = below ? 54 : 46;
+    const TW = Math.max(150, 2 ** (D - 1) * slot);
+    const P = i => { const d = Math.floor(Math.log2(i + 1)), p = i - (2 ** d - 1); return [(p + .5) / 2 ** d * TW, 20 + d * dy]; };
+    const TH = 20 + (D - 1) * dy + r + (below ? 17 : 5);
+    let t = "";
+    for (let i = 1; i < n; i++) { const [x1, y1] = P(i), [x2, y2] = P((i - 1) >> 1); t += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--line)" stroke-width="2"/>`; }
+    h.forEach((it, i) => {
+      const [x, y] = P(i), [f, s, c] = sty(i), v = txt(it);
+      t += `<circle cx="${x}" cy="${y}" r="${r}" fill="${f}" stroke="${s}" stroke-width="${mark[i] ? 2.5 : 1.3}"/>`;
+      t += `<text x="${x}" y="${y + 1}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="${fs(v)}" font-weight="600" fill="${c}">${esc(v)}</text>`;
+      if (below) t += `<text x="${x}" y="${y + r + 12}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${esc(sub ? sub(it) : `[${i}]`)}</text>`;
+    });
+    return `<div class="hv">${head}<svg viewBox="0 0 ${AW} ${AH}" width="${AW}" role="img" aria-label="${esc(title)} as an array">${a}</svg>
+      <svg class="hv-tree" viewBox="0 0 ${TW} ${TH}" width="${TW}" role="img" aria-label="${esc(title)} as a tree">${t}</svg></div>`;
+  }
+  const chips = (vals, cls = "o", empty = "nothing yet") => `<div class="hp-chips">${vals.length ? vals.map((v, k) => `<span class="${typeof cls === "function" ? cls(k) : cls}">${esc(v)}</span>`).join("") : `<em>${empty}</em>`}</div>`;
+  const label = s => `<span class="stage-label">${s}</span>`;
+  function parseK(text, lo, hi) {
+    const k = Number(String(text).trim());
+    if (!Number.isInteger(k) || k < lo || k > hi) return { error: `k must be a whole number from ${lo} to ${hi}.` };
+    return { k };
+  }
+
+  // ---------- The idea: push everything, then pop everything (heap sort) ----------
+  Stepper(document.getElementById("viz0"), {
+    code: [
+      "heap, out = [], []",
+      "for x in values:",
+      "  heap.append(x)           # next free slot",
+      "  sift_up(heap, len(heap) - 1)",
+      "while heap:",
+      "  out.append(heap[0])      # root = minimum",
+      "  last = heap.pop()",
+      "  if heap:",
+      "    heap[0] = last         # last leaf to root",
+      "    sift_down(heap, 0)"
+    ],
+    inputs: [{ key: "v", label: "Values to push", value: "7, 3, 9, 1, 5, 2" }],
+    presets: [
+      { label: "Mixed", values: { v: "7, 3, 9, 1, 5, 2" } },
+      { label: "Descending: every push climbs", values: { v: "9, 8, 7, 6, 5, 4, 3" } },
+      { label: "Ascending: no swaps on push", values: { v: "1, 2, 3, 4, 5, 6, 7" } },
+      { label: "Duplicates", values: { v: "4, 4, 2, 8, 2" } }
+    ],
+    build({ v }) {
+      const p = parseNums(v, { min: 2, max: 10 }); if (p.error) return p;
+      const h = [], out = [], frames = [];
+      let line = 0;
+      const snap = (msg, mark = {}) => frames.push({ line, msg, h: h.slice(), out: out.slice(), mark, vars: { "len(heap)": h.length, "heap[0]": h.length ? h[0] : "–", out: out.length } });
+      const show = (msg, mark) => snap(msg, mark);
+      snap("Start with an empty heap.");
+      for (const x of p.nums) {
+        h.push(x); line = 2;
+        const i = h.length - 1;
+        snap(i ? `Push ${x}: it goes in the next free slot, index ${i}. Its parent is index ${(i - 1) >> 1} (${h[(i - 1) >> 1]}).` : `Push ${x}: index 0, the root.`, { [i]: "active" });
+        line = 3; siftUp(h, i, minLess, show, String, "smaller");
+      }
+      line = 4; snap(`All ${h.length} values are in. The heap is not sorted, but every parent is ≤ its children, so ${h[0]} at the root is the minimum. Now pop until empty.`, { 0: "hit" });
+      while (h.length) {
+        line = 5; out.push(h[0]); snap(`Pop: the root ${h[0]} is the smallest left. Append it to the output.`, { 0: "hit" });
+        const last = h.pop();
+        if (h.length) {
+          h[0] = last; line = 8;
+          snap(`Fill the hole: the last leaf ${last} jumps to the root. It is probably too big there.`, { 0: "active" });
+          line = 9; siftDown(h, 0, minLess, show, String, "smaller");
+        } else { line = 7; snap(`That was the last item; the heap is empty.`); }
+      }
+      line = 4; snap(`<b class="ok">Output: [${out.join(", ")}]</b>. Popping a min-heap until it is empty gives sorted order: heap sort, O(n log n).`);
+      return { frames };
+    },
+    draw(f) {
+      return `<div class="stage-row">${heapView(f.h, { mark: f.mark, idx: true, title: "Min-heap · array, then the same as a tree" })}${label("Popped so far")}${chips(f.out)}</div>`;
+    }
+  });
+
+  // ---------- Problem 1: kth largest ----------
+  Stepper(document.getElementById("viz1"), {
+    code: [
+      "def kth_largest(nums, k):",
+      "  heap = []               # min-heap, the k largest so far",
+      "  for x in nums:",
+      "    if len(heap) < k:",
+      "      heappush(heap, x)",
+      "    elif x > heap[0]:",
+      "      heapreplace(heap, x)  # drop root, add x",
+      "    # else: x can't be in the top k",
+      "  return heap[0]"
+    ],
+    inputs: [{ key: "n", label: "nums", value: "3, 2, 1, 5, 6, 4" }, { key: "k", label: "k", value: "2" }],
+    presets: [
+      { label: "Example", values: { n: "3, 2, 1, 5, 6, 4", k: "2" } },
+      { label: "Duplicates, k = 4", values: { n: "3, 2, 3, 1, 2, 4, 5, 5, 6", k: "4" } },
+      { label: "k = 3", values: { n: "7, 10, 4, 3, 20, 15, 8", k: "3" } },
+      { label: "k = 1 is the max", values: { n: "4, 9, 2, 7", k: "1" } }
+    ],
+    build({ n, k: kt }) {
+      const p = parseNums(n, { min: 1, max: 12 }); if (p.error) return p;
+      const q = parseK(kt, 1, Math.min(7, p.nums.length)); if (q.error) return q;
+      const nums = p.nums, k = q.k, h = [], frames = [];
+      let line = 1, xi = -1;
+      const snap = (msg, mark = {}) => frames.push({ line, msg, nums, xi, h: h.slice(), mark, vars: { x: xi >= 0 ? nums[xi] : "–", "len(heap)": h.length, k, "heap[0]": h.length ? h[0] : "–" } });
+      snap(`Scan the list once, keeping the ${k} largest values in a min-heap.`);
+      nums.forEach((x, i) => {
+        xi = i; line = 2;
+        if (h.length < k) {
+          h.push(x); line = 4;
+          snap(`The heap has fewer than ${k} values, so ${x} goes in at index ${h.length - 1}.`, { [h.length - 1]: "active" });
+          siftUp(h, h.length - 1, minLess, snap, String, "smaller");
+        } else if (x > h[0]) {
+          line = 6;
+          snap(`${x} > root ${h[0]}: ${h[0]} drops out of the top ${k}. Put ${x} in its place.`, { 0: "skip" });
+          h[0] = x;
+          snap(`${x} is now at the root.`, { 0: "active" });
+          siftDown(h, 0, minLess, snap, String, "smaller");
+        } else {
+          line = 7;
+          snap(`${x} ≤ root ${h[0]}: ${k} values seen so far are at least as big, so ${x} is not in the top ${k}. Skip it.`, { 0: "hit" });
+        }
+      });
+      xi = -1; line = 8;
+      snap(`<b class="ok">Return ${h[0]}</b>. The heap holds the ${k === 1 ? "largest value" : `${k} largest values`} [${h.slice().sort((a, b) => b - a).join(", ")}], and the root is the smallest of them: the ${k === 1 ? "largest" : `${k}${k === 2 ? "nd" : k === 3 ? "rd" : "th"} largest`}.`, { 0: "hit" });
+      return { frames };
+    },
+    draw(f) {
+      const mark = {}; f.nums.forEach((_, i) => { if (f.xi < 0 || i < f.xi) mark[i] = "done"; });
+      return `<div class="stage-row">${label("nums")}${drawArray(f.nums, { ptr: { x: f.xi >= 0 ? f.xi : null }, mark })}${heapView(f.h, { mark: f.mark, title: `Min-heap · size ≤ k` })}</div>`;
+    }
+  });
+
+  // ---------- Problem 2: k most frequent ----------
+  Stepper(document.getElementById("viz2"), {
+    code: [
+      "def top_k_frequent(nums, k):",
+      "  count = Counter(nums)",
+      "  heap = []                # min-heap of (count, value)",
+      "  for x, c in count.items():",
+      "    heappush(heap, (c, x))",
+      "    if len(heap) > k:",
+      "      heappop(heap)        # evict the rarest",
+      "  return [x for c, x in sorted(heap, reverse=True)]"
+    ],
+    inputs: [{ key: "n", label: "nums", value: "1, 1, 1, 2, 2, 3" }, { key: "k", label: "k", value: "2" }],
+    presets: [
+      { label: "Example", values: { n: "1, 1, 1, 2, 2, 3", k: "2" } },
+      { label: "Five distinct, k = 2", values: { n: "4, 1, 4, 2, 2, 4, 3, 1, 4, 5, 2", k: "2" } },
+      { label: "k = 3", values: { n: "7, 8, 9, 7, 8, 7, 6, 9, 7, 6, 5", k: "3" } },
+      { label: "Tie on count", values: { n: "5, 5, 6, 6, 7", k: "1" } }
+    ],
+    build({ n, k: kt }) {
+      const p = parseNums(n, { min: 1, max: 14 }); if (p.error) return p;
+      const nums = p.nums, cnt = new Map();
+      nums.forEach(x => cnt.set(x, (cnt.get(x) || 0) + 1));
+      const q = parseK(kt, 1, Math.min(7, cnt.size)); if (q.error) return { error: q.error + ` (there ${cnt.size === 1 ? "is 1 distinct value" : `are ${cnt.size} distinct values`})` };
+      const k = q.k, frames = [], h = [], c = new Map(), evicted = [];
+      let line = 1, xi = -1, cur = null;
+      const fmt = t => `(${t[0]}, ${t[1]})`;
+      const snap = (msg, mark = {}) => frames.push({ line, msg, nums, xi, cur, counts: [...c.entries()], evicted: evicted.slice(), h: h.map(t => t.slice()), mark,
+        vars: { "pair": cur ? fmt(cur) : "–", "len(heap)": h.length, k, "heap[0]": h.length ? fmt(h[0]) : "–" } });
+      nums.forEach((x, i) => {
+        xi = i; c.set(x, (c.get(x) || 0) + 1);
+        snap(`Count pass: ${x} has now appeared ${c.get(x)} time${c.get(x) > 1 ? "s" : ""}.`);
+      });
+      xi = -1; line = 2;
+      snap(`Counting done: ${c.size} distinct values. Now keep the ${k} with the highest counts in a min-heap of (count, value) pairs.`);
+      for (const [x, cc] of c) {
+        cur = [cc, x]; line = 4; h.push(cur);
+        snap(`Push ${fmt(cur)}: ${x} appears ${cc} time${cc > 1 ? "s" : ""}.`, { [h.length - 1]: "active" });
+        siftUp(h, h.length - 1, tupLess, snap, fmt, "smaller");
+        if (h.length > k) {
+          line = 6;
+          snap(`The heap has ${h.length} > k = ${k} pairs. Pop the root ${fmt(h[0])}: value ${h[0][1]} is the rarest of them.`, { 0: "skip" });
+          evicted.push(h[0][1]);
+          const last = h.pop();
+          if (h.length) { h[0] = last; snap(`The last leaf ${fmt(last)} moves to the root.`, { 0: "active" }); siftDown(h, 0, tupLess, snap, fmt, "smaller"); }
+        }
+      }
+      cur = null; line = 7;
+      const res = h.slice().sort((a, b) => tupLess(b, a) ? -1 : 1).map(t => t[1]);
+      snap(`<b class="ok">Return [${res.join(", ")}]</b>: the heap's values, most frequent first. Evicted along the way: ${evicted.length ? evicted.join(", ") : "none"}.`);
+      return { frames };
+    },
+    draw(f) {
+      const cs = f.counts.length ? `<div class="hp-chips">${f.counts.map(([x, c]) => `<span class="${f.cur && f.cur[1] === x ? "cur" : f.evicted.includes(x) ? "gone" : f.xi >= 0 && f.nums[f.xi] === x ? "new" : ""}">${x} ×${c}</span>`).join("")}</div>` : chips([]);
+      const mark = {}; f.nums.forEach((_, i) => { if (f.xi < 0 || i < f.xi) mark[i] = "done"; });
+      return `<div class="stage-row">${label("nums")}${drawArray(f.nums, { ptr: { x: f.xi >= 0 ? f.xi : null }, mark })}
+        ${label("count · value ×count (crossed out = evicted)")}${cs}
+        ${heapView(f.h, { mark: f.mark, txt: t => t[1], sub: t => `×${t[0]}`, title: "Min-heap of (count, value)" })}</div>`;
+    }
+  });
+
+  // ---------- Problem 3: merge k sorted lists ----------
+  Stepper(document.getElementById("viz3"), {
+    code: [
+      "def merge(lists):",
+      "  heap = []",
+      "  for i, lst in enumerate(lists):",
+      "    if lst: heappush(heap, (lst[0], i, 0))",
+      "  out = []",
+      "  while heap:",
+      "    v, i, j = heappop(heap)",
+      "    out.append(v)",
+      "    if j + 1 < len(lists[i]):",
+      "      heappush(heap, (lists[i][j + 1], i, j + 1))",
+      "  return out"
+    ],
+    inputs: [{ key: "l", label: "Sorted lists, separated by |", value: "1 4 5 | 1 3 4 | 2 6" }],
+    presets: [
+      { label: "Example", values: { l: "1 4 5 | 1 3 4 | 2 6" } },
+      { label: "Uneven, one empty", values: { l: "2 | 1 5 9 11 | 3 4 |" } },
+      { label: "Four lists", values: { l: "10 20 | 5 25 | 15 | 1 30" } },
+      { label: "One list runs out early", values: { l: "1 2 3 | 7 8 9 | 4 5 6" } }
+    ],
+    build({ l }) {
+      const parts = String(l).split(/[|;]/);
+      if (parts.length < 2 || parts.length > 5) return { error: "Enter 2 to 5 lists separated by |, for example 1 4 5 | 1 3 4 | 2 6." };
+      const lists = [];
+      for (const part of parts) {
+        const toks = part.split(/[\s,\[\]]+/).filter(Boolean);
+        const nums = toks.map(Number);
+        if (nums.some(x => !Number.isInteger(x) || Math.abs(x) > 999)) return { error: "Use whole numbers between -999 and 999." };
+        if (nums.some((x, k) => k && x < nums[k - 1])) return { error: `List ${lists.length} (${toks.join(" ")}) is not sorted from small to large.` };
+        lists.push(nums);
+      }
+      const total = lists.reduce((s, a) => s + a.length, 0);
+      if (!total) return { error: "All lists are empty: nothing to merge." };
+      if (total > 14) return { error: "Use at most 14 values in total so every step fits on screen." };
+      const frames = [], h = [], out = [], pos = lists.map(() => 0), inHeap = lists.map(() => -1);
+      let line = 1, popped = null;
+      const fmt = t => `(${t[0]}, L${t[1]})`;
+      const snap = (msg, mark = {}) => frames.push({ line, msg, lists, pos: pos.slice(), inHeap: inHeap.slice(), popped, h: h.map(t => t.slice()), out: out.slice(), mark,
+        vars: { "len(heap)": h.length, "heap[0]": h.length ? fmt(h[0]) : "–", "len(out)": out.length } });
+      snap(`${lists.length} lists, ${total} values. Start by putting the front of every non-empty list in the heap.`);
+      lists.forEach((lst, i) => {
+        line = 3;
+        if (!lst.length) { snap(`List ${i} is empty: nothing to add.`); return; }
+        h.push([lst[0], i, 0]); inHeap[i] = 0;
+        snap(`Push the front of list ${i}: ${fmt(h[h.length - 1])}.`, { [h.length - 1]: "active" });
+        siftUp(h, h.length - 1, tupLess, snap, fmt, "smaller");
+      });
+      while (h.length) {
+        line = 6;
+        const [v, i, j] = h[0];
+        snap(`The root ${fmt(h[0])} is the smallest front of all lists, so it is the smallest value left anywhere. Pop it.`, { 0: "hit" });
+        const last = h.pop();
+        if (h.length) { h[0] = last; snap(`The last leaf ${fmt(last)} moves to the root.`, { 0: "active" }); siftDown(h, 0, tupLess, snap, fmt, "smaller"); }
+        out.push(v); pos[i] = j + 1; inHeap[i] = -1; popped = [i, j]; line = 7;
+        snap(`Append ${v} to the output.`);
+        line = 8;
+        if (j + 1 < lists[i].length) {
+          line = 9; h.push([lists[i][j + 1], i, j + 1]); inHeap[i] = j + 1;
+          snap(`List ${i} has more: push its next value ${fmt(h[h.length - 1])}.`, { [h.length - 1]: "active" });
+          siftUp(h, h.length - 1, tupLess, snap, fmt, "smaller");
+        } else snap(`List ${i} is used up; the heap shrinks to ${h.length}.`);
+        popped = null;
+      }
+      line = 10;
+      snap(`<b class="ok">Return [${out.join(", ")}]</b>. ${total} pops and pushes on a heap of at most ${lists.filter(a => a.length).length} items.`);
+      return { frames };
+    },
+    draw(f) {
+      const rows = f.lists.map((lst, i) => `<div class="hp-chips"><b>L${i}</b>${lst.length ? lst.map((v, j) => `<span class="${f.popped && f.popped[0] === i && f.popped[1] === j ? "new" : j < f.pos[i] ? "gone" : j === f.inHeap[i] ? "q" : ""}">${v}</span>`).join("") : "<em>empty</em>"}</div>`).join("");
+      return `<div class="stage-row">${label("Lists")}<div class="lists">${rows}</div>
+        ${heapView(f.h, { mark: f.mark, txt: t => t[0], sub: t => `L${t[1]}`, title: "Min-heap of list fronts" })}
+        ${label("Output")}${chips(f.out, k => k === f.out.length - 1 && f.popped ? "new" : "o")}</div>`;
+    }
+  });
+
+  // ---------- Problem 4: running median with two heaps ----------
+  Stepper(document.getElementById("viz4"), {
+    code: [
+      "def add(x):",
+      "  if not low or x <= low.top():",
+      "    low.push(x)          # max-heap: lower half",
+      "  else:",
+      "    high.push(x)         # min-heap: upper half",
+      "  if len(low) > len(high) + 1:",
+      "    high.push(low.pop())",
+      "  elif len(high) > len(low):",
+      "    low.push(high.pop())",
+      "def median():",
+      "  if len(low) > len(high): return low.top()",
+      "  return (low.top() + high.top()) / 2"
+    ],
+    inputs: [{ key: "s", label: "Stream", value: "5, 15, 1, 3, 8, 7" }],
+    presets: [
+      { label: "Example", values: { s: "5, 15, 1, 3, 8, 7" } },
+      { label: "Increasing: always moves", values: { s: "1, 2, 3, 4, 5, 6" } },
+      { label: "Decreasing", values: { s: "9, 7, 5, 3, 1" } },
+      { label: "Repeats", values: { s: "4, 4, 2, 9, 4, 1, 6" } }
+    ],
+    build({ s }) {
+      const p = parseNums(s, { min: 1, max: 10 }); if (p.error) return p;
+      const nums = p.nums, low = [], high = [], meds = [], frames = [];
+      let line = 0, xi = -1, ml = {}, mh = {};
+      const fm = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+      const snap = (msg) => frames.push({ line, msg, nums, xi, low: low.slice(), high: high.slice(), ml, mh, meds: meds.slice(),
+        vars: { x: xi >= 0 ? nums[xi] : "–", "len(low)": low.length, "len(high)": high.length, median: meds.length ? meds[meds.length - 1] : "–" } });
+      const onL = (msg, mark) => { ml = mark; mh = {}; snap(msg); };
+      const onH = (msg, mark) => { mh = mark; ml = {}; snap(msg); };
+      const pushL = (x, why) => { low.push(x); ml = { [low.length - 1]: "active" }; mh = {}; snap(why); siftUp(low, low.length - 1, maxLess, onL, String, "larger"); };
+      const pushH = (x, why) => { high.push(x); mh = { [high.length - 1]: "active" }; ml = {}; snap(why); siftUp(high, high.length - 1, minLess, onH, String, "smaller"); };
+      const popL = () => { const top = low[0], last = low.pop(); if (low.length) { low[0] = last; ml = { 0: "active" }; mh = {}; snap(`${top} leaves low; its last leaf ${last} moves to the root.`); siftDown(low, 0, maxLess, onL, String, "larger"); } return top; };
+      const popH = () => { const top = high[0], last = high.pop(); if (high.length) { high[0] = last; mh = { 0: "active" }; ml = {}; snap(`${top} leaves high; its last leaf ${last} moves to the root.`); siftDown(high, 0, minLess, onH, String, "smaller"); } return top; };
+      ml = {}; mh = {};
+      snap("Two empty heaps: low (max-heap) will hold the smaller half, high (min-heap) the larger half.");
+      nums.forEach((x, i) => {
+        xi = i; ml = {}; mh = {};
+        if (!low.length || x <= low[0]) { line = 2; pushL(x, low.length ? `${x} ≤ low's top ${low[0]}: it belongs to the lower half. Push into low.` : `low is empty: push ${x} into low.`); }
+        else { line = 4; pushH(x, `${x} > low's top ${low[0]}: it belongs to the upper half. Push into high.`); }
+        if (low.length > high.length + 1) {
+          line = 6; ml = { 0: "skip" }; mh = {};
+          snap(`low has ${low.length}, high has ${high.length}: low is two ahead. Move low's largest, ${low[0]}, to high.`);
+          const v = popL(); pushH(v, `Push ${v} into high. It was the largest of the lower half, so it is ≤ everything in high and lands at its root.`);
+        } else if (high.length > low.length) {
+          line = 8; mh = { 0: "skip" }; ml = {};
+          snap(`high has ${high.length}, low has ${low.length}: high is ahead. Move high's smallest, ${high[0]}, to low.`);
+          const v = popH(); pushL(v, `Push ${v} into low. It was the smallest of the upper half, so it is ≥ everything in low.`);
+        }
+        const m = low.length > high.length ? low[0] : (low[0] + high[0]) / 2;
+        meds.push(fm(m)); ml = { 0: "hit" }; mh = low.length === high.length ? { 0: "hit" } : {};
+        line = low.length > high.length ? 10 : 11;
+        snap(low.length > high.length ? `${low.length + high.length} numbers (odd): low has one extra, so the median is low's top, <b>${fm(m)}</b>.` : `${low.length + high.length} numbers (even): the median is (${low[0]} + ${high[0]}) / 2 = <b>${fm(m)}</b>.`);
+      });
+      xi = -1; ml = {}; mh = {};
+      snap(`<b class="ok">Medians: ${meds.join(", ")}</b>. Every number cost a few O(log n) heap moves, and every median was read straight from the roots.`);
+      return { frames };
+    },
+    draw(f) {
+      const mark = {}; f.nums.forEach((_, i) => { if (f.xi < 0 || i < f.xi) mark[i] = "done"; });
+      return `<div class="stage-row">${label("Stream")}${drawArray(f.nums, { ptr: { x: f.xi >= 0 ? f.xi : null }, mark })}
+        <div class="hv-pair">${heapView(f.low, { mark: f.ml, title: `low · max-heap (${f.low.length})` })}${heapView(f.high, { mark: f.mh, title: `high · min-heap (${f.high.length})` })}</div>
+        ${label("Median after each number")}${chips(f.meds, k => k === f.meds.length - 1 ? "new" : "o")}</div>`;
+    }
+  });
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

@@ -105,6 +105,11 @@
   figure.mini .readout { margin-top: .5rem; }
   figure.mini .readout .msg { color: var(--ink); }
   figure.mini .readout .msg b { color: var(--accent); }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -565,9 +570,9 @@ print([sq(x + 1) - sq(x) for x in range(0, 3)])   <span class="c"># steps of 1 i
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. For <code>f(x) = 3x − 2</code>, what is <code>f(5)</code>? Which input gives an output of 10?</p><summary>Show answer</summary><p class="a"><code>f(5) = 3 × 5 − 2 = 13</code>. Backwards: <code>3x − 2 = 10</code>, so <code>3x = 12</code>, so <code>x = 4</code>. Check: <code>f(4) = 12 − 2 = 10</code>.</p></details>
-<details><p class="q">2. A straight line passes through (2, 7) and (6, 15). What are its slope <code>w</code> and its intercept <code>b</code>?</p><summary>Show answer</summary><p class="a">Rise 15 − 7 = 8 over run 6 − 2 = 4, so <code>w = 2</code>. Then use one point: <code>7 = 2 × 2 + b</code>, so <code>b = 3</code>. The line is <code>y = 2x + 3</code>; check the other point: <code>2 × 6 + 3 = 15</code>.</p></details>
-<details><p class="q">3. With the fitted line <code>ŷ = 2.15x + 5.6</code>, flat E (<code>x = 12</code>) is priced at 31.4. What does the price become if <code>b</code> goes up by 1? If instead <code>w</code> goes up by 0.1?</p><summary>Show answer</summary><p class="a">Raising <code>b</code> by 1 adds 1 to every output: 32.4. Raising <code>w</code> by 0.1 adds <code>0.1 × 12 = 1.2</code>: <code>2.25 × 12 + 5.6 = 32.6</code>. The same nudge to <code>w</code> would add only 0.4 for flat A (<code>x = 4</code>). A change to <code>w</code> matters more the bigger the input, which is exactly what Lesson 05's slopes will measure.</p></details>
+<details><summary><span class="q">1. For <code>f(x) = 3x − 2</code>, what is <code>f(5)</code>? Which input gives an output of 10?</span><span class="sa">Show answer</span></summary><p class="a"><code>f(5) = 3 × 5 − 2 = 13</code>. Backwards: <code>3x − 2 = 10</code>, so <code>3x = 12</code>, so <code>x = 4</code>. Check: <code>f(4) = 12 − 2 = 10</code>.</p></details>
+<details><summary><span class="q">2. A straight line passes through (2, 7) and (6, 15). What are its slope <code>w</code> and its intercept <code>b</code>?</span><span class="sa">Show answer</span></summary><p class="a">Rise 15 − 7 = 8 over run 6 − 2 = 4, so <code>w = 2</code>. Then use one point: <code>7 = 2 × 2 + b</code>, so <code>b = 3</code>. The line is <code>y = 2x + 3</code>; check the other point: <code>2 × 6 + 3 = 15</code>.</p></details>
+<details><summary><span class="q">3. With the fitted line <code>ŷ = 2.15x + 5.6</code>, flat E (<code>x = 12</code>) is priced at 31.4. What does the price become if <code>b</code> goes up by 1? If instead <code>w</code> goes up by 0.1?</span><span class="sa">Show answer</span></summary><p class="a">Raising <code>b</code> by 1 adds 1 to every output: 32.4. Raising <code>w</code> by 0.1 adds <code>0.1 × 12 = 1.2</code>: <code>2.25 × 12 + 5.6 = 32.6</code>. The same nudge to <code>w</code> would add only 0.4 for flat A (<code>x = 4</code>). A change to <code>w</code> matters more the bigger the input, which is exactly what Lesson 05's slopes will measure.</p></details>
 </section>
 
 <section data-step="Wrap-up">

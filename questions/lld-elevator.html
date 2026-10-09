@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design an Elevator System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .diagram-wrap { overflow-x: auto; }
+  #uml { width: 100%; height: auto; display: block; }
+  .diagram-wrap.zoomed #uml { min-width: 680px; }
+  .zoom-row { display: none; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+  .zoom-row button { white-space: nowrap; flex: none; }
+  @media (max-width: 700px) { .zoom-row { display: flex; } }
+  #uml .cls rect { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+  #uml .cls line { stroke: var(--line); stroke-width: 1.2; }
+  #uml .nm { font: 700 13px var(--display); fill: var(--ink); }
+  #uml .nm.sm { font-size: 12px; }
+  #uml .nm.ab { font-style: italic; }
+  #uml .st { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .st2 { font: 500 10px var(--mono); fill: var(--muted); }
+  #uml .mb { font: 500 11px var(--mono); fill: var(--ink); }
+  #uml .mult { font: 600 11px var(--mono); fill: var(--accent); }
+  #uml .rel { fill: none; stroke: var(--ink); stroke-width: 1.3; }
+  #uml .rel.dash { stroke-dasharray: 5 4; }
+  .legend-uml { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .legend-uml span { display: flex; gap: 8px; align-items: center; }
+  .legend-uml svg { flex: none; }
+  .pats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .pat { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; background: var(--paper); align-content: start; }
+  .pat h3 { font-size: 15px; }
+  .pat p { font-size: 14px; }
+  .pat .no { color: var(--muted); }
+  .pat .no b { color: var(--bad); }
+  .sim { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(250px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+  .simbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .simbar label.field { flex: 1 1 160px; }
+  .simbar select { font: 500 13px/1.3 var(--body); padding: 8px 9px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  .simbar .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .simbar .grp select { width: auto; padding: 7px 6px; }
+  .simbar .lbl { font: 500 12px/1.3 var(--mono); color: var(--muted); }
+  .simbar .chk { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+  #shaft { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  #shaft .lamp { cursor: pointer; }
+  #shaft .lamp:focus { outline: none; }
+  #shaft .lamp:focus-visible rect { stroke: var(--accent); stroke-width: 1.5; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .ccard { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); display: grid; gap: 3px; min-width: 0; }
+  .ccard.off { border-color: var(--amber); }
+  .ccard h4 { margin: 0; font: 600 13px/1.3 var(--body); }
+  .ccard h4 span { font: 500 11px/1.3 var(--mono); color: var(--muted); }
+  .ccard p { margin: 0; font: 500 11.5px/1.45 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .ccard p b { color: var(--ink); font-weight: 600; }
+  .trace { margin: 0; padding: 0 0 0 1.4em; display: grid; gap: 4px; font: 500 12.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+  .trace li::marker { color: var(--muted); }
+  .trace .hl { color: var(--accent); font-weight: 600; }
+  .trace .ok { color: var(--ok); font-weight: 600; }
+  .trace .bad { color: var(--bad); font-weight: 600; }
+  pre.log { margin: 0; font: 500 12px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; max-height: 260px; overflow-y: auto; }
+  pre.log .last { color: var(--accent); font-weight: 600; }
+  .meter { font: 500 12px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  pre.code { margin: 0; font: 500 12.5px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; max-height: 560px; overflow-y: auto; }
+  pre.code .c { color: var(--muted); }
+  .race-th { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .race-th div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); display: grid; gap: 3px; font-size: 13px; min-width: 0; }
+  .race-th div.moved { border-color: var(--accent); }
+  .race-th b { font-family: var(--mono); }
+  .race-th span { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+  .race-store { border: 2px dashed var(--line); border-radius: var(--radius); padding: 10px 12px; font: 500 13px/1.5 var(--mono); background: var(--panel); overflow-wrap: anywhere; }
+  .race-store.ok { border-style: solid; border-color: var(--ok); }
+  .race-store.bad { border-style: solid; border-color: var(--bad); color: var(--bad); }
+  .stfig { width: 100%; max-width: 560px; height: auto; display: block; }
+  .stfig .box { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+  .stfig .box.hot { fill: var(--accent-soft); stroke: var(--accent); }
+  .stfig .box.warn { fill: var(--amber-soft); stroke: var(--amber); }
+  .stfig .t { font: 600 12px var(--mono); fill: var(--ink); }
+  .stfig .e { font: 500 11px var(--mono); fill: var(--muted); }
+  .stfig .ar { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="lld-elevator" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Low-level design</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design an Elevator System</h1>
+    <p class="lede">A building has a few cars and a column of call buttons on every floor. Someone presses "down" on floor 6, and a second later one car's lamp lights up for them. Behind that is a small amount of code doing three separate jobs: a dispatcher that decides <i>which</i> car answers, a scheduler inside each car that decides <i>in what order</i> it visits its stops, and a state machine that decides what a car may do <i>right now</i> (move, open its doors, sit idle, or ignore everyone because a technician has the key). Keep those three apart and every follow-up the interviewer throws at you becomes a new class instead of a rewrite.</p>
+    <p class="sources">The interview flow is adapted from Hello Interview's delivery framework for a 45-minute round. The breakdown, diagrams, simulation and code on this page are our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Elevators invite scope creep: weight sensors, fire codes, motor curves, express zones. Spend the first minutes agreeing on a building small enough to finish and a time model simple enough to test.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: the system should</h3>
+        <ul>
+          <li>Run <b>N cars</b> in a building with <b>M floors</b> (the demo: 3 cars, floors 0 to 9).</li>
+          <li>Accept <b>hall calls</b>: an up or a down button on a floor. The top floor has only down, the ground floor only up.</li>
+          <li>Accept <b>car calls</b>: a floor button pressed inside one particular car.</li>
+          <li>Assign every hall call to <b>exactly one car</b>, and let the rule for choosing be swapped.</li>
+          <li>Move each car one floor at a time, keep a <b>direction</b>, and <b>open the doors</b> at each stop, then close them and carry on.</li>
+          <li>Show each car's floor and arrow on a <b>display</b> in the lobby.</li>
+          <li>Put a car into <b>maintenance</b>: it stops taking calls, and calls it had promised go to other cars.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the code should</h3>
+        <ul>
+          <li><b>Never lose a call</b>: a lit button is always answered, and pressing it twice is still one call.</li>
+          <li>Be <b>fair</b>: no rider waits forever because traffic keeps arriving in the other direction.</li>
+          <li>Be <b>safe under concurrency</b>: buttons are pressed from many threads while cars move.</li>
+          <li>Be <b>deterministic and testable</b>: time advances in ticks you step by hand, not with real sleeps.</li>
+          <li>Be <b>open to new rules</b> (express cars, peak-hour modes) without editing the car's core.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>Say what you are leaving out:</b> passenger weight and capacity (mention it, add it as a follow-up), door obstruction sensors, acceleration and motor control, and fire service. One tick = one floor of travel, and doors stay open for one tick. That's crude, but it makes every number on this page something you can check by hand.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="3m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities and their responsibilities</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">The trap is one big <span class="mono">Elevator</span> class holding a list of floors and a <span class="mono">while True</span> loop full of <span class="mono">if moving_up and not door_open and ...</span>. Split by the question each piece answers.</p>
+    <div class="entity-row">
+      <div class="entity"><h3>Building</h3><code>owns the cars; runs the
+control loop one tick at
+a time; tracks lit buttons</code></div>
+      <div class="entity"><h3>ElevatorController</h3><code>the dispatcher: which car
+answers this hall call?</code></div>
+      <div class="entity"><h3>DispatchStrategy</h3><code>interface: cost(car, call);
+NearestCar and LookCost</code></div>
+      <div class="entity"><h3>ElevatorCar</h3><code>floor, direction, the two
+stop sets (up, down); the
+LOOK order of its stops</code></div>
+      <div class="entity"><h3>CarState</h3><code>Idle, MovingUp, MovingDown,
+DoorsOpen, Maintenance:
+what one tick does</code></div>
+      <div class="entity"><h3>Door</h3><code>open or closed; the one
+place a sensor would hook in</code></div>
+      <div class="entity"><h3>HallCall / CarCall</h3><code>button presses as
+commands, queued and
+applied by the loop</code></div>
+      <div class="entity"><h3>Dir</h3><code>UP, DOWN, IDLE (+1, −1, 0),
+so moving is floor += dir</code></div>
+      <div class="entity"><h3>LobbyDisplay</h3><code>an observer: shows
+"3↑" per car</code></div>
+    </div>
+    <div class="aside"><p><b>The key split:</b> the controller decides <i>who</i>, the car decides <i>when</i>. Once a car has accepted a hall call, the controller forgets it; the stop just sits in the car's <span class="mono">up</span> or <span class="mono">down</span> set and the car's own LOOK rule gets to it. That's what lets you swap dispatch rules without touching movement, and change movement without touching dispatch.</p></div>
+  </section>
+
+  <section class="panel article" id="classes" data-nav="Class diagram" data-num="3" data-time="6m">
+    <div class="step-head"><span class="step-num">3</span><h2>Class diagram</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">The building <i>owns</i> its cars and its controller (composition, filled diamond), and each car owns its door and its current state object. The controller only <i>knows about</i> the cars (association): it reads them to compute costs. Everything that varies (dispatch rule, car state, listeners, commands) sits behind an abstract type.</p>
+    <div class="zoom-row"><button id="zoomUml" aria-pressed="false">Zoom in</button><span id="zoomHint">The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.</span></div>
+    <div class="diagram-wrap" id="umlWrap"><svg id="uml" viewBox="0 0 761 672" role="img" aria-label="Class diagram of the elevator system"><defs>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></marker>
+<marker id="dia" viewBox="0 0 18 12" refX="1" refY="6" markerWidth="18" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,6 L9,1 L17,6 L9,11 z" fill="var(--ink)"/></marker>
+<marker id="arr" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="var(--ink)" stroke-width="1.3"/></marker>
+</defs>
+<g class="cls"><rect x="16" y="16" width="210" height="235" rx="3"/><text class="nm" x="121" y="34" text-anchor="middle">Building</text><text class="st" x="121" y="48" text-anchor="middle">implements CarListener</text><line x1="16" y1="54" x2="226" y2="54"/><text class="mb" x="24" y="70">floors: int</text><text class="mb" x="24" y="85">cars: [ElevatorCar]</text><text class="mb" x="24" y="100">controller</text><text class="mb" x="24" y="115">inbox: Queue[Command]</text><text class="mb" x="24" y="130">lit: {HallCall: tick}</text><text class="mb" x="24" y="145">riders, pending</text><text class="mb" x="24" y="160">display: LobbyDisplay</text><line x1="16" y1="167" x2="226" y2="167"/><text class="mb" x="24" y="183">press(cmd)</text><text class="mb" x="24" y="198">step()</text><text class="mb" x="24" y="213">dispatch(call, since)</text><text class="mb" x="24" y="228">set_service(car, on)</text><text class="mb" x="24" y="243">on_car_event(car, e, info)</text></g>
+<g class="cls"><rect x="16" y="290" width="210" height="61" rx="3"/><text class="st" x="121" y="306" text-anchor="middle">«interface»</text><text class="nm ab" x="121" y="320" text-anchor="middle">Command</text><line x1="16" y1="328" x2="226" y2="328"/><text class="mb" x="24" y="344">apply(building)</text></g>
+<g class="cls"><rect x="16" y="390" width="96" height="41" rx="3"/><text class="nm sm" x="64" y="408" text-anchor="middle">CarCall</text><text class="mb" x="64" y="425" text-anchor="middle">car, floor</text></g>
+<g class="cls"><rect x="130" y="390" width="96" height="41" rx="3"/><text class="nm sm" x="178" y="408" text-anchor="middle">HallCall</text><text class="mb" x="178" y="425" text-anchor="middle">floor, dir</text></g>
+<g class="cls"><rect x="16" y="445" width="96" height="41" rx="3"/><text class="nm sm" x="64" y="463" text-anchor="middle">SetService</text><text class="mb" x="64" y="480" text-anchor="middle">car, on</text></g>
+<g class="cls"><rect x="130" y="445" width="96" height="41" rx="3"/><text class="nm sm" x="178" y="463" text-anchor="middle">Rider</text><text class="mb" x="178" y="480" text-anchor="middle">src, dst</text></g>
+<g class="cls"><rect x="16" y="520" width="210" height="80" rx="3"/><text class="st" x="121" y="536" text-anchor="middle">«enumeration»</text><text class="nm" x="121" y="550" text-anchor="middle">Dir</text><line x1="16" y1="558" x2="226" y2="558"/><text class="mb" x="24" y="574">UP = 1, DOWN = −1</text><text class="mb" x="24" y="589">IDLE = 0</text></g>
+<g class="cls"><rect x="275" y="16" width="222" height="88" rx="3"/><text class="nm" x="386" y="34" text-anchor="middle">ElevatorController</text><line x1="275" y1="42" x2="497" y2="42"/><text class="mb" x="283" y="58">strategy: DispatchStrategy</text><text class="mb" x="283" y="73">cars: [ElevatorCar]</text><line x1="275" y1="80" x2="497" y2="80"/><text class="mb" x="283" y="96">assign(call): (car, now)</text></g>
+<g class="cls"><rect x="275" y="150" width="222" height="253" rx="3"/><text class="nm" x="386" y="168" text-anchor="middle">ElevatorCar</text><line x1="275" y1="176" x2="497" y2="176"/><text class="mb" x="283" y="192">name: str</text><text class="mb" x="283" y="207">floor: int</text><text class="mb" x="283" y="222">direction: Dir</text><text class="mb" x="283" y="237">up, down: {int}</text><text class="mb" x="283" y="252">halls: {HallCall}</text><text class="mb" x="283" y="267">door: Door</text><text class="mb" x="283" y="282">state: CarState</text><text class="mb" x="283" y="297">listeners: [CarListener]</text><line x1="275" y1="304" x2="497" y2="304"/><text class="mb" x="283" y="320">tick()</text><text class="mb" x="283" y="335">add_stop(floor, d): bool</text><text class="mb" x="283" y="350">next_direction(): Dir</text><text class="mb" x="283" y="365">should_stop(): bool</text><text class="mb" x="283" y="380">arrive()</text><text class="mb" x="283" y="395">subscribe(listener)</text></g>
+<g class="cls"><rect x="275" y="440" width="222" height="87" rx="3"/><text class="nm" x="386" y="458" text-anchor="middle">Door</text><line x1="275" y1="466" x2="497" y2="466"/><text class="mb" x="283" y="482">is_open: bool</text><line x1="275" y1="489" x2="497" y2="489"/><text class="mb" x="283" y="505">open()</text><text class="mb" x="283" y="520">close()</text></g>
+<g class="cls"><rect x="545" y="16" width="200" height="61" rx="3"/><text class="st" x="645" y="32" text-anchor="middle">«interface»</text><text class="nm ab" x="645" y="46" text-anchor="middle">DispatchStrategy</text><line x1="545" y1="54" x2="745" y2="54"/><text class="mb" x="553" y="70">cost(car, call): int</text></g>
+<g class="cls"><rect x="545" y="110" width="92" height="41" rx="3"/><text class="nm sm" x="591" y="128" text-anchor="middle">NearestCar</text><text class="mb" x="591" y="145" text-anchor="middle">distance</text></g>
+<g class="cls"><rect x="653" y="110" width="92" height="41" rx="3"/><text class="nm sm" x="699" y="128" text-anchor="middle">LookCost</text><text class="mb" x="699" y="145" text-anchor="middle">sweep length</text></g>
+<g class="cls"><rect x="545" y="200" width="200" height="90" rx="3"/><text class="st" x="645" y="216" text-anchor="middle">«abstract»</text><text class="nm ab" x="645" y="230" text-anchor="middle">CarState</text><line x1="545" y1="238" x2="745" y2="238"/><text class="mb" x="553" y="254">name, accepts_calls</text><line x1="545" y1="261" x2="745" y2="261"/><text class="mb" x="553" y="277">tick(car)</text></g>
+<g class="cls"><rect x="545" y="330" width="92" height="41" rx="3"/><text class="nm sm" x="591" y="348" text-anchor="middle">Idle</text><text class="mb" x="591" y="365" text-anchor="middle">waits</text></g>
+<g class="cls"><rect x="653" y="330" width="92" height="41" rx="3"/><text class="nm sm" x="699" y="348" text-anchor="middle">DoorsOpen</text><text class="mb" x="699" y="365" text-anchor="middle">left: int</text></g>
+<g class="cls"><rect x="545" y="385" width="92" height="41" rx="3"/><text class="nm sm" x="591" y="403" text-anchor="middle">MovingUp</text><text class="mb" x="591" y="420" text-anchor="middle">step = +1</text></g>
+<g class="cls"><rect x="653" y="385" width="92" height="41" rx="3"/><text class="nm sm" x="699" y="403" text-anchor="middle">MovingDown</text><text class="mb" x="699" y="420" text-anchor="middle">step = −1</text></g>
+<g class="cls"><rect x="545" y="440" width="92" height="41" rx="3"/><text class="nm sm" x="591" y="458" text-anchor="middle">Maintenance</text><text class="mb" x="591" y="475" text-anchor="middle">no calls</text></g>
+<g class="cls"><rect x="545" y="520" width="200" height="61" rx="3"/><text class="st" x="645" y="536" text-anchor="middle">«interface»</text><text class="nm ab" x="645" y="550" text-anchor="middle">CarListener</text><line x1="545" y1="558" x2="745" y2="558"/><text class="mb" x="553" y="574">on_car_event(car, e, info)</text></g>
+<g class="cls"><rect x="545" y="615" width="200" height="41" rx="3"/><text class="nm sm" x="645" y="633" text-anchor="middle">LobbyDisplay</text><text class="mb" x="645" y="650" text-anchor="middle">shown: {car: "3↑"}</text></g>
+<path class="rel" d="M226,60 L275,60" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="270" y="54" text-anchor="end">1</text>
+<path class="rel" d="M226,190 L275,190" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="270" y="184" text-anchor="end">1..*</text>
+<path class="rel" d="M497,46 L545,46" marker-end="url(#arr)"/><text class="mult" x="540" y="40" text-anchor="end">1</text>
+<path class="rel" d="M386,104 L386,150" marker-end="url(#arr)"/><text class="mult" x="392" y="144" text-anchor="start">1..*</text><text class="st2" x="380" y="130" text-anchor="end">reads</text>
+<path class="rel dash" d="M645,96 L645,77" marker-end="url(#tri)"/><path class="rel dash" d="M591,96 L699,96"/><path class="rel dash" d="M591,110 L591,96"/><path class="rel dash" d="M699,110 L699,96"/>
+<path class="rel" d="M497,245 L545,245" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="540" y="239" text-anchor="end">1</text><text class="st2" x="521" y="260" text-anchor="middle">current</text>
+<path class="rel" d="M645,312 L645,290" marker-end="url(#tri)"/><path class="rel" d="M645,312 L645,460"/><path class="rel" d="M637,350 L653,350"/><path class="rel" d="M637,405 L653,405"/><path class="rel" d="M637,460 L645,460"/>
+<path class="rel" d="M386,403 L386,440" marker-start="url(#dia)" marker-end="url(#arr)"/><text class="mult" x="392" y="434" text-anchor="start">1</text>
+<path class="rel" d="M497,380 L521,380 L521,550 L545,550" marker-end="url(#arr)"/><text class="mult" x="540" y="544" text-anchor="end">0..*</text>
+<path class="rel dash" d="M645,615 L645,581" marker-end="url(#tri)"/>
+<path class="rel" d="M275,340 L250,340 L250,410 L226,410" marker-end="url(#arr)"/><text class="mult" x="231" y="404" text-anchor="start">0..*</text><text class="st2" x="244" y="375" text-anchor="middle" transform="rotate(-90 244 375)">promised</text>
+<path class="rel dash" d="M121,251 L121,290" marker-end="url(#arr)"/><text class="st2" x="129" y="275" text-anchor="start">«applies»</text>
+<path class="rel dash" d="M121,370 L121,351" marker-end="url(#tri)"/><path class="rel dash" d="M121,370 L121,465"/><path class="rel dash" d="M112,410 L130,410"/><path class="rel dash" d="M112,465 L130,465"/>
+</svg></div>
+    <div class="legend-uml" aria-label="Notation">
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>inherits from (is a)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H30" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M30,1 L42,7 L30,13 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.3"/></svg>implements an interface</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M1,7 L9,2 L17,7 L9,12 z" fill="var(--ink)"/><path d="M17,7 H42" stroke="var(--ink)" stroke-width="1.3"/></svg>composition (owns, same lifetime)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>association (knows about)</span>
+      <span><svg width="44" height="14" aria-hidden="true"><path d="M2,7 H41" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 4"/><path d="M31,2 L41,7 L31,12" fill="none" stroke="var(--ink)" stroke-width="1.3"/></svg>dependency (uses)</span>
+      <span><b class="mono" style="color:var(--accent)">1..*</b>multiplicity: how many at that end</span>
+    </div>
+    <div class="aside"><p><b>Reading it:</b> "Building ◆— 1..* ElevatorCar" says a building is made of one or more cars, which don't outlive it. "ElevatorCar ◆— 1 CarState" is the car's <i>current</i> state; the object is replaced on every transition. "ElevatorCar — 0..* HallCall" are the calls this car has promised to answer, the ones handed back if it goes into maintenance. The five states inherit (solid line) because they share <span class="mono">accepts_calls</span>; everything else implements an interface (dashed).</p></div>
+  </section>
+
+  <section class="panel article" id="api" data-nav="Interfaces" data-num="4" data-time="5m">
+    <div class="step-head"><span class="step-num">4</span><h2>Interfaces of the main classes</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Two signatures carry the design. <span class="mono">cost(car, call)</span> is all a dispatch rule has to say, so a new rule is a new class with one method. <span class="mono">press(cmd)</span> only puts a command on a queue; nothing a button does ever touches a car directly, which is what makes the threading story short.</p>
+<pre class="api"><span class="verb">class</span> Building(CarListener):
+    __init__(floors: int, cars: {name: floor}, strategy: DispatchStrategy)
+    press(cmd: Command) -> None              <span class="c"># any thread; only enqueues</span>
+    step() -> None                           <span class="c"># control loop: apply inbox, tick each car</span>
+    dispatch(call: HallCall, since=None)     <span class="c"># lit already? same call. else assign</span>
+    set_service(car: str, on: bool) -> None
+
+<span class="verb">class</span> ElevatorController:
+    assign(call: HallCall) -> (ElevatorCar | None, served_now: bool)
+
+<span class="verb">interface</span> DispatchStrategy:
+    cost(car: ElevatorCar, call: HallCall) -> int   <span class="c"># lower wins; ties go to the first name</span>
+
+<span class="verb">class</span> ElevatorCar:
+    add_stop(floor: int, d: Dir | None) -> bool     <span class="c"># True: doors already open right here</span>
+    tick() -> None                                  <span class="c"># self.state.tick(self)</span>
+    next_direction() -> Dir                         <span class="c"># LOOK: keep going while work lies ahead</span>
+    should_stop() -> bool
+    arrive() -> None                                <span class="c"># clear served stops, open doors, notify</span>
+
+<span class="verb">abstract</span> CarState:   name: str, accepts_calls: bool, tick(car)
+<span class="verb">interface</span> Command:  apply(building)
+<span class="verb">interface</span> CarListener:  on_car_event(car, event: "move" | "state" | "open", info)</pre>
+    <div class="aside"><p><b>Why two stop sets, not one list:</b> a hall call has a direction. "Down at 6" must not be answered by a car passing 6 on its way up, or the rider steps in and goes the wrong way. So a car keeps <span class="mono">up</span> (stops to make while rising) and <span class="mono">down</span> (while falling). A car call has no direction of its own; it goes in whichever set points from the car toward that floor. <b>Why <span class="mono">add_stop</span> returns a bool:</b> if the car is already standing at that floor with doors open in the right direction, the call is answered on the spot and never enters a set.</p></div>
+  </section>
+
+  <section class="panel article" id="patterns" data-nav="Design patterns" data-num="5" data-time="5m">
+    <div class="step-head"><span class="step-num">5</span><h2>Design patterns, and why</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Each pattern answers a requirement. If you can't name the requirement, leave the pattern out.</p>
+    <svg class="stfig" viewBox="0 0 360 200" role="img" aria-label="State diagram of a car">
+      <defs><marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--ink)" stroke-width="1.4"/></marker></defs>
+      <rect class="box" x="140" y="8" width="80" height="30" rx="15"/><text class="t" x="180" y="27" text-anchor="middle">Idle</text>
+      <rect class="box hot" x="10" y="85" width="96" height="30" rx="15"/><text class="t" x="58" y="104" text-anchor="middle">MovingUp</text>
+      <rect class="box hot" x="254" y="85" width="96" height="30" rx="15"/><text class="t" x="302" y="104" text-anchor="middle">MovingDown</text>
+      <rect class="box" x="130" y="85" width="100" height="30" rx="15"/><text class="t" x="180" y="104" text-anchor="middle">DoorsOpen</text>
+      <rect class="box warn" x="125" y="160" width="110" height="30" rx="15"/><text class="t" x="180" y="179" text-anchor="middle">Maintenance</text>
+      <path class="ar" d="M145,36 L80,84" marker-end="url(#sa)"/><text class="e" x="70" y="50" text-anchor="middle">stops above</text>
+      <path class="ar" d="M215,36 L280,84" marker-end="url(#sa)"/><text class="e" x="290" y="50" text-anchor="middle">stops below</text>
+      <path class="ar" d="M106,96 L129,96" marker-end="url(#sa)"/><path class="ar" d="M130,106 L107,106" marker-end="url(#sa)"/>
+      <path class="ar" d="M254,96 L231,96" marker-end="url(#sa)"/><path class="ar" d="M231,106 L253,106" marker-end="url(#sa)"/>
+      <text class="e" x="58" y="132" text-anchor="middle">should_stop</text><text class="e" x="302" y="132" text-anchor="middle">should_stop</text>
+      <path class="ar" d="M180,85 L180,39" marker-end="url(#sa)"/><text class="e" x="186" y="58">nothing</text><text class="e" x="186" y="71">left</text>
+      <path class="ar" d="M180,159 L180,116" stroke-dasharray="4 3" marker-end="url(#sa)"/><text class="e" x="186" y="146">key switch, from any</text>
+    </svg>
+    <div class="pats">
+      <div class="pat">
+        <h3>State: what a car does this tick</h3>
+        <p>"May I take calls?", "what happens when the clock ticks?" and "can the doors open?" all have different answers in Idle, MovingUp, DoorsOpen and Maintenance. One class per state, each with its own <span class="mono">tick</span>, replaces a nest of flags (<span class="mono">is_moving</span>, <span class="mono">doors_open</span>, <span class="mono">in_service</span>) that can contradict each other. Maintenance is the payoff: <span class="mono">accepts_calls = False</span> and a <span class="mono">tick</span> that does nothing, and no other code changes.</p>
+        <p class="no"><b>Watch out:</b> keep the stop sets and LOOK rule in the car, not copied into each state. States decide <i>what</i> happens on a tick; the car's data says <i>where</i>.</p>
+      </div>
+      <div class="pat">
+        <h3>Strategy: which car answers</h3>
+        <p>"Let the rule be swapped" is the requirement. The controller asks the strategy for a cost per car and takes the lowest. <span class="mono">NearestCar</span> uses distance alone; <span class="mono">LookCost</span> counts the floors the car will actually travel, following its current sweep, before it reaches you. Peak-hour rules, energy-saving rules and zoning are more classes.</p>
+        <p class="no"><b>Not worth it</b> for a single-car building. With one car, there is nothing to choose.</p>
+      </div>
+      <div class="pat">
+        <h3>Observer: displays and riders</h3>
+        <p>Cars emit <span class="mono">move</span>, <span class="mono">state</span> and <span class="mono">open</span> events. The lobby display updates its "3↑" on any of them; the building listens for <span class="mono">open</span> to turn off lit buttons, record wait times and let waiting riders board. The car never imports a display class.</p>
+        <p class="no"><b>Watch out:</b> listeners run inside the control loop's tick. Keep them quick; a slow listener stalls every car.</p>
+      </div>
+      <div class="pat">
+        <h3>Command: button presses</h3>
+        <p>Every press becomes an object (<span class="mono">HallCall</span>, <span class="mono">CarCall</span>, <span class="mono">SetService</span>) with <span class="mono">apply(building)</span>. Any thread can put one on the queue; only the control loop applies them. You also get a log you can replay, which is exactly how the walkthrough rebuilds the run when you switch strategy.</p>
+        <p class="no"><b>Not worth it</b> as undo support. Nobody un-presses an elevator button.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel article" id="walkthrough" data-nav="Walkthrough" data-num="6" data-time="6m">
+    <div class="step-head"><span class="step-num">6</span><h2>Walkthrough: three cars, ten floors</h2><span class="step-time">about 6 minutes</span></div>
+    <p class="kicker">The same classes as the Python below. <b>Step</b> runs one tick and plays the demo's presses: someone inside B presses 9, then riders appear at floors 6, 2, 8 and 3, and at tick 6 car C is switched to maintenance. Switch the dispatch strategy and the same presses replay. Watch the rider at 6 going down: <span class="mono">NearestCar</span> gives the call to B, one floor away but on its way up to 9. Tap a ▲ or ▼ lamp in the shaft to press a hall button yourself, or add riders and car calls below; they go on the queue and apply on the next tick.</p>
+    <div class="simbar">
+      <label class="field" for="selStrat"><span>Dispatch strategy</span><select id="selStrat"><option value="NearestCar">NearestCar</option><option value="LookCost">LookCost</option></select></label>
+      <div class="grp">
+        <button id="bReset">Reset</button>
+        <button class="primary" id="bStep">Step ▶</button>
+        <button id="bPlay">Play</button>
+      </div>
+      <label class="chk" for="chkScript"><input type="checkbox" id="chkScript" checked>play the demo's presses</label>
+    </div>
+    <div class="simbar">
+      <div class="grp"><span class="lbl">Rider</span><select id="rSrc" aria-label="Rider starts at floor"></select><span class="lbl">to</span><select id="rDst" aria-label="Rider goes to floor"></select><button id="bRider">Add rider</button></div>
+      <div class="grp"><span class="lbl">Inside car</span><select id="cCar" aria-label="Car"><option>A</option><option>B</option><option>C</option></select><span class="lbl">press</span><select id="cFloor" aria-label="Floor button"></select><button id="bCarCall">Press</button></div>
+      <div class="grp" id="svcGrp"></div>
+    </div>
+    <div class="sim">
+      <div style="display:grid;gap:10px;min-width:0">
+        <svg id="shaft" viewBox="0 0 360 302" role="img" aria-label="Elevator shafts with cars, stops and hall buttons"></svg>
+        <div class="cards" id="cards" aria-live="polite"></div>
+      </div>
+      <div style="display:grid;gap:8px;min-width:0">
+        <h3 style="font-size:14px" id="traceTitle">What ran</h3>
+        <ol class="trace" id="trace"></ol>
+        <p class="meter" id="inbox"></p>
+        <p class="meter" id="stats"></p>
+      </div>
+    </div>
+    <h3 style="font-size:14px">Log (same format as the Python demo's output)</h3>
+    <pre class="log" id="log" aria-live="polite"></pre>
+  </section>
+
+  <section class="panel article" id="code" data-nav="Code" data-num="7" data-time="7m">
+    <div class="step-head"><span class="step-num">7</span><h2>Code</h2><span class="step-time">about 7 minutes</span></div>
+    <p class="kicker">Runnable Python 3, standard library only. In an interview, write <span class="mono">ElevatorCar</span> (the LOOK rule lives in <span class="mono">next_direction</span>, <span class="mono">should_stop</span> and <span class="mono">arrive</span>), the states, and one strategy in full; sketch the rest. The demo runs the walkthrough's presses under both strategies, then has eight threads press buttons at once.</p>
+<pre class="code" tabindex="0" aria-label="Python code">import queue, threading
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
+
+class Dir(Enum):
+    UP, DOWN, IDLE = 1, -1, 0
+ARROW = {Dir.UP: "↑", Dir.DOWN: "↓", Dir.IDLE: "·"}
+DWELL = 1                                    <span class="c"># ticks the doors stay open</span>
+
+<span class="c"># ---- Command pattern: a button press is an object; any thread enqueues it,</span>
+<span class="c"># ---- and only the control loop applies it</span>
+class Command(ABC):
+    @abstractmethod
+    def apply(self, building): ...
+
+@dataclass(frozen=True)
+class HallCall(Command):                     <span class="c"># on a floor: "I want to go up / down"</span>
+    floor: int
+    dir: Dir
+    def apply(self, b): b.dispatch(self)
+
+@dataclass(frozen=True)
+class CarCall(Command):                      <span class="c"># inside a car: "take me to floor n"</span>
+    car: str
+    floor: int
+    def apply(self, b):
+        car = b.car(self.car)
+        if car.state.accepts_calls: car.add_stop(self.floor)
+
+@dataclass(frozen=True)
+class Rider(Command):                        <span class="c"># demo helper: a person who presses the hall</span>
+    src: int                                 <span class="c"># button, boards, then presses dst inside</span>
+    dst: int
+    def apply(self, b):
+        call = HallCall(self.src, Dir.UP if self.dst &gt; self.src else Dir.DOWN)
+        b.riders.setdefault(call, []).append(self.dst)
+        b.dispatch(call)
+
+@dataclass(frozen=True)
+class SetService(Command):                   <span class="c"># operator key switch: maintenance on / off</span>
+    car: str
+    on: bool
+    def apply(self, b): b.set_service(self.car, self.on)
+
+class Door:
+    def __init__(self): self.is_open = False
+    def open(self): self.is_open = True
+    def close(self): self.is_open = False
+
+<span class="c"># ---- State pattern: what a car does on each tick depends on its state</span>
+class CarState(ABC):
+    name = ""
+    accepts_calls = True
+    @abstractmethod
+    def tick(self, car): ...
+
+class Idle(CarState):
+    name = "Idle"
+    def tick(self, car):
+        here = car.floor
+        if here in car.up or here in car.down:          <span class="c"># a call right where we stand</span>
+            car.direction = Dir.UP if here in car.up else Dir.DOWN
+            car.arrive()
+        elif (d := car.next_direction()) is not Dir.IDLE:
+            car.start(d)
+
+class Moving(CarState):
+    step = 0
+    def tick(self, car):
+        car.floor += self.step
+        car.notify("move")
+        if car.should_stop(): car.arrive()
+class MovingUp(Moving):
+    name, step = "MovingUp", 1
+class MovingDown(Moving):
+    name, step = "MovingDown", -1
+
+class DoorsOpen(CarState):
+    name = "DoorsOpen"
+    def __init__(self): self.left = DWELL
+    def tick(self, car):
+        self.left -= 1
+        if self.left &gt; 0: return
+        car.door.close()
+        d = car.next_direction()
+        if d is Dir.IDLE: car.direction = Dir.IDLE; car.set_state(Idle())
+        else: car.start(d)
+
+class Maintenance(CarState):
+    name, accepts_calls = "Maintenance", False
+    def tick(self, car): pass
+
+class ElevatorCar:
+    def __init__(self, name, floor):
+        self.name, self.floor, self.direction = name, floor, Dir.IDLE
+        self.up, self.down = set(), set()    <span class="c"># floors to stop at on the way up / down</span>
+        self.halls = set()                   <span class="c"># hall calls this car has promised to answer</span>
+        self.door, self.state, self.listeners = Door(), Idle(), []
+    def subscribe(self, listener): self.listeners.append(listener)
+    def notify(self, event, info=None):
+        for l in self.listeners: l.on_car_event(self, event, info)
+    def set_state(self, s): self.state = s; self.notify("state")
+    def tick(self): self.state.tick(self)
+    def start(self, d):
+        self.direction = d
+        self.set_state(MovingUp() if d is Dir.UP else MovingDown())
+        self.state.tick(self)                <span class="c"># leave this tick</span>
+    def above(self): return any(f &gt; self.floor for f in self.up | self.down)
+    def below(self): return any(f &lt; self.floor for f in self.up | self.down)
+    def next_direction(self):                <span class="c"># LOOK: keep going while work lies ahead</span>
+        if self.direction is Dir.UP and self.above(): return Dir.UP
+        if self.direction is Dir.DOWN and self.below(): return Dir.DOWN
+        return Dir.UP if self.above() else Dir.DOWN if self.below() else Dir.IDLE
+    def should_stop(self):
+        f = self.floor
+        if self.direction is Dir.UP: return f in self.up or (f in self.down and not self.above())
+        return f in self.down or (f in self.up and not self.below())
+    def add_stop(self, floor, d=None):       <span class="c"># d: a hall call's direction; None = car call</span>
+        here = floor == self.floor
+        if here and isinstance(self.state, DoorsOpen) and d in (None, self.direction):
+            self.state.left = DWELL          <span class="c"># already here, doors open: hold them</span>
+            return True                      <span class="c"># served on the spot</span>
+        if d is None:
+            if here: d = Dir.DOWN if self.direction is Dir.UP else Dir.UP   <span class="c"># just left it</span>
+            else: d = Dir.UP if floor &gt; self.floor else Dir.DOWN
+        (self.up if d is Dir.UP else self.down).add(floor)
+        return False
+    def arrive(self):
+        f = self.floor
+        if self.direction is Dir.UP:
+            self.up.discard(f)
+            if not self.above() and f in self.down: self.down.discard(f); self.direction = Dir.DOWN
+        else:
+            self.down.discard(f)
+            if not self.below() and f in self.up: self.up.discard(f); self.direction = Dir.UP
+        served = {h for h in self.halls
+                  if h.floor == f and f not in (self.up if h.dir is Dir.UP else self.down)}
+        self.halls -= served
+        self.door.open()
+        self.set_state(DoorsOpen())
+        self.notify("open", served)
+    def describe(self):
+        stops = [f"↑{f}" for f in sorted(self.up)] + [f"↓{f}" for f in sorted(self.down)[::-1]]
+        return f"{self.name}{self.floor}{ARROW[self.direction]} {" ".join([self.state.name] + stops)}"
+
+<span class="c"># ---- Strategy pattern: which car answers a hall call</span>
+class DispatchStrategy(ABC):
+    @abstractmethod
+    def cost(self, car, call): ...
+
+class NearestCar(DispatchStrategy):
+    def cost(self, car, call): return abs(car.floor - call.floor)
+
+class LookCost(DispatchStrategy):            <span class="c"># floors travelled along the car's LOOK sweep</span>
+    def cost(self, car, call):
+        if car.direction is Dir.IDLE: return abs(car.floor - call.floor)
+        s = car.direction.value              <span class="c"># mirror floors so the car always "goes up"</span>
+        here, f = car.floor * s, call.floor * s
+        stops = {x * s for x in car.up | car.down}
+        same = call.dir is car.direction
+        if same and (f &gt; here or (f == here and isinstance(car.state, DoorsOpen))):
+            return f - here                  <span class="c"># on its way: pick up as it passes</span>
+        top = max(stops | {here, f})
+        if not same: return (top - here) + (top - f)        <span class="c"># to the end, then back</span>
+        low = min(stops | {f})
+        return (top - here) + (top - low) + (f - low)       <span class="c"># a whole loop</span>
+
+class ElevatorController:                    <span class="c"># the dispatcher</span>
+    def __init__(self, cars, strategy): self.cars, self.strategy = cars, strategy
+    def assign(self, call):                  <span class="c"># -&gt; (car or None, served right now?)</span>
+        ready = [c for c in self.cars if c.state.accepts_calls]
+        if not ready: return None, False
+        car = min(ready, key=lambda c: (self.strategy.cost(c, call), c.name))
+        if car.add_stop(call.floor, call.dir): return car, True
+        car.halls.add(call)
+        return car, False
+
+<span class="c"># ---- Observer pattern: displays and the building hear about car events</span>
+class CarListener(ABC):
+    @abstractmethod
+    def on_car_event(self, car, event, info): ...
+
+class LobbyDisplay(CarListener):             <span class="c"># the "floor and arrow" screen per car</span>
+    def __init__(self): self.shown = {}
+    def on_car_event(self, car, event, info):
+        self.shown[car.name] = f"{car.floor}{ARROW[car.direction]}"
+
+class Building(CarListener):
+    def __init__(self, floors, cars, strategy):
+        self.floors, self.t = floors, 0
+        self.cars = [ElevatorCar(n, f) for n, f in cars.items()]
+        self.controller = ElevatorController(self.cars, strategy)
+        self.inbox = queue.Queue()           <span class="c"># thread-safe: any thread may press buttons</span>
+        self.lit, self.riders, self.pending = {}, {}, []
+        self.waits, self.log, self.boarded = [], [], 0
+        self.display = LobbyDisplay()
+        for c in self.cars: c.subscribe(self); c.subscribe(self.display)
+    def car(self, name): return next(c for c in self.cars if c.name == name)
+    def press(self, command): self.inbox.put(command)
+    def dispatch(self, call, since=None):
+        if call in self.lit: return          <span class="c"># button already lit: same call</span>
+        self.lit[call] = self.t if since is None else since
+        car, now = self.controller.assign(call)
+        if car is None:
+            self.pending.append(call)
+            return self.say(f"hall {call.floor}{ARROW[call.dir]}: no car in service, queued")
+        self.say(f"hall {call.floor}{ARROW[call.dir]} -&gt; {car.name}")
+        if now: self.served(car, {call})     <span class="c"># its doors were open right there</span>
+    def set_service(self, name, on):
+        car = self.car(name)
+        if not on:
+            orphans = sorted(car.halls, key=lambda h: (h.floor, h.dir.value))
+            car.halls, car.up, car.down = set(), set(), set()
+            car.direction = Dir.IDLE
+            car.door.open(); car.set_state(Maintenance())
+            self.say(f"{name} to maintenance at {car.floor}")
+        else:
+            orphans, self.pending = self.pending, []
+            car.door.close(); car.set_state(Idle())
+            self.say(f"{name} back in service")
+        for call in orphans:                 <span class="c"># hand them back to the dispatcher</span>
+            self.dispatch(call, since=self.lit.pop(call))
+    def on_car_event(self, car, event, info):
+        if event == "open": self.served(car, info)
+    def served(self, car, calls):
+        for call in sorted(calls, key=lambda h: h.dir.value):
+            wait = self.t - self.lit.pop(call)
+            self.waits.append(wait)
+            riders = self.riders.pop(call, [])
+            for dst in riders: car.add_stop(dst)
+            self.boarded += len(riders)
+            self.say(f"{car.name} opens at {call.floor}{ARROW[call.dir]} (waited {wait})"
+                     + (f", rider presses {','.join(map(str, riders))}" if riders else ""))
+    def say(self, text): self.log.append(text)
+    def step(self):                          <span class="c"># one tick of the control loop</span>
+        self.t += 1
+        while not self.inbox.empty(): self.inbox.get().apply(self)
+        for car in self.cars: car.tick()
+    def busy(self): return self.lit or any(c.up or c.down for c in self.cars)
+
+<span class="c"># ---------------- demo ----------------</span>
+SCRIPT = {1: [CarCall("B", 9)], 2: [Rider(6, 1)], 3: [Rider(2, 7)],
+          4: [Rider(8, 0)], 5: [Rider(3, 0)], 6: [SetService("C", False)]}
+
+def run(strategy):
+    b = Building(10, {"A": 0, "B": 4, "C": 8}, strategy)
+    print(f"== {type(strategy).__name__}: floors 0-9, A@0 B@4 C@8 ==")
+    while b.t &lt; max(SCRIPT) or b.busy():
+        for cmd in SCRIPT.get(b.t + 1, []): b.press(cmd)     <span class="c"># pressed during the next tick</span>
+        seen = len(b.log)
+        b.step()
+        print(f"t={b.t:&lt;2} " + " | ".join(c.describe() for c in b.cars))
+        for line in b.log[seen:]: print("     " + line)
+    print(f"waits {b.waits}: mean {sum(b.waits) / len(b.waits):.1f} ticks, max {max(b.waits)}")
+
+run(NearestCar())
+run(LookCost())
+
+<span class="c"># eight threads press buttons at once; only the control loop touches the cars</span>
+b = Building(10, {"A": 0, "B": 4, "C": 8}, LookCost())
+def worker(k):
+    for i in range(5):
+        src = (k + 3 * i) % 10
+        b.press(Rider(src, (src + 1 + (k + i) % 9) % 10))
+threads = [threading.Thread(target=worker, args=(k,)) for k in range(8)]
+for th in threads: th.start()
+for th in threads: th.join()
+while b.busy() or not b.inbox.empty(): b.step()
+print(f"8 threads, 40 riders: {b.boarded} boarded, {len(b.lit)} buttons still lit")</pre>
+    <h3>Output</h3>
+<pre class="log" style="max-height:none" aria-label="Program output">== NearestCar: floors 0-9, A@0 B@4 C@8 ==
+t=1  A0· Idle | B5↑ MovingUp ↑9 | C8· Idle
+t=2  A0· Idle | B6↑ MovingUp ↑9 ↓6 | C8· Idle
+     hall 6↓ -&gt; B
+t=3  A1↑ MovingUp ↑2 | B7↑ MovingUp ↑9 ↓6 | C8· Idle
+     hall 2↑ -&gt; A
+t=4  A2↑ DoorsOpen ↑7 | B8↑ MovingUp ↑9 ↓6 | C8↓ DoorsOpen ↓0
+     hall 8↓ -&gt; C
+     A opens at 2↑ (waited 1), rider presses 7
+     C opens at 8↓ (waited 0), rider presses 0
+t=5  A3↑ MovingUp ↑7 ↓3 | B9↑ DoorsOpen ↓6 | C7↓ MovingDown ↓0
+     hall 3↓ -&gt; A
+t=6  A4↑ MovingUp ↑7 ↓3 | B8↓ MovingDown ↓6 | C7· Maintenance
+     C to maintenance at 7
+t=7  A5↑ MovingUp ↑7 ↓3 | B7↓ MovingDown ↓6 | C7· Maintenance
+t=8  A6↑ MovingUp ↑7 ↓3 | B6↓ DoorsOpen ↓1 | C7· Maintenance
+     B opens at 6↓ (waited 6), rider presses 1
+t=9  A7↑ DoorsOpen ↓3 | B5↓ MovingDown ↓1 | C7· Maintenance
+t=10 A6↓ MovingDown ↓3 | B4↓ MovingDown ↓1 | C7· Maintenance
+t=11 A5↓ MovingDown ↓3 | B3↓ MovingDown ↓1 | C7· Maintenance
+t=12 A4↓ MovingDown ↓3 | B2↓ MovingDown ↓1 | C7· Maintenance
+t=13 A3↓ DoorsOpen ↓0 | B1↓ DoorsOpen | C7· Maintenance
+     A opens at 3↓ (waited 8), rider presses 0
+t=14 A2↓ MovingDown ↓0 | B1· Idle | C7· Maintenance
+t=15 A1↓ MovingDown ↓0 | B1· Idle | C7· Maintenance
+t=16 A0↓ DoorsOpen | B1· Idle | C7· Maintenance
+waits [1, 0, 6, 8]: mean 3.8 ticks, max 8
+== LookCost: floors 0-9, A@0 B@4 C@8 ==
+t=1  A0· Idle | B5↑ MovingUp ↑9 | C8· Idle
+t=2  A0· Idle | B6↑ MovingUp ↑9 | C7↓ MovingDown ↓6
+     hall 6↓ -&gt; C
+t=3  A1↑ MovingUp ↑2 | B7↑ MovingUp ↑9 | C6↓ DoorsOpen ↓1
+     hall 2↑ -&gt; A
+     C opens at 6↓ (waited 1), rider presses 1
+t=4  A2↑ DoorsOpen ↑7 | B8↑ MovingUp ↑9 ↓8 | C5↓ MovingDown ↓1
+     hall 8↓ -&gt; B
+     A opens at 2↑ (waited 1), rider presses 7
+t=5  A3↑ MovingUp ↑7 | B9↑ DoorsOpen ↓8 | C4↓ MovingDown ↓3 ↓1
+     hall 3↓ -&gt; C
+t=6  A4↑ MovingUp ↑7 | B8↓ DoorsOpen ↓3 ↓0 | C4· Maintenance
+     C to maintenance at 4
+     hall 3↓ -&gt; B
+     B opens at 8↓ (waited 2), rider presses 0
+t=7  A5↑ MovingUp ↑7 | B7↓ MovingDown ↓3 ↓0 | C4· Maintenance
+t=8  A6↑ MovingUp ↑7 | B6↓ MovingDown ↓3 ↓0 | C4· Maintenance
+t=9  A7↑ DoorsOpen | B5↓ MovingDown ↓3 ↓0 | C4· Maintenance
+t=10 A7· Idle | B4↓ MovingDown ↓3 ↓0 | C4· Maintenance
+t=11 A7· Idle | B3↓ DoorsOpen ↓0 | C4· Maintenance
+     B opens at 3↓ (waited 6), rider presses 0
+t=12 A7· Idle | B2↓ MovingDown ↓0 | C4· Maintenance
+t=13 A7· Idle | B1↓ MovingDown ↓0 | C4· Maintenance
+t=14 A7· Idle | B0↓ DoorsOpen | C4· Maintenance
+waits [1, 1, 2, 6]: mean 2.5 ticks, max 6
+8 threads, 40 riders: 40 boarded, 0 buttons still lit</pre>
+    <div class="aside"><p><b>Reading the output:</b> each <span class="mono">t=</span> line is every car after that tick: name and floor, the arrow, the state, then its up stops (↑) and down stops (↓). The indented lines are what happened during the tick. Same presses, two rules: NearestCar's waits are 1, 0, 6 and 8 ticks (mean 3.8); LookCost's are 1, 1, 2 and 6 (mean 2.5). The 6 under LookCost is the call that C had promised when it went into maintenance: B answers it, and its wait counts from the original press, not from the reassignment.</p></div>
+  </section>
+
+  <section class="panel article" id="concurrency" data-nav="Deep dive: concurrency" data-num="8a" data-time="4m">
+    <div class="step-head"><span class="step-num">8a</span><h2>Deep dive: the lit button nobody answers</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Suppose button threads write straight into a car's stop set. The control loop is clearing floor 7 (the car just arrived there) at the same moment a rider inside presses 9. Both read the set, change their own copy, and write it back. Step through it with no protection, a lock per car, and a command queue.</p>
+    <div id="raceViz"></div>
+    <h3>Ways to make it safe</h3>
+    <ul>
+      <li><b>A lock per car.</b> Every reader and writer of <span class="mono">up</span>, <span class="mono">down</span> and <span class="mono">halls</span> takes the car's lock. Correct, but the dispatcher has to read <i>every</i> car to compare costs, so it must take all the locks in a fixed order (A, then B, then C) or two dispatches can deadlock.</li>
+      <li><b>One writer, a queue for everyone else</b> (what the code does). Button threads only call <span class="mono">inbox.put</span>, which is thread-safe. The control loop is the only code that ever touches a car, so nothing inside a car needs a lock, and dispatch sees all cars in one consistent tick. The cost: a press waits at most one tick before it's applied.</li>
+      <li><b>The dispatcher's own race.</b> Even with locks, "compute costs, then add the stop" is two steps; a car can move between them and the cost is stale. In the single-loop design this can't happen, because no car moves while the inbox is being applied.</li>
+      <li><b>Duplicates.</b> Two people press "down at 6" on different threads. Both commands are queued; the first lights the button, the second finds <span class="mono">lit</span> already holds that call and does nothing. That check is safe only because one thread does it.</li>
+    </ul>
+    <div class="aside"><p><b>Real hardware agrees:</b> each car usually has its own controller running a fixed scan loop, and a group controller assigns hall calls. Buttons are inputs read once per scan, not callbacks that mutate state. A tick-based loop with a queue is the software version of that, and it's what lets the test above press 40 riders from 8 threads and get the same answer every time.</p></div>
+  </section>
+
+  <section class="panel article" id="extend" data-nav="Deep dive: extensibility" data-num="8b" data-time="3m">
+    <div class="step-head"><span class="step-num">8b</span><h2>Deep dive: new requirements</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Count which existing lines each request edits. Good seams keep most of them at zero.</p>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>New requirement</th><th>Add</th><th>Edit</th></tr></thead>
+      <tbody>
+        <tr><td>Morning rush: favour cars near the lobby</td><td class="mono">class LobbyBias(DispatchStrategy)</td><td class="mono okc">nothing (swap at 8 am)</td></tr>
+        <tr><td>Energy saving: don't wake an idle car if a moving one can come</td><td class="mono">a strategy adding a penalty for idle cars</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Fire recall: all cars to ground, doors open</td><td class="mono">class FireService(CarState)</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Park idle cars on busy floors</td><td class="mono">a listener that sends a CarCall on "Idle"</td><td class="mono okc">nothing</td></tr>
+        <tr><td>Express / VIP car serving floors 0 and 15–20 only</td><td class="mono">car.serves: set of floors</td><td class="mono warn">assign filters by can_serve(call)</td></tr>
+        <tr><td>Capacity: a full car passes hall calls</td><td class="mono">car.load, Door refuses to close if over</td><td class="mono warn">should_stop skips hall stops when full</td></tr>
+        <tr><td>Destination dispatch: riders key in a floor at the hall</td><td class="mono">DestinationCall, a grouping strategy</td><td class="mono warn">cost sees the destination too</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Destination dispatch is the honest stress test.</b> With up/down buttons the controller learns a direction and nothing else; with a keypad in the lobby it learns where each rider is going, and can put everyone bound for 14 to 17 into the same car. The car code survives (stops are still floors in two sets), but the strategy interface widens from <span class="mono">cost(car, call)</span> to something that sees the destination, and "one hall call" stops being the unit: two riders at the same floor going to different floors may get different cars. Say that out loud; it's a better answer than pretending the interface was perfect.</p>
+    <p><b>Starvation:</b> LOOK is fair by construction. A car reverses only when nothing is left ahead, so every stop is reached within at most two sweeps. A "nearest stop first" rule inside the car would be shorter on average and could leave the top floor waiting forever in a busy lobby.</p>
+  </section>
+
+  <section class="panel article" id="solid" data-nav="Deep dive: SOLID" data-num="8c" data-time="2m">
+    <div class="step-head"><span class="step-num">8c</span><h2>Deep dive: SOLID, and where to stop</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="qa">
+      <div><span class="q">Single responsibility</span><p>The controller picks a car, the strategy prices one, the car orders its stops, the state decides a tick. <span class="mono">Building</span> does a bit too much (queue, lit buttons, riders, maintenance); a <span class="mono">HallPanel</span> class for the lit buttons is the first thing to pull out if it grows.</p></div>
+      <div><span class="q">Open/closed</span><p>New dispatch rules, states and listeners are new classes (see 8b). Capacity and express cars edit the core, because they change what "can this car stop here" means.</p></div>
+      <div><span class="q">Liskov</span><p>Every strategy must return a cost for any car that accepts calls, never raise, and use the same unit (floors) so ties and comparisons mean something. Every state must leave the car in some state after <span class="mono">tick</span>.</p></div>
+      <div><span class="q">Interface segregation</span><p>Displays see events, not stop sets. Strategies read a car but never call <span class="mono">add_stop</span>. Button threads see only <span class="mono">press</span>.</p></div>
+      <div><span class="q">Dependency inversion</span><p>The controller depends on <span class="mono">DispatchStrategy</span>, the car on <span class="mono">CarState</span> and <span class="mono">CarListener</span>. Time is ticks driven from outside, so tests never sleep.</p></div>
+      <div><span class="q">Where to stop</span><p>No <span class="mono">Floor</span> class: a floor is an int until it has behaviour (say, a locked floor needing a badge). No <span class="mono">Passenger</span> in the core: riders are a demo helper; the system only ever sees buttons.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>The rider at floor 6, by hand</h2>
+    <p class="kicker">Cars start idle at A = 0, B = 4, C = 8. In tick 1 someone inside B presses 9, so B leaves for 9 and is at floor 5 going up. In tick 2 a rider at 6 presses down. These numbers match the Python output and the walkthrough.</p>
+    <ol class="steps">
+      <li><div><h3>NearestCar prices the call</h3><p>Distance only: A = |0 − 6| = 6, B = |5 − 6| = <b>1</b>, C = |8 − 6| = 2. B wins. It puts 6 in its <span class="mono">down</span> set, because the call is "down".</p></div></li>
+      <li><div><h3>B passes the rider</h3><p>Tick 3: B reaches 6 going up. <span class="mono">should_stop</span>: is 6 in <span class="mono">up</span>? No. Is 6 in <span class="mono">down</span> with nothing above? No, 9 is above. So B keeps going: 7, 8, and 9 at tick 5, doors open for its car call. It turns, and opens at 6 going down at tick 8. The rider waited <b>6 ticks</b> for a car that was one floor away.</p></div></li>
+      <li><div><h3>LookCost prices the same call</h3><p>A is idle: 6. C is idle: 2. B is moving up and the call is down, so B must finish its sweep first: up to its highest stop, 9, then back to 6: (9 − 5) + (9 − 6) = <b>7</b>. C wins with 2; it opens at 6 in tick 3: a wait of <b>1</b>.</p></div></li>
+      <li><div><h3>Tick 5: the rider at 3 going down</h3><p>Under LookCost, A (at 2, doors open, heading up to 7) costs (7 − 2) + (7 − 3) = 9; B (at 8, heading up to 9) costs (9 − 8) + (9 − 3) = 7; C (at 5, going down to 1) has 3 on its way: 5 − 3 = <b>2</b>. C takes it.</p></div></li>
+      <li><div><h3>Tick 6: C goes into maintenance</h3><p><span class="mono">set_service("C", False)</span> clears C's stops and hands back its promised call 3↓, keeping the original press time (tick 5). Re-priced: A at 3 heading up to 7 costs (7 − 3) + (7 − 3) = 8; B at 9 with doors open costs 0 + (9 − 3) = <b>6</b>. B answers at tick 11: wait 11 − 5 = <b>6</b>. Under NearestCar the same rider got A (distance 1 at tick 5), which first rode up to 7: wait 8.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A few state machines (the cars) fed by an assignment rule (the dispatcher), each serving its own set of stops in a sweep.</p></div>
+      <div><span class="q">Why it's hard</span><p>Not the movement. It's that the cheapest-looking assignment ignores where a car is already committed to go, and that buttons arrive from everywhere while cars change state.</p></div>
+      <div><span class="q">Key insight</span><p>Price a call by the path the car will really take (its sweep), and let exactly one loop change car state, with every press queued as a command.</p></div>
+      <div><span class="q">Same shape elsewhere</span><p>Disk-head scheduling (SCAN and LOOK come from there), ride-hailing dispatch, warehouse robots picking orders, and print queues across several printers.</p></div>
+    </div>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>SCAN or LOOK?</b> SCAN always runs to the last floor before turning; LOOK turns at the last stop. LOOK wastes fewer floors, and that's what <span class="mono">next_direction</span> does.</li>
+        <li><b>Re-assigning calls:</b> a better car may appear after assignment (another car becomes idle nearby). Re-run dispatch for unanswered calls each tick, but only move a call if it saves more than a margin, or the lamp's car keeps flipping.</li>
+        <li><b>Maintenance with riders inside:</b> here the car stops where it is. A gentler version finishes its car calls first, takes no new hall calls, and enters Maintenance when its stop sets are empty.</li>
+        <li><b>Door obstruction:</b> the door reports "blocked"; <span class="mono">DoorsOpen.tick</span> resets <span class="mono">left</span> instead of closing, with a limit after which it closes slowly and raises an alarm.</li>
+        <li><b>Measuring a strategy:</b> mean and worst wait (the demo prints both), time in car, and floors travelled (energy). Replay a recorded day of presses against each strategy: the command log makes that free.</li>
+        <li><b>A 60-floor tower:</b> split into zones served by different car groups, with sky lobbies. Each zone is this design; a rule maps a destination to a zone.</li>
+        <li><b>Testing:</b> because time is a tick you call, a test presses buttons, calls <span class="mono">step()</span> a fixed number of times and asserts exact floors and states.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Related on this site</h2>
+      <p>Strategy and Observer around shared inventory, a clock you control, and the lost-update race in other clothes.</p>
+      <div class="concepts">
+        <a href="lld-parking-lot.html">Design a Parking Lot</a>
+        <a href="lld-rate-limiter.html">Design a Rate Limiter (classes)</a>
+        <a href="../topics/distributed-lock.html">Contention and Distributed Locks</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Interview flow adapted from <a href="https://www.hellointerview.com/">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script src="../shared/stepper.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  $("zoomUml").addEventListener("click", e => {
+    const on = $("umlWrap").classList.toggle("zoomed");
+    e.target.setAttribute("aria-pressed", on); e.target.textContent = on ? "Fit to screen" : "Zoom in";
+    $("zoomHint").textContent = on ? "Scroll the diagram sideways to see the strategies, states and listeners on the right." : "The whole diagram, scaled to fit. Zoom in to read the members, then scroll sideways.";
+  });
+
+  // ================= the model: a line-for-line mirror of the Python classes =================
+  // note() adds plain-words lines to the "What ran" trace; it never changes the model.
+  const UP = 1, DOWN = -1, IDLE = 0, DWELL = 1;
+  const arrow = d => d === UP ? "↑" : d === DOWN ? "↓" : "·";
+  let TRACE = null;
+  const note = s => { if (TRACE) TRACE.push(s); };
+  const asc = (a, b) => a - b;
+
+  class HallCall {
+    constructor(floor, dir) { this.floor = floor; this.dir = dir; this.key = `${floor}${arrow(dir)}`; }
+    apply(b) { note(`apply <span class="hl">HallCall(${this.key})</span>`); b.dispatch(this); }
+    label() { return `HallCall(${this.key})`; }
+  }
+  class CarCall {
+    constructor(car, floor) { this.car = car; this.floor = floor; }
+    apply(b) {
+      const car = b.car(this.car);
+      if (car.state.acceptsCalls) { const now = car.addStop(this.floor); note(`apply <span class="hl">CarCall(${this.car}, ${this.floor})</span>: ${now ? "doors already open there, held open" : `${this.car}.add_stop(${this.floor}) → ${car.up.has(this.floor) ? "up" : "down"} set`}`); }
+      else note(`apply CarCall(${this.car}, ${this.floor}): ${this.car} is in maintenance, ignored`);
+    }
+    label() { return `CarCall(${this.car}, ${this.floor})`; }
+  }
+  class Rider {
+    constructor(src, dst) { this.src = src; this.dst = dst; }
+    apply(b) {
+      const call = new HallCall(this.src, this.dst > this.src ? UP : DOWN);
+      if (!b.riders.has(call.key)) b.riders.set(call.key, []);
+      b.riders.get(call.key).push(this.dst);
+      note(`apply <span class="hl">Rider(${this.src} → ${this.dst})</span>: presses ${call.key}`);
+      b.dispatch(call);
+    }
+    label() { return `Rider(${this.src} → ${this.dst})`; }
+  }
+  class SetService {
+    constructor(car, on) { this.car = car; this.on = on; }
+    apply(b) { note(`apply <span class="hl">SetService(${this.car}, ${this.on ? "on" : "off"})</span>`); b.setService(this.car, this.on); }
+    label() { return `SetService(${this.car}, ${this.on ? "on" : "off"})`; }
+  }
+  class Door { constructor() { this.isOpen = false; } open() { this.isOpen = true; } close() { this.isOpen = false; } }
+
+  // ---- State pattern
+  class Idle {
+    constructor() { this.name = "Idle"; this.acceptsCalls = true; }
+    tick(car) {
+      const here = car.floor;
+      if (car.up.has(here) || car.down.has(here)) {
+        car.direction = car.up.has(here) ? UP : DOWN;
+        car.arrive();
+      } else {
+        const d = car.nextDirection();
+        if (d !== IDLE) car.start(d);
+      }
+    }
+  }
+  class Moving {
+    constructor(step) { this.step = step; this.name = step > 0 ? "MovingUp" : "MovingDown"; this.acceptsCalls = true; }
+    tick(car) {
+      car.floor += this.step;
+      note(`${car.name} moves to ${car.floor}`);
+      car.notify("move");
+      if (car.shouldStop()) car.arrive();
+    }
+  }
+  class DoorsOpen {
+    constructor() { this.name = "DoorsOpen"; this.acceptsCalls = true; this.left = DWELL; }
+    tick(car) {
+      this.left -= 1;
+      if (this.left > 0) return;
+      car.door.close();
+      const d = car.nextDirection();
+      if (d === IDLE) { car.direction = IDLE; car.setState(new Idle()); }
+      else car.start(d);
+    }
+  }
+  class Maintenance { constructor() { this.name = "Maintenance"; this.acceptsCalls = false; } tick() {} }
+
+  class ElevatorCar {
+    constructor(name, floor) {
+      this.name = name; this.floor = floor; this.direction = IDLE;
+      this.up = new Set(); this.down = new Set();
+      this.halls = new Map();
+      this.door = new Door(); this.state = new Idle(); this.listeners = [];
+    }
+    subscribe(l) { this.listeners.push(l); }
+    notify(event, info = null) { this.listeners.forEach(l => l.onCarEvent(this, event, info)); }
+    setState(s) { const old = this.state.name; this.state = s; note(`${this.name}: ${old} → ${s.name}`); this.notify("state"); }
+    tick() { this.state.tick(this); }
+    start(d) { this.direction = d; this.setState(new Moving(d)); this.state.tick(this); }
+    stops() { return [...this.up, ...this.down]; }
+    above() { return this.stops().some(f => f > this.floor); }
+    below() { return this.stops().some(f => f < this.floor); }
+    nextDirection() {
+      if (this.direction === UP && this.above()) return UP;
+      if (this.direction === DOWN && this.below()) return DOWN;
+      return this.above() ? UP : this.below() ? DOWN : IDLE;
+    }
+    shouldStop() {
+      const f = this.floor;
+      if (this.direction === UP) return this.up.has(f) || (this.down.has(f) && !this.above());
+      return this.down.has(f) || (this.up.has(f) && !this.below());
+    }
+    addStop(floor, d = null) {
+      const here = floor === this.floor;
+      if (here && this.state instanceof DoorsOpen && (d === null || d === this.direction)) { this.state.left = DWELL; return true; }
+      if (d === null) d = here ? (this.direction === UP ? DOWN : UP) : (floor > this.floor ? UP : DOWN);
+      (d === UP ? this.up : this.down).add(floor);
+      return false;
+    }
+    arrive() {
+      const f = this.floor;
+      if (this.direction === UP) {
+        this.up.delete(f);
+        if (!this.above() && this.down.has(f)) { this.down.delete(f); this.direction = DOWN; }
+      } else {
+        this.down.delete(f);
+        if (!this.below() && this.up.has(f)) { this.up.delete(f); this.direction = UP; }
+      }
+      const served = [...this.halls.values()].filter(h => h.floor === f && !(h.dir === UP ? this.up : this.down).has(f));
+      served.forEach(h => this.halls.delete(h.key));
+      this.door.open();
+      note(`${this.name} arrives at ${f}: <span class="ok">doors open</span>${served.length ? `, answers ${served.map(h => h.key).join(", ")}` : ""}`);
+      this.setState(new DoorsOpen());
+      this.notify("open", served);
+    }
+    describe() {
+      const stops = [...[...this.up].sort(asc).map(f => "↑" + f), ...[...this.down].sort(asc).reverse().map(f => "↓" + f)];
+      return `${this.name}${this.floor}${arrow(this.direction)} ${[this.state.name, ...stops].join(" ")}`;
+    }
+  }
+
+  // ---- Strategy pattern
+  class NearestCar {
+    cost(car, call) { return Math.abs(car.floor - call.floor); }
+    why(car, call) { return `|${car.floor} − ${call.floor}| = ${this.cost(car, call)}`; }
+  }
+  class LookCost {
+    parts(car, call) {
+      if (car.direction === IDLE) return { kind: "idle", c: Math.abs(car.floor - call.floor) };
+      const s = car.direction;
+      const here = car.floor * s, f = call.floor * s;
+      const stops = car.stops().map(x => x * s);
+      const same = call.dir === car.direction;
+      if (same && (f > here || (f === here && car.state instanceof DoorsOpen))) return { kind: "way", c: f - here };
+      const top = Math.max(...stops, here, f);
+      if (!same) return { kind: "back", c: (top - here) + (top - f), top: top * s, a: top - here, b: top - f };
+      const low = Math.min(...stops, f);
+      return { kind: "loop", c: (top - here) + (top - low) + (f - low), top: top * s, low: low * s, a: top - here, b: top - low, d: f - low };
+    }
+    cost(car, call) { return this.parts(car, call).c; }
+    why(car, call) {
+      const p = this.parts(car, call);
+      if (p.kind === "idle") return `idle: |${car.floor} − ${call.floor}| = ${p.c}`;
+      if (p.kind === "way") return `on its way ${arrow(car.direction)}: ${p.c}`;
+      if (p.kind === "back") return `to ${p.top}, back to ${call.floor}: ${p.a} + ${p.b} = ${p.c}`;
+      return `to ${p.top}, to ${p.low}, to ${call.floor}: ${p.a} + ${p.b} + ${p.d} = ${p.c}`;
+    }
+  }
+  const STRATEGIES = { NearestCar, LookCost };
+
+  class ElevatorController {
+    constructor(cars, strategy) { this.cars = cars; this.strategy = strategy; }
+    assign(call) {
+      const ready = this.cars.filter(c => c.state.acceptsCalls);
+      if (!ready.length) return [null, false];
+      let car = null, best = Infinity;
+      ready.forEach(c => { const k = this.strategy.cost(c, call); if (k < best) { best = k; car = c; } });   // ties: first name
+      note(`controller.assign(${call.key}) with ${this.strategy.constructor.name}: ${ready.map(c => `${c.name} ${this.strategy.why(c, call)}`).join("; ")} → <span class="hl">${car.name}</span>`);
+      if (car.addStop(call.floor, call.dir)) return [car, true];
+      car.halls.set(call.key, call);
+      return [car, false];
+    }
+  }
+
+  // ---- Observer pattern
+  class LobbyDisplay {
+    constructor() { this.shown = new Map(); }
+    onCarEvent(car) { this.shown.set(car.name, `${car.floor}${arrow(car.direction)}`); }
+  }
+
+  class Building {
+    constructor(floors, cars, strategy) {
+      this.floors = floors; this.t = 0;
+      this.cars = Object.entries(cars).map(([n, f]) => new ElevatorCar(n, f));
+      this.controller = new ElevatorController(this.cars, strategy);
+      this.inbox = [];
+      this.lit = new Map(); this.riders = new Map(); this.pending = [];
+      this.waits = []; this.log = []; this.boarded = 0;
+      this.display = new LobbyDisplay();
+      this.cars.forEach(c => { c.subscribe(this); c.subscribe(this.display); });
+    }
+    car(name) { return this.cars.find(c => c.name === name); }
+    press(cmd) { this.inbox.push(cmd); }
+    dispatch(call, since = null) {
+      if (this.lit.has(call.key)) { note(`${call.key} is already lit: same call, nothing new`); return; }
+      this.lit.set(call.key, since === null ? this.t : since);
+      const [car, now] = this.controller.assign(call);
+      if (!car) { this.pending.push(call); note(`no car in service: ${call.key} queued`); return this.say(`hall ${call.key}: no car in service, queued`); }
+      this.say(`hall ${call.key} -> ${car.name}`);
+      if (now) this.served(car, [call]);
+    }
+    setService(name, on) {
+      const car = this.car(name);
+      let orphans;
+      if (!on) {
+        orphans = [...car.halls.values()].sort((a, b) => a.floor - b.floor || a.dir - b.dir);
+        car.halls = new Map(); car.up = new Set(); car.down = new Set();
+        car.direction = IDLE;
+        car.door.open(); car.setState(new Maintenance());
+        this.say(`${name} to maintenance at ${car.floor}`);
+      } else {
+        orphans = this.pending; this.pending = [];
+        car.door.close(); car.setState(new Idle());
+        this.say(`${name} back in service`);
+      }
+      if (orphans.length) note(`hand back to the dispatcher: ${orphans.map(c => c.key).join(", ")}`);
+      for (const call of orphans) { const t0 = this.lit.get(call.key); this.lit.delete(call.key); this.dispatch(call, t0); }
+    }
+    onCarEvent(car, event, info) { if (event === "open") this.served(car, info); }
+    served(car, calls) {
+      [...calls].sort((a, b) => a.dir - b.dir).forEach(call => {
+        const wait = this.t - this.lit.get(call.key); this.lit.delete(call.key);
+        this.waits.push(wait);
+        const riders = this.riders.get(call.key) || []; this.riders.delete(call.key);
+        riders.forEach(dst => car.addStop(dst));
+        this.boarded += riders.length;
+        this.say(`${car.name} opens at ${call.key} (waited ${wait})` + (riders.length ? `, rider presses ${riders.join(",")}` : ""));
+      });
+    }
+    say(text) { this.log.push(text); }
+    step() {
+      this.t += 1;
+      while (this.inbox.length) this.inbox.shift().apply(this);
+      this.cars.forEach(car => car.tick());
+    }
+    busy() { return this.lit.size > 0 || this.cars.some(c => c.up.size || c.down.size); }
+  }
+
+  // ================= the demo (same SCRIPT as the Python) =================
+  const SCRIPT = { 1: [new CarCall("B", 9)], 2: [new Rider(6, 1)], 3: [new Rider(2, 7)],
+                   4: [new Rider(8, 0)], 5: [new Rider(3, 0)], 6: [new SetService("C", false)] };
+  const LAST = 6, CARS = { A: 0, B: 4, C: 8 }, NAMES = Object.keys(CARS), FLOORS = 10;
+
+  let S;
+  function fresh() {
+    const name = $("selStrat").value;
+    const b = new Building(FLOORS, CARS, new STRATEGIES[name]());
+    return { b, name, script: $("chkScript").checked, history: [], lines: [`== ${name}: floors 0-9, A@0 B@4 C@8 ==`], trace: [], title: "New building: every car idle" };
+  }
+  function tickOnce() {
+    const b = S.b, t = b.t + 1;
+    if (S.script) (SCRIPT[t] || []).forEach(c => b.press(c));
+    const seen = b.log.length;
+    TRACE = [];
+    b.step();
+    S.trace = TRACE; TRACE = null;
+    S.lines.push(`t=${String(b.t).padEnd(2)} ` + b.cars.map(c => c.describe()).join(" | "));
+    b.log.slice(seen).forEach(l => S.lines.push("     " + l));
+    S.title = `What ran in tick ${b.t}`;
+  }
+  function replay(T, history) {
+    S = fresh(); S.history = history;
+    for (let k = 1; k <= T; k++) { history.filter(h => h.t === k).forEach(h => S.b.press(h.cmd)); tickOnce(); }
+    history.filter(h => h.t === T + 1).forEach(h => S.b.press(h.cmd));
+    render();
+  }
+  function done() { return S.b.t >= (S.script ? LAST : 0) && !S.b.busy() && !S.b.inbox.length; }
+  function userPress(cmd) {
+    S.b.press(cmd); S.history.push({ t: S.b.t + 1, cmd });
+    render();
+  }
+
+  // ---------- drawing (reads the model only) ----------
+  const ROW = 26, TOP = 36, rowY = f => TOP + (FLOORS - 1 - f) * ROW;
+  function drawShaft() {
+    const b = S.b;
+    let s = "";
+    for (let f = 0; f < FLOORS; f++) {
+      const y = rowY(f);
+      s += `<line x1="4" y1="${y + ROW}" x2="356" y2="${y + ROW}" stroke="var(--line)" stroke-width="1"/>`;
+      s += `<text x="13" y="${y + 17}" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">${f}</text>`;
+      [[UP, 34], [DOWN, 52]].forEach(([d, x]) => {
+        if ((d === UP && f === FLOORS - 1) || (d === DOWN && f === 0)) return;
+        const lit = b.lit.has(`${f}${arrow(d)}`), cy = y + 13;
+        const tri = d === UP ? `M${x - 6},${cy + 4} L${x},${cy - 5} L${x + 6},${cy + 4} z` : `M${x - 6},${cy - 4} L${x},${cy + 5} L${x + 6},${cy - 4} z`;
+        s += `<g class="lamp" data-f="${f}" data-d="${d}" role="button" tabindex="0" aria-label="Floor ${f} ${d === UP ? "up" : "down"} button${lit ? ", lit" : ""}"><rect x="${x - 9}" y="${y + 2}" width="18" height="${ROW - 4}" rx="3" fill="transparent" stroke="none"/><path d="${tri}" fill="${lit ? "var(--accent)" : "none"}" stroke="${lit ? "var(--accent)" : "var(--muted)"}" stroke-width="1.3"/></g>`;
+      });
+    }
+    b.cars.forEach((car, i) => {
+      const x0 = 66 + i * 98;
+      s += `<rect x="${x0}" y="4" width="90" height="24" rx="3" fill="var(--ink)"/>`;
+      s += `<text x="${x0 + 45}" y="21" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--paper)">${car.name} ${b.display.shown.get(car.name) || "–"}</text>`;
+      s += `<rect x="${x0}" y="${TOP}" width="90" height="${FLOORS * ROW}" fill="none" stroke="var(--line)" stroke-width="1.2"/>`;
+      for (let f = 0; f < FLOORS; f++) {
+        const u = car.up.has(f), dn = car.down.has(f);
+        if (u || dn) s += `<text x="${x0 + 80}" y="${rowY(f) + 17}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--accent)">${u && dn ? "↕" : u ? "↑" : "↓"}</text>`;
+      }
+      const y = rowY(car.floor) + 3, cx = x0 + 10, w = 54, h = ROW - 6, st = car.state.name;
+      if (st === "DoorsOpen") {
+        s += `<rect x="${cx}" y="${y}" width="${w / 2 - 9}" height="${h}" rx="2" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/><rect x="${cx + w / 2 + 9}" y="${y}" width="${w / 2 - 9}" height="${h}" rx="2" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/>`;
+        s += `<text x="${cx + w / 2}" y="${y + 14}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--ok)">${car.name}</text>`;
+      } else {
+        const fill = st === "Maintenance" ? "var(--amber-soft)" : st === "Idle" ? "var(--panel)" : "var(--accent-soft)";
+        const stroke = st === "Maintenance" ? "var(--amber)" : st === "Idle" ? "var(--ink)" : "var(--accent)";
+        s += `<rect x="${cx}" y="${y}" width="${w}" height="${h}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>`;
+        s += `<text x="${cx + w / 2}" y="${y + 14}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--ink)">${car.name} ${st === "Maintenance" ? "off" : arrow(car.direction)}</text>`;
+      }
+    });
+    $("shaft").innerHTML = s;
+  }
+  function render() {
+    const b = S.b;
+    drawShaft();
+    $("cards").innerHTML = b.cars.map(car => {
+      const list = xs => xs.length ? xs.join(", ") : "–";
+      return `<div class="ccard${car.state.name === "Maintenance" ? " off" : ""}"><h4>Car ${car.name} <span>· ${car.state.name}</span></h4>
+        <p>floor <b>${car.floor}</b> · dir <b>${arrow(car.direction)}</b> · door <b>${car.door.isOpen ? "open" : "shut"}</b></p>
+        <p>up <b>${list([...car.up].sort(asc))}</b> · down <b>${list([...car.down].sort(asc).reverse())}</b></p>
+        <p>promised <b>${list([...car.halls.keys()])}</b></p></div>`;
+    }).join("");
+    $("traceTitle").textContent = S.title;
+    $("trace").innerHTML = (S.trace.length ? S.trace : ["Nothing yet. Press Step to run tick " + (b.t + 1) + "."]).map(x => `<li>${x}</li>`).join("");
+    $("inbox").textContent = `inbox (applied at the start of tick ${b.t + 1}): ${b.inbox.length ? b.inbox.map(c => c.label()).join(", ") : "empty"}` + (S.script && SCRIPT[b.t + 1] ? ` + demo: ${SCRIPT[b.t + 1].map(c => c.label()).join(", ")}` : "");
+    const lit = [...b.lit.entries()].map(([k, t]) => `${k} since t=${t}`);
+    const mean = b.waits.length ? (b.waits.reduce((a, c) => a + c, 0) / b.waits.length).toFixed(1) : "–";
+    $("stats").textContent = `lit: ${lit.length ? lit.join(", ") : "none"} · waits [${b.waits.join(", ")}] mean ${mean} · boarded ${b.boarded}`;
+    const lines = S.lines.slice();
+    if (done() && S.script && !S.history.length && b.waits.length) lines.push(`waits [${b.waits.join(", ")}]: mean ${(b.waits.reduce((a, c) => a + c, 0) / b.waits.length).toFixed(1)} ticks, max ${Math.max(...b.waits)}`);
+    $("log").innerHTML = lines.map((l, k) => `<span${k === lines.length - 1 && k > 0 ? ' class="last"' : ""}>${esc(l)}</span>`).join("\n");
+    $("log").scrollTop = $("log").scrollHeight;
+    $("svcGrp").innerHTML = `<span class="lbl">Key switch</span>` + NAMES.map(n => {
+      const queued = b.inbox.filter(c => c instanceof SetService && c.car === n).pop();
+      const on = queued ? queued.on : b.car(n).state.name !== "Maintenance";
+      return `<button data-svc="${n}" aria-pressed="${!on}">${n}: ${on ? "in service" : "maintenance"}</button>`;
+    }).join("");
+  }
+
+  let timer = null;
+  function stopPlay() { clearInterval(timer); timer = null; $("bPlay").textContent = "Play"; }
+  $("bPlay").addEventListener("click", () => {
+    if (timer) return stopPlay();
+    if (done()) replay(0, []);
+    $("bPlay").textContent = "Pause";
+    timer = setInterval(() => { tickOnce(); render(); if (done()) stopPlay(); }, 800);
+  });
+  $("bStep").addEventListener("click", () => { stopPlay(); tickOnce(); render(); });
+  $("bReset").addEventListener("click", () => { stopPlay(); replay(0, []); });
+  $("selStrat").addEventListener("change", () => { stopPlay(); replay(S.b.t, S.history); });
+  $("chkScript").addEventListener("change", () => { stopPlay(); replay(0, []); });
+  const opts = sel => Array.from({ length: FLOORS }, (_, f) => `<option value="${f}"${f === sel ? " selected" : ""}>${f}</option>`).join("");
+  $("rSrc").innerHTML = opts(0); $("rDst").innerHTML = opts(5); $("cFloor").innerHTML = opts(3);
+  $("bRider").addEventListener("click", () => {
+    const a = +$("rSrc").value, d = +$("rDst").value;
+    if (a === d) { $("inbox").textContent = "A rider needs a different floor to go to."; return; }
+    userPress(new Rider(a, d));
+  });
+  $("bCarCall").addEventListener("click", () => userPress(new CarCall($("cCar").value, +$("cFloor").value)));
+  $("svcGrp").addEventListener("click", e => {
+    const btn = e.target.closest("[data-svc]"); if (!btn) return;
+    userPress(new SetService(btn.dataset.svc, btn.getAttribute("aria-pressed") === "true"));
+  });
+  function lampPress(g) { userPress(new HallCall(+g.dataset.f, +g.dataset.d)); }
+  $("shaft").addEventListener("click", e => { const g = e.target.closest(".lamp"); if (g) lampPress(g); });
+  $("shaft").addEventListener("keydown", e => { const g = e.target.closest(".lamp"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); lampPress(g); } });
+  window.addEventListener("resize", () => { if (S) render(); });
+  replay(0, []);
+
+  // ================= Deep dive: the lost car call =================
+  const RACE_CODE = [
+    "T1 control loop: car arrives at 7",
+    "  lock(car)  |  drain inbox       # lock / queue mode",
+    "  s = read(car.stops)",
+    "  s = s - {7}                     # 7 is served",
+    "  write(car.stops, s); unlock(car)",
+    "T2 button thread: rider presses 9",
+    "  lock(car)                       # lock mode",
+    "  s = read(car.stops)",
+    "  s = s | {9}",
+    "  write(car.stops, s); unlock(car)",
+    "  queue mode: inbox.put(CarCall(9)), done"
+  ];
+  const fmt = set => "{" + [...set].sort(asc).join(", ") + "}";
+  Stepper($("raceViz"), {
+    code: RACE_CODE,
+    inputs: [
+      { key: "s", label: "Schedule (which thread runs its next line)", value: "1 2 1 2 1 2" },
+      { key: "mode", label: "Protection (none / lock / queue)", value: "none" }
+    ],
+    presets: [
+      { label: "None, T2 writes last", values: { s: "1 2 1 2 1 2", mode: "none" } },
+      { label: "None, T1 writes last", values: { s: "2 1 2 1 2 1", mode: "none" } },
+      { label: "Lock per car", values: { s: "1 2 1 2 1 2", mode: "lock" } },
+      { label: "Command queue", values: { s: "1 2 1 2 1 2", mode: "queue" } }
+    ],
+    build({ s, mode }) {
+      const toks = s.split(/[\s,]+/).filter(Boolean).map(t => t.toUpperCase().replace(/^T/, ""));
+      if (!toks.length || toks.some(t => t !== "1" && t !== "2")) return { error: "The schedule is a list of 1 and 2, for example: 1 2 1 2." };
+      if (toks.length > 24) return { error: "Use at most 24 steps." };
+      const M = mode.trim().toLowerCase();
+      if (!["none", "lock", "queue"].includes(M)) return { error: "Protection must be none, lock or queue." };
+      let stops = new Set([7]), holder = null;
+      const inbox = [];
+      const th = { "1": { pc: M === "none" ? 2 : 1, s: null, done: false }, "2": { pc: M === "queue" ? 10 : M === "lock" ? 6 : 7, s: null, done: false } };
+      const frames = [];
+      const snap = (line, msg, moved) => frames.push({ line, msg, moved, stops: fmt(stops), inbox: inbox.map(x => `CarCall(${x})`).join(", ") || "empty", th: { "1": { ...th["1"], s: th["1"].s && fmt(th["1"].s) }, "2": { ...th["2"], s: th["2"].s && fmt(th["2"].s) } },
+        vars: { "car.stops": fmt(stops), "T1.s": th["1"].s ? fmt(th["1"].s) : "–", "T2.s": th["2"].s ? fmt(th["2"].s) : "–", lock: M === "lock" ? (holder ? "T" + holder : "free") : "–", inbox: inbox.length ? inbox.join(", ") : "–" } });
+      snap(0, `The car is pulling into floor 7, so <span class="mono">car.stops = {7}</span>. At the same moment a rider inside presses 9. The right answer afterwards is <b>{9}</b>. Protection: <b>${M}</b>.`, null);
+      function run(n) {
+        const me = th[n];
+        if (me.done) return;
+        const line = me.pc;
+        if (n === "1") {
+          if (line === 1 && M === "lock") {
+            if (holder && holder !== n) { snap(1, `T1 wants the car's lock, but T${holder} holds it: T1 <b>waits</b>.`, n); return; }
+            holder = n; me.pc = 2; snap(1, `T1 takes the car's lock.`, n); return;
+          }
+          if (line === 1) { const got = inbox.splice(0); got.forEach(f => stops.add(f)); me.pc = 2; snap(1, got.length ? `T1 drains the inbox and applies CarCall(9): stops = ${fmt(stops)}.` : `T1 drains the inbox: it is empty for now.`, n); return; }
+          if (line === 2) { me.s = new Set(stops); me.pc = 3; snap(2, `T1 reads stops = <b>${fmt(me.s)}</b>.`, n); return; }
+          if (line === 3) { me.s.delete(7); me.pc = 4; snap(3, `T1 removes 7 from its own copy: ${fmt(me.s)}.`, n); return; }
+          if (line === 4) { stops = new Set(me.s); if (holder === n) holder = null; me.done = true; snap(4, `T1 writes stops = <b>${fmt(stops)}</b>${M === "lock" ? " and releases the lock" : ""}.`, n); return; }
+        } else {
+          if (line === 10) { inbox.push(9); me.done = true; snap(10, `T2 puts CarCall(9) on the inbox and returns. It never touches the car.`, n); return; }
+          if (line === 6) {
+            if (holder && holder !== n) { snap(6, `T2 wants the car's lock, but T${holder} holds it: T2 <b>waits</b>.`, n); return; }
+            holder = n; me.pc = 7; snap(6, `T2 takes the car's lock.`, n); return;
+          }
+          if (line === 7) { me.s = new Set(stops); me.pc = 8; snap(7, `T2 reads stops = <b>${fmt(me.s)}</b>.`, n); return; }
+          if (line === 8) { me.s.add(9); me.pc = 9; snap(8, `T2 adds 9 to its own copy: ${fmt(me.s)}.`, n); return; }
+          if (line === 9) { stops = new Set(me.s); if (holder === n) holder = null; me.done = true; snap(9, `T2 writes stops = <b>${fmt(stops)}</b>${M === "lock" ? " and releases the lock" : ""}.`, n); return; }
+        }
+      }
+      toks.forEach(run);
+      let guard = 0, turn = "1";
+      while ((!th["1"].done || !th["2"].done) && guard++ < 60) { run(turn); turn = turn === "1" ? "2" : "1"; }
+      if (inbox.length) { inbox.splice(0).forEach(f => stops.add(f)); snap(1, `Next tick: the loop drains the inbox and applies CarCall(9): stops = ${fmt(stops)}.`, "1"); }
+      const last = frames[frames.length - 1], has9 = stops.has(9), has7 = stops.has(7);
+      last.bad = !has9 || has7;
+      last.msg += !has9 ? ` Result: <b class="bad">stops = ${fmt(stops)}</b>. Button 9 is lit, and the car will never go there: T1 wrote back a copy read before 9 was added.`
+        : has7 ? ` Result: <b class="bad">stops = ${fmt(stops)}</b>. 9 survived, but 7 came back: T2 wrote a copy read before 7 was cleared, so the car will stop at 7 again for nobody.`
+        : ` Result: <b class="ok">stops = {9}</b>. ${M === "lock" ? "The lock made each read-change-write one step." : M === "queue" ? "Only the loop ever writes the set, so there is nothing to interleave." : "Lucky timing: one thread finished before the other read."}`;
+      return { frames };
+    },
+    draw(f) {
+      const card = n => { const t = f.th[n]; return `<div class="${f.moved === n ? "moved" : ""}"><b>${n === "1" ? "T1 · control loop" : "T2 · button"}</b><span>${t.done ? "finished" : "next: line " + (t.pc + 1)}</span><span>its copy: ${t.s || "–"}</span></div>`; };
+      return `<div class="race-th">${card("1")}${card("2")}</div>
+        <div class="race-store ${f.bad === true ? "bad" : f.bad === false ? "ok" : ""}">car.stops = ${f.stops} · inbox: ${f.inbox}</div>`;
+    }
+  });
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

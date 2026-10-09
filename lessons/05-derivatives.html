@@ -111,6 +111,11 @@
   .mathneed .tag { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); }
   .mathneed ul { margin: 0; padding-left: 1.1rem; } .mathneed li { margin: .1rem 0; }
   .mathneed p { margin: 0; color: var(--muted); font-size: .9rem; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -375,9 +380,9 @@ for step in range(5):
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. Use the power rule to find the derivative of <code>f(x) = x³</code> at <code>x = 2</code>. Then check it numerically with <code>h = 0.01</code>.</p><summary>Show answer</summary><p class="a"><code>f′(x) = 3x²</code>, so <code>f′(2) = 12</code>. Numerically: <code>2.01³ = 8.120601</code>, so <code>(8.120601 − 8) / 0.01 = 12.0601</code>, close to 12, off by a little leftover gap.</p></details>
-<details><p class="q">2. A flat has <code>x = 4</code>, <code>y = 12</code>, so <code>L(w) = (4w − 12)² = 16w² − 96w + 144</code>. What is <code>L′(1)</code>, which way should <code>w</code> move, and where is the slope zero?</p><summary>Show answer</summary><p class="a"><code>L′(w) = 32w − 96</code>, so <code>L′(1) = −64</code>. Negative means increasing <code>w</code> lowers the loss, so move <code>w</code> up. The slope is zero at <code>w = 3</code>, where the guess <code>4 × 3 = 12</code> matches the rent exactly.</p></details>
-<details><p class="q">3. At some setting, <code>∂L/∂w = 10</code> and <code>∂L/∂b = −2</code>. Which way should each knob move, and which one matters more right now?</p><summary>Show answer</summary><p class="a">Move against each slope: <code>w</code> down (its slope is positive), <code>b</code> up (its slope is negative). The loss is five times more sensitive to <code>w</code> here, so a nudge to <code>w</code> changes it more. The gradient is <code>[10, −2]</code>; downhill is <code>[−10, 2]</code>.</p></details>
+<details><summary><span class="q">1. Use the power rule to find the derivative of <code>f(x) = x³</code> at <code>x = 2</code>. Then check it numerically with <code>h = 0.01</code>.</span><span class="sa">Show answer</span></summary><p class="a"><code>f′(x) = 3x²</code>, so <code>f′(2) = 12</code>. Numerically: <code>2.01³ = 8.120601</code>, so <code>(8.120601 − 8) / 0.01 = 12.0601</code>, close to 12, off by a little leftover gap.</p></details>
+<details><summary><span class="q">2. A flat has <code>x = 4</code>, <code>y = 12</code>, so <code>L(w) = (4w − 12)² = 16w² − 96w + 144</code>. What is <code>L′(1)</code>, which way should <code>w</code> move, and where is the slope zero?</span><span class="sa">Show answer</span></summary><p class="a"><code>L′(w) = 32w − 96</code>, so <code>L′(1) = −64</code>. Negative means increasing <code>w</code> lowers the loss, so move <code>w</code> up. The slope is zero at <code>w = 3</code>, where the guess <code>4 × 3 = 12</code> matches the rent exactly.</p></details>
+<details><summary><span class="q">3. At some setting, <code>∂L/∂w = 10</code> and <code>∂L/∂b = −2</code>. Which way should each knob move, and which one matters more right now?</span><span class="sa">Show answer</span></summary><p class="a">Move against each slope: <code>w</code> down (its slope is positive), <code>b</code> up (its slope is negative). The loss is five times more sensitive to <code>w</code> here, so a nudge to <code>w</code> changes it more. The gradient is <code>[10, −2]</code>; downhill is <code>[−10, 2]</code>.</p></details>
 </section>
 
 <section data-step="Wrap-up">

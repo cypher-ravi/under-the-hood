@@ -103,6 +103,11 @@
   .mathneed .tag { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); }
   .mathneed ul { margin: 0; padding-left: 1.1rem; } .mathneed li { margin: .1rem 0; }
   .mathneed p { margin: 0; color: var(--muted); font-size: .9rem; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -406,9 +411,9 @@ print(sum(f * (1 / 6) for f in range(1, 7)))    <span class="c"># 3.5    fair di
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. Roll a fair die once. What is the probability of rolling 5 or more? What about less than 5?</p><summary>Show answer</summary><p class="a">"5 or more" is {5, 6}, 2 of 6 outcomes, so <code>2/6 = 1/3 ≈ 0.333</code>. "Less than 5" is its complement: <code>1 − 1/3 = 2/3 ≈ 0.667</code>. Counting {1, 2, 3, 4} gives the same 4/6.</p></details>
-<details><p class="q">2. In the 20-email inbox, what is P(spam | unknown sender)? And P(unknown sender | spam)?</p><summary>Show answer</summary><p class="a">There are 10 unknown senders (5 spam + 5 ok), so <code>P(spam | unknown) = 5/10 = 0.5</code>. All 5 spam emails came from unknown senders, so <code>P(unknown | spam) = 5/5 = 1</code>. Same top count, different wholes, very different answers. Check both in the inbox lab.</p></details>
-<details><p class="q">3. The number of spam emails arriving in a minute is 0 with probability 0.5, 1 with probability 0.3 and 2 with probability 0.2. Is this a valid distribution, and what is the expected number per minute?</p><summary>Show answer</summary><p class="a">Valid: every probability is between 0 and 1, and <code>0.5 + 0.3 + 0.2 = 1</code>. <code>E[X] = 0×0.5 + 1×0.3 + 2×0.2 = 0.7</code> spam emails per minute, about 42 an hour. You will never get 0.7 in one minute; it is the long-run average.</p></details>
+<details><summary><span class="q">1. Roll a fair die once. What is the probability of rolling 5 or more? What about less than 5?</span><span class="sa">Show answer</span></summary><p class="a">"5 or more" is {5, 6}, 2 of 6 outcomes, so <code>2/6 = 1/3 ≈ 0.333</code>. "Less than 5" is its complement: <code>1 − 1/3 = 2/3 ≈ 0.667</code>. Counting {1, 2, 3, 4} gives the same 4/6.</p></details>
+<details><summary><span class="q">2. In the 20-email inbox, what is P(spam | unknown sender)? And P(unknown sender | spam)?</span><span class="sa">Show answer</span></summary><p class="a">There are 10 unknown senders (5 spam + 5 ok), so <code>P(spam | unknown) = 5/10 = 0.5</code>. All 5 spam emails came from unknown senders, so <code>P(unknown | spam) = 5/5 = 1</code>. Same top count, different wholes, very different answers. Check both in the inbox lab.</p></details>
+<details><summary><span class="q">3. The number of spam emails arriving in a minute is 0 with probability 0.5, 1 with probability 0.3 and 2 with probability 0.2. Is this a valid distribution, and what is the expected number per minute?</span><span class="sa">Show answer</span></summary><p class="a">Valid: every probability is between 0 and 1, and <code>0.5 + 0.3 + 0.2 = 1</code>. <code>E[X] = 0×0.5 + 1×0.3 + 2×0.2 = 0.7</code> spam emails per minute, about 42 an hour. You will never get 0.7 in one minute; it is the long-run average.</p></details>
 </section>
 
 <section data-step="Wrap-up">

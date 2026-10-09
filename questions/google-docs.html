@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Google Docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  #arch { width: 100%; height: auto; display: block; }
+  .hld { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .hld { grid-template-columns: minmax(0, 1fr); } }
+  .traffic { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .cost { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+  .cost div { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; display: grid; gap: 2px; background: var(--panel); }
+  .cost b { font: 600 1.05rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .cost span { font-size: 12px; color: var(--muted); }
+  .board { display: grid; gap: 6px; margin-top: 10px; }
+  .replica { font: 500 13px/1.4 var(--body); padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: grid; gap: 3px; min-width: 0; }
+  .replica .hd { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .replica .t { font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .replica .txt { font: 500 12px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+  .replica.same { border-color: var(--ok); }
+  .replica.diff { border-color: var(--bad); }
+  .replica.diff .t { color: var(--bad); }
+  .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .wctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 24px; align-items: end; }
+  .wctl .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chart { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .keys { display: flex; flex-wrap: wrap; gap: 14px; font: 500 12px/1.4 var(--mono); color: var(--muted); }
+  .keys i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .tin { font: 500 14px/1 var(--mono); padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; box-sizing: border-box; }
+  .tin:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .formula { font: 500 13px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; white-space: pre; margin: 0; }
+  ul.dn { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+  .doctext { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-wrap: anywhere; min-height: 3.2em; }
+  .doctext mark { background: var(--accent-soft); color: var(--ink); border-radius: 3px; }
+  table.data td.y { color: var(--ok); font-weight: 600; }
+  table.data td.n { color: var(--bad); font-weight: 600; }
+  table.data td.a { color: var(--amber); font-weight: 600; }
+  table.data td.txtcell { font-family: var(--mono); overflow-wrap: anywhere; white-space: normal; min-width: 120px; }
+  table.data tr.cur td { background: var(--accent-soft); }
+  table.wrapcells td { white-space: normal; min-width: 120px; vertical-align: top; }
+</style>
+</head>
+<body>
+<div class="qlayout">
+<aside class="qnav" id="qnav" data-current="google-docs" aria-label="Question navigation"></aside>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../#questions">← All questions</a>
+    <span class="eyebrow">Design question</span>
+  </div>
+
+  <header class="intro">
+    <h1>Design Google Docs</h1>
+    <p class="lede">Several people type into the same document at the same moment, each sees the others' changes within a fraction of a second, nobody's typing ever waits for the network, and every copy ends up with exactly the same text. Saving a file is easy. The design question is how edits made at the same time on different machines get merged into one agreed order, and how to run that for millions of open documents without losing a keystroke.</p>
+    <p class="sources">Step order and timings follow Hello Interview's delivery framework. The breakdown on this page is our own.</p>
+  </header>
+
+  <section class="panel article" id="requirements" data-nav="Requirements" data-num="1" data-time="5m">
+    <div class="step-head"><span class="step-num">1</span><h2>Requirements</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Scope it to the text editor: one rich-text document edited by many people. Spreadsheets, slides, search across documents and the file browser are separate systems.</p>
+    <div class="req-grid">
+      <div>
+        <h3>Functional: users should be able to</h3>
+        <ul>
+          <li>Create a document and share it with others as editor or viewer.</li>
+          <li>Edit it together in real time: everyone sees everyone's changes, in the same final order.</li>
+          <li>See who else is in the document and where their cursors are.</li>
+          <li>Keep typing while offline and have the edits merged on reconnect.</li>
+          <li>Browse the document's history and restore an older version.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Non-functional: the system should</h3>
+        <ul>
+          <li>Show a local keystroke instantly and a remote one within about 100–200 ms.</li>
+          <li>Converge: once edits stop, every copy holds identical text.</li>
+          <li>Never lose an edit the server has acknowledged.</li>
+          <li>Scale to millions of documents open at once, with up to about 100 people in one document.</li>
+          <li>Stay available: a crashed server costs a reconnect, not data.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="aside"><p><b>First principles:</b> "real time" here does not mean "fast database writes". It means every replica applies the same set of edits, and edits made at the same moment on different copies must be adjusted so they mean what their authors intended. The whole design is about agreeing on an order for those edits, cheaply, for each document.</p></div>
+  </section>
+
+  <section class="panel article" id="entities" data-nav="Core entities" data-num="2" data-time="2m">
+    <div class="step-head"><span class="step-num">2</span><h2>Core entities</h2><span class="step-time">about 2 minutes</span></div>
+    <div class="entity-row">
+      <div class="entity"><h3>Document</h3><code>doc_id, title, owner_id
+created_at, latest_rev
+latest_snapshot_rev</code></div>
+      <div class="entity"><h3>Operation</h3><code>doc_id, rev (its place in the order)
+author_id, base_rev
+insert(pos, text) | delete(pos, len)
+| format(range, style)</code></div>
+      <div class="entity"><h3>Snapshot</h3><code>doc_id, rev
+full content at that rev
+(blob, rebuilt from ops)</code></div>
+      <div class="entity"><h3>Permission</h3><code>doc_id, user_id
+role: owner | editor | viewer</code></div>
+      <div class="entity"><h3>Session / presence</h3><code>user_id, doc_id, color
+cursor (rev, pos), selection
+last_seen (memory only)</code></div>
+    </div>
+    <p>The operation is the heart of it. The document text is never the source of truth on its own: it is whatever you get by applying operations 1 to N, in order, to an empty page. A snapshot is a saved shortcut to that result.</p>
+  </section>
+
+  <section class="panel article" id="api" data-nav="API" data-num="3" data-time="5m">
+    <div class="step-head"><span class="step-num">3</span><h2>API</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Ordinary requests for documents and sharing; one long-lived WebSocket per open document for the edits themselves.</p>
+<pre class="api"><span class="verb">POST</span>   /docs  { title }                      → { doc_id }
+<span class="verb">GET</span>    /docs/{id}                         → { snapshot, rev, ops_since_snapshot }
+<span class="verb">POST</span>   /docs/{id}/share { user, role }    → 200
+<span class="verb">GET</span>    /docs/{id}/revisions?before=rev    → [ { rev, author, time } ]
+
+<span class="c">// WebSocket  wss://.../docs/{id}/live   (routed to the doc's owner server)</span>
+<span class="c">// client → server</span>
+{ type: "op",     base_rev: 1203, op: { insert: "red ", at: 4 } }
+{ type: "cursor", rev: 1203, pos: 17, sel_end: 17 }
+<span class="c">// server → client</span>
+{ type: "ack",    rev: 1204 }                        <span class="c">// your op is now #1204</span>
+{ type: "op",     rev: 1205, author: "ben", op: {...} } <span class="c">// someone else's</span>
+{ type: "presence", user: "ben", pos: 9, color: "#..." }</pre>
+    <div class="aside"><p><b>Why carry <span class="mono">base_rev</span>?</b> It says which version of the document the author was looking at when they typed. The server compares it with its own latest revision: if anything was committed in between, the operation is adjusted against those changes before it is stored. Without it the server could not tell a fresh edit from a stale one.</p></div>
+  </section>
+
+  <section class="panel article" id="design" data-nav="High-level design" data-num="4" data-time="13m">
+    <div class="step-head"><span class="step-num">4</span><h2>High-level design, then evolve it</h2><span class="step-time">10–15 minutes, plus deep dives</span></div>
+    <p class="kicker" id="hldKicker"></p>
+    <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+    <div class="hld">
+      <div>
+        <div class="traffic">
+          <button class="primary" id="send">Type for 1 s</button>
+          <button id="kill">Kill the doc server</button>
+          <button id="reset">Reset</button>
+        </div>
+        <svg id="arch" viewBox="0 0 660 400" role="img" aria-label="Collaborative editing architecture with animated operations"></svg>
+        <div class="cost" id="cost"></div>
+        <p class="note" id="simNote" aria-live="polite"></p>
+        <div class="board" id="board"></div>
+      </div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="ot" data-nav="Deep dive: OT vs CRDT" data-num="5a" data-time="5m">
+    <div class="step-head"><span class="step-num">5a</span><h2>Deep dive: OT or CRDT, and why one server per document</h2><span class="step-time">about 5 minutes</span></div>
+    <p class="kicker">Two people edit the same text at the same moment. Each applies their own change first and the other's second. If the second change is applied with its original position, the copies disagree. Operational transformation (OT) shifts the incoming change past the one already applied. Try it.</p>
+    <div class="wctl">
+      <label class="field" for="otBase"><span class="row"><span>Starting text</span></span><input class="tin" id="otBase" value="the cat sat" spellcheck="false"></label>
+      <label class="field" for="otAtext"><span class="row"><span>Ana inserts</span></span><input class="tin" id="otAtext" value="fat " spellcheck="false"></label>
+      <label class="field" for="otApos"><span class="row"><span>…at position</span><b class="mono num" id="otAposOut"></b></span><input type="range" id="otApos" min="0" max="11" step="1" value="4"></label>
+    </div>
+    <div class="modes" id="otModes" role="group" aria-label="Ben's edit"></div>
+    <div class="wctl">
+      <label class="field" for="otBpos"><span class="row"><span id="otBlabel">Ben deletes the character at</span><b class="mono num" id="otBposOut"></b></span><input type="range" id="otBpos" min="0" max="10" step="1" value="8"></label>
+      <label class="field" for="otBtext" id="otBtextWrap"><span class="row"><span>Ben inserts</span></span><input class="tin" id="otBtext" value="big " spellcheck="false"></label>
+    </div>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Screen</th><th>Order applied</th><th>Without OT</th><th>With OT</th></tr></thead>
+      <tbody id="otTable"></tbody>
+    </table></div>
+    <ul class="dn" id="otNotes"></ul>
+    <h3 style="margin-top:6px">OT or CRDT?</h3>
+    <div class="table-wrap"><table class="data wrapcells">
+      <thead><tr><th></th><th>OT with a central server</th><th>CRDT</th></tr></thead>
+      <tbody>
+        <tr><td><b>How it agrees</b></td><td>The server picks one order; incoming ops are shifted past ops committed since their base revision.</td><td>Every character gets a unique, ordered id, so concurrent inserts and deletes commute and can be applied in any order.</td></tr>
+        <tr><td><b>Needs a server?</b></td><td>Yes, one ordering point per document.</td><td>No; peers can merge directly (good for offline and peer-to-peer).</td></tr>
+        <tr><td><b>Extra state</b></td><td>Text plus a revision counter; old ops can be compacted.</td><td>An id per character, and deleted characters kept as tombstones until it is safe to drop them.</td></tr>
+        <tr><td><b>Hard part</b></td><td>Writing transform functions that are correct for every pair of op types (text, formatting, tables).</td><td>Memory and metadata size; interleaving of concurrent runs of text in some algorithms.</td></tr>
+        <tr><td><b>Used by</b></td><td>Google Docs (Jupiter-style protocol), Etherpad.</td><td>Yjs- and Automerge-based editors, Apple Notes sync.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="calc">
+      <label class="field" for="crChars"><span class="row"><span>Characters in the document</span><b class="mono num" id="crCharsOut"></b></span><input type="range" id="crChars" min="3" max="6.5" step="0.1" value="4.7"></label>
+      <label class="field" for="crDead"><span class="row"><span>Deleted characters, as a share of live ones</span><b class="mono num" id="crDeadOut"></b></span><input type="range" id="crDead" min="0" max="5" step="0.1" value="1"></label>
+      <label class="field" for="crId"><span class="row"><span>Bytes of id per character (naive)</span><b class="mono num" id="crIdOut"></b></span><input type="range" id="crId" min="4" max="40" step="2" value="16"></label>
+    </div>
+    <div class="results" id="crResults"></div>
+    <div class="aside"><p><b>Why a single owner per document either way:</b> with OT the server <i>is</i> the ordering point, so all editors of a document must talk to the same process. With a CRDT the merge would work without one, but a server per document is still the simplest place to persist ops, check permissions and fan out changes. Interviewers accept either; pick OT with a central server and say why.</p></div>
+  </section>
+
+  <section class="panel article" id="scale" data-nav="Deep dive: connections" data-num="5b" data-time="4m">
+    <div class="step-head"><span class="step-num">5b</span><h2>Deep dive: millions of WebSockets, one owner per document</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Each open editor holds one WebSocket, and every editor of a document must reach the server that owns it. Size the fleet by connections, then route by document id on a consistent-hash ring.</p>
+    <div class="calc">
+      <label class="field" for="kUsers"><span class="row"><span>People who edit in a day</span><b class="mono num" id="kUsersOut"></b></span><input type="range" id="kUsers" min="6" max="9" step="0.1" value="8"></label>
+      <label class="field" for="kConc"><span class="row"><span>Share connected at the peak</span><b class="mono num" id="kConcOut"></b></span><input type="range" id="kConc" min="0.01" max="0.3" step="0.01" value="0.05"></label>
+      <label class="field" for="kConn"><span class="row"><span>WebSockets one server holds</span><b class="mono num" id="kConnOut"></b></span><input type="range" id="kConn" min="10000" max="200000" step="5000" value="50000"></label>
+      <label class="field" for="kOps"><span class="row"><span>Ops per second per connected editor</span><b class="mono num" id="kOpsOut"></b></span><input type="range" id="kOps" min="0.1" max="5" step="0.1" value="0.5"></label>
+      <label class="field" for="kPer"><span class="row"><span>Editors per open document (average)</span><b class="mono num" id="kPerOut"></b></span><input type="range" id="kPer" min="1" max="10" step="0.1" value="1.5"></label>
+      <label class="field" for="kHot"><span class="row"><span>Editors in the busiest document</span><b class="mono num" id="kHotOut"></b></span><input type="range" id="kHot" min="2" max="200" step="1" value="50"></label>
+    </div>
+    <div class="results" id="kResults"></div>
+    <pre class="formula" id="kFormula"></pre>
+    <ul class="dn" id="kNotes"></ul>
+    <h3 style="margin-top:6px">Adding a server: what moves?</h3>
+    <p id="ringIntro"></p>
+    <div class="results" id="ringResults"></div>
+  </section>
+
+  <section class="panel article" id="storage" data-nav="Deep dive: op log and snapshots" data-num="5c" data-time="4m">
+    <div class="step-head"><span class="step-num">5c</span><h2>Deep dive: an op log, snapshots and compaction</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">The op log is append-only and partitioned by document id, so it writes fast and keeps each document's order. Opening a document should not replay its whole life, so a worker periodically folds the log into a snapshot. The snapshot interval trades storage writes against how long an open takes.</p>
+    <div class="calc">
+      <label class="field" for="sDocs"><span class="row"><span>Documents edited per day</span><b class="mono num" id="sDocsOut"></b></span><input type="range" id="sDocs" min="5" max="9" step="0.1" value="7.7"></label>
+      <label class="field" for="sOps"><span class="row"><span>Ops per edited document per day</span><b class="mono num" id="sOpsOut"></b></span><input type="range" id="sOps" min="50" max="20000" step="50" value="1000"></label>
+      <label class="field" for="sOpB"><span class="row"><span>Bytes per stored op</span><b class="mono num" id="sOpBOut"></b></span><input type="range" id="sOpB" min="20" max="200" step="5" value="60"></label>
+      <label class="field" for="sDocKB"><span class="row"><span>Average document size</span><b class="mono num" id="sDocKBOut"></b></span><input type="range" id="sDocKB" min="2" max="500" step="1" value="30"></label>
+      <label class="field" for="sK"><span class="row"><span>Snapshot every N ops</span><b class="mono num" id="sKOut"></b></span><input type="range" id="sK" min="1" max="4" step="0.05" value="2.7"></label>
+      <label class="field" for="sRep"><span class="row"><span>Cost to read and replay one op</span><b class="mono num" id="sRepOut"></b></span><input type="range" id="sRep" min="1" max="100" step="1" value="20"></label>
+    </div>
+    <svg class="chart" id="sChart" viewBox="0 0 720 220" role="img" aria-label="Snapshot writes and open time against the snapshot interval"></svg>
+    <div class="keys"><span><i style="background:var(--accent)"></i>snapshot bytes written per day</span><span><i style="background:var(--amber)"></i>worst-case replay when opening</span></div>
+    <div class="results" id="sResults"></div>
+    <pre class="formula" id="sFormula"></pre>
+    <ul class="dn" id="sNotes"></ul>
+  </section>
+
+  <section class="panel article" id="presence" data-nav="Deep dive: presence and cursors" data-num="5d" data-time="3m">
+    <div class="step-head"><span class="step-num">5d</span><h2>Deep dive: presence and cursors</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker">Cursors move far more often than text changes, and an old cursor position is worthless. So presence is kept apart from edits: held in the doc server's memory, never written to the op log, sent at most every few tens of milliseconds, and dropped when a heartbeat stops.</p>
+    <div class="calc">
+      <label class="field" for="pN"><span class="row"><span>Editors in the document</span><b class="mono num" id="pNOut"></b></span><input type="range" id="pN" min="2" max="100" step="1" value="20"></label>
+      <label class="field" for="pMoves"><span class="row"><span>Cursor moves per editor per second</span><b class="mono num" id="pMovesOut"></b></span><input type="range" id="pMoves" min="1" max="40" step="1" value="15"></label>
+      <label class="field" for="pThr"><span class="row"><span>Send at most once every</span><b class="mono num" id="pThrOut"></b></span><input type="range" id="pThr" min="0" max="500" step="10" value="100"></label>
+      <label class="field" for="pB"><span class="row"><span>Bytes per presence message</span><b class="mono num" id="pBOut"></b></span><input type="range" id="pB" min="20" max="200" step="10" value="60"></label>
+    </div>
+    <div class="results" id="pResults"></div>
+    <ul class="dn" id="pNotes"></ul>
+  </section>
+
+  <section class="panel article" id="offline" data-nav="Deep dive: offline and reconnect" data-num="5e" data-time="4m">
+    <div class="step-head"><span class="step-num">5e</span><h2>Deep dive: offline editing and reconnecting</h2><span class="step-time">about 4 minutes</span></div>
+    <p class="kicker">Offline is just very high latency. The client keeps applying its own ops locally and queues them (in IndexedDB, so a closed tab doesn't lose them). On reconnect it says "my base is revision R": the server sends every op since R, and the client's queue is transformed against them before being sent. The cost grows with both sides' work.</p>
+    <div class="calc">
+      <label class="field" for="oMin"><span class="row"><span>Time offline</span><b class="mono num" id="oMinOut"></b></span><input type="range" id="oMin" min="0" max="4.64" step="0.02" value="1.78"></label>
+      <label class="field" for="oMine"><span class="row"><span>Your edits per minute</span><b class="mono num" id="oMineOut"></b></span><input type="range" id="oMine" min="1" max="120" step="1" value="40"></label>
+      <label class="field" for="oTheirs"><span class="row"><span>Others' ops per minute meanwhile</span><b class="mono num" id="oTheirsOut"></b></span><input type="range" id="oTheirs" min="0" max="600" step="5" value="60"></label>
+      <label class="field" for="oComp"><span class="row"><span>Your ops merged per composed op</span><b class="mono num" id="oCompOut"></b></span><input type="range" id="oComp" min="1" max="20" step="1" value="5"></label>
+      <label class="field" for="oKeep"><span class="row"><span>Server keeps individual ops for</span><b class="mono num" id="oKeepOut"></b></span><input type="range" id="oKeep" min="1" max="90" step="1" value="30"></label>
+    </div>
+    <div class="results" id="oResults"></div>
+    <ul class="dn" id="oNotes"></ul>
+  </section>
+
+  <section class="panel article" id="history" data-nav="Deep dive: versions and history" data-num="5f" data-time="3m">
+    <div class="step-head"><span class="step-num">5f</span><h2>Deep dive: versions, history and restore</h2><span class="step-time">about 3 minutes</span></div>
+    <p class="kicker" id="hKicker"></p>
+    <div class="wctl">
+      <label class="field" for="hRev"><span class="row"><span>Show the document at revision</span><b class="mono num" id="hRevOut"></b></span><input type="range" id="hRev" min="0" max="10" step="1" value="10"></label>
+      <label class="field" for="hK"><span class="row"><span>Snapshot every N ops</span><b class="mono num" id="hKOut"></b></span><input type="range" id="hK" min="2" max="40" step="1" value="10"></label>
+    </div>
+    <div class="doctext" id="hText" aria-live="polite"></div>
+    <div class="results" id="hResults"></div>
+    <ul class="dn" id="hNotes"></ul>
+  </section>
+
+  <section class="panel article" id="example" data-nav="Worked example">
+    <span class="eyebrow">Worked example</span>
+    <h2>One word typed, start to finish</h2>
+    <p class="kicker">Using the final design: doc servers on a consistent-hash ring, an op log partitioned by document, snapshots every few hundred ops, presence in memory.</p>
+    <ol class="steps">
+      <li><div><h3>Open</h3><p>Ana opens <span class="mono">doc:42</span>. The API checks her permission in the metadata database, then returns the latest snapshot (revision 1,000) and the 203 ops after it from the op log. Her browser applies them and is at revision 1,203. It opens a WebSocket; the gateway hashes <span class="mono">doc:42</span> onto the ring and connects her to doc server 7, which already holds the document in memory because Ben has it open.</p></div></li>
+      <li><div><h3>Type</h3><p>Ana types "red " at position 4. Her screen shows it at once. The browser sends <span class="mono">{op: insert "red " at 4, base_rev: 1203}</span>. At the same moment Ben deletes the character at position 9, also based on 1,203; his op reaches the server first and becomes revision 1,204.</p></div></li>
+      <li><div><h3>Transform</h3><p>Ana's op arrives with base 1,203, but the server is at 1,204. It transforms her insert against Ben's delete: position 4 comes before 9, so it stays at 4. It appends the op to the log as revision 1,205, waits for the log to confirm the write, then acks Ana ("you are 1,205") and sends the op to Ben.</p></div></li>
+      <li><div><h3>Converge</h3><p>Meanwhile Ana received Ben's delete. Her own insert was still unacknowledged, so her browser transforms Ben's delete against it: position 9 is after her 4-character insert, so it becomes a delete at 13. Ben's browser applies Ana's insert at 4 unchanged. Both now read the same text at revision 1,205.</p></div></li>
+      <li><div><h3>Persist and fail over</h3><p>Ops 1,001 to 1,500 accumulate; at 1,500 the snapshot worker writes a new snapshot. If server 7 dies, the gateway reconnects Ana and Ben to the next server on the ring, which loads the snapshot and replays the ops after it. Every acknowledged op is in the log, so nothing is lost; unacknowledged ops are simply resent from each browser's queue.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="estimate" data-nav="Back of the envelope">
+    <span class="eyebrow">Worked example</span>
+    <h2>Back of the envelope, with the page's numbers</h2>
+    <p class="kicker">The same formulas as deep dives 5b and 5c, at their default settings. Every number below is computed, not typed in.</p>
+    <div class="results" id="estResults"></div>
+    <pre class="formula" id="estFormula"></pre>
+    <p id="estNote"></p>
+  </section>
+
+  <section class="panel article" id="principles" data-nav="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>What the problem really is</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>A replicated string that many people change at once, where every copy must end the same and every change must keep the meaning its author saw.</p></div>
+      <div><span class="q">Why it's hard</span><p>Positions are relative. "Insert at 4" means something different once someone else has inserted or deleted before position 4. Locking would fix it and make typing wait for the network, which nobody accepts.</p></div>
+      <div><span class="q">Key insight</span><p>Apply locally first, agree on order later. A single owner per document assigns the order; the transform function rewrites each late op so it means the same thing in the new context.</p></div>
+      <div><span class="q">Where it bends</span><p>The one document with many editors: fan-out grows with the square of its editors, which is why products cap simultaneous editors per document.</p></div>
+      <div><span class="q">What must be durable</span><p>The ordered op log. The text, the snapshots and the history are all things you can rebuild from it; presence is not worth keeping at all.</p></div>
+    </div>
+  </section>
+
+  <section class="panel article" id="story" data-nav="The story">
+    <span class="eyebrow">The story</span>
+    <h2>From a startup's web word processor to a protocol for everyone</h2>
+    <p>The idea that concurrent edits can be repaired rather than locked out is older than the web. In 1989 Clarence Ellis and Simon Gibbs described operational transformation for GROVE, a group outline editor. In 1995 David Nichols and colleagues at Xerox PARC published the Jupiter collaboration system, which simplified the problem by putting a central server between every pair of clients: each client only ever has to reconcile with the server, never with other clients directly. That shape is the one this page uses.</p>
+    <p>Writely, a browser word processor built at the startup Upstartle by Sam Schillace, Steve Newman and Claudia Carpenter, launched in August 2005. Google announced it had acquired Upstartle on 9 March 2006, and the product became Google's online documents later that year. In November 2008 Etherpad, built by David Greenspan, Aaron Iba and J.D. Zamfirescu, showed what keystroke-by-keystroke collaboration could feel like; Google acquired it in December 2009 to fold its team into Google Wave and released Etherpad's code as open source that month. Wave itself, unveiled in May 2009 and built around OT, was stopped as a standalone product in August 2010.</p>
+    <p>In April 2010 Google shipped a rebuilt document editor. In September 2010 its engineer John Day-Richter explained on the Google Docs blog how it collaborates: each change is sent as a small operation, the client keeps at most one change in flight and buffers the rest, and the server transforms late changes against its revision log before storing them. In 2011 Marc Shapiro, Nuno Preguiça, Carlos Baquero and Marek Zawirski formally defined conflict-free replicated data types, the main alternative, which libraries like Yjs and Automerge later brought to editors that can merge without a central server.</p>
+    <ol class="timeline">
+      <li><span class="year">1989</span><p>Ellis and Gibbs introduce operational transformation in the GROVE editor.</p></li>
+      <li><span class="year">1995</span><p>Jupiter (Xerox PARC) routes every edit through a central server.</p></li>
+      <li><span class="year">2006</span><p>Google announces it has acquired Upstartle, maker of Writely (9 March).</p></li>
+      <li><span class="year">2008</span><p>Etherpad launches (November); Google acquires it in December 2009.</p></li>
+      <li><span class="year">2010</span><p>Google ships a rebuilt real-time Docs editor (April) and explains its OT protocol (September); Wave is stopped (August).</p></li>
+      <li><span class="year">2011</span><p>Shapiro, Preguiça, Baquero and Zawirski formalize CRDTs.</p></li>
+    </ol>
+  </section>
+
+  <section class="notes" id="followups" data-nav="Follow-ups" style="grid-template-columns:minmax(0,1fr)">
+    <div class="panel">
+      <h2>Follow-up questions to expect</h2>
+      <ul>
+        <li><b>Rich text:</b> formatting is just more op types (<span class="mono">format(range, bold)</span>), each needing transform rules against inserts and deletes. Tables and images make the transform matrix grow quickly; that is the real cost of OT.</li>
+        <li><b>Comments and suggestions:</b> a comment is anchored to a range, and that range is transformed through every later op, exactly like a cursor. A suggestion is a set of ops held aside until someone accepts it.</li>
+        <li><b>Permissions changing mid-session:</b> the doc server checks the role on connect and subscribes to permission changes for its open documents, closing a socket the moment someone is downgraded to viewer.</li>
+        <li><b>Hundreds of viewers:</b> viewers don't send ops. Serve them from read-only replicas fed by the op log, or publish the document as a page, so they never load the owner server.</li>
+        <li><b>Abuse and runaway clients:</b> rate-limit ops per connection and cap op size, so one buggy script can't flood a document's fan-out.</li>
+        <li><b>Search across documents:</b> a separate indexer consumes the op log (or snapshots) and updates a search index asynchronously.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Concepts used here</h2>
+      <div class="concepts">
+        <a href="../topics/crdt.html">Collaborative Editing (OT and CRDTs)</a>
+        <a href="../topics/consistent-hashing.html">Consistent Hashing</a>
+        <a href="../topics/kafka.html">Kafka Partitions</a>
+        <a href="../topics/lsm-tree.html">LSM Tree</a>
+        <a href="../topics/rate-limiter.html">Rate Limiter</a>
+        <a href="whatsapp.html">Design WhatsApp (WebSockets)</a>
+      </div>
+      <p class="sources" style="margin-top:10px">Problem list and interview framework: <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs">Hello Interview</a>.</p>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="../topics/registry.js"></script>
+<script src="../shared/qnav.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n >= 1e12 ? (n / 1e12).toFixed(1) + "T" : n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : (n < 10 && n % 1 ? n.toFixed(1) : Math.round(n).toString());
+  const bytes = b => b >= 1e15 ? (b / 1e15).toFixed(1) + " PB" : b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : b >= 1e3 ? (b / 1e3).toFixed(1) + " KB" : Math.round(b) + " B";
+  const pct = x => (x * 100).toFixed(x < 0.1 && x > 0 ? 1 : 0) + "%";
+  const ms = x => x >= 1000 ? (x / 1000).toFixed(1) + " s" : (x < 10 ? x.toFixed(1) : Math.round(x)) + " ms";
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  // seeded random numbers so every simulation is repeatable
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function mix(x) { x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B); x = Math.imul(x ^ (x >>> 13), 0xC2B2AE35); return (x ^ (x >>> 16)) >>> 0; }
+  function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
+  const keyHash = k => mix(fnv(k));
+  const narrowMQ = window.matchMedia("(max-width: 600px)");
+  function buildRing(names, V) { const pts = []; names.forEach(n => { for (let v = 0; v < V; v++) pts.push({ h: mix(fnv(n + "#" + v)), n }); }); return pts.sort((a, b) => a.h - b.h); }
+  function owner(ring, h) { let lo = 0, hi = ring.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ring[m].h < h) lo = m + 1; else hi = m; } return ring[lo === ring.length ? 0 : lo].n; }
+
+  // ================= OT core (single-character deletes, string inserts) =================
+  function applyOp(doc, op) {
+    if (op.t === "ins") return doc.slice(0, op.p) + op.s + doc.slice(op.p);
+    if (op.t === "del") return doc.slice(0, op.p) + doc.slice(op.p + 1);
+    return doc;
+  }
+  // T(a, b): rewrite a so it can be applied after b (both were made on the same text)
+  function T(a, b) {
+    if (a.t === "noop" || b.t === "noop") return a;
+    const c = { ...a };
+    if (a.t === "ins" && b.t === "ins") { if (b.p < a.p || (b.p === a.p && b.site < a.site)) c.p += b.s.length; }
+    else if (a.t === "ins" && b.t === "del") { if (b.p < a.p) c.p -= 1; }
+    else if (a.t === "del" && b.t === "ins") { if (b.p <= a.p) c.p += b.s.length; }
+    else { if (b.p < a.p) c.p -= 1; else if (b.p === a.p) return { t: "noop", site: a.site }; }
+    return c;
+  }
+  const opBytes = op => 40 + (op.s ? op.s.length : 0);
+  const opText = op => op.t === "ins" ? `insert "${op.s}" at ${op.p}` : op.t === "del" ? `delete at ${op.p}` : "no-op";
+
+  // ================= Live design: a real OT simulation =================
+  const INIT = "the plan for monday";
+  const NAMES = ["Ana", "Ben", "Cy"], WORDS = [["red", "blue", "green", "pink"], ["one", "two", "six", "ten"], ["cat", "dog", "owl", "fox"]];
+  const LAT = [40, 90, 150], EDITS = 4, DEL_P = 0.2, FLUSH = 5000, SNAP = 20, VN = 40;
+  const SERVERS = ["ds1", "ds2", "ds3"], DOC = "doc:42";
+
+  function makeSim(stage, seed) {
+    const s = { stage, r: rng(seed), now: 0, q: [], seq: 0,
+      srv: { doc: INIT, log: [], rev: 0, flushRev: 0, flushDoc: INIT, flushAt: 0, snapRev: 0, snapDoc: INIT, lastSaver: null },
+      cl: NAMES.map((n, i) => ({ name: n, site: i, doc: INIT, rev: 0, inflight: null, buffer: [], upAt: 0, downAt: 0, typed: 0 })),
+      alive: SERVERS.slice(), tot: { ops: 0, chars: 0, lostOps: 0, lostChars: 0, msgs: 0, bytes: 0 }, last: null, onMsg: null, secs: 0 };
+    s.ring = buildRing(s.alive, VN); s.own = owner(s.ring, keyHash(DOC));
+    return s;
+  }
+  const srvKey = s => s.stage === 0 ? "api" : s.stage === 1 ? "ds" : s.own;
+  function push(s, ev) { ev.n = s.seq++; s.q.push(ev); }
+  function sendUp(s, c, msg, b) { const t = Math.max(c.upAt + 1, s.now + c.lat2()); c.upAt = t; push(s, { t, kind: "up", c, msg }); b.msgs++; b.bytes += msg.size; if (s.onMsg) s.onMsg("c" + c.site, srvKey(s), msg.kind === "save" ? "save" : "op", s.now - b.t0); }
+  function sendDown(s, c, msg, b) { const t = Math.max(c.downAt + 1, s.now + c.lat2()); c.downAt = t; push(s, { t, kind: "down", c, msg }); b.msgs++; b.bytes += msg.size; if (s.onMsg) s.onMsg(srvKey(s), "c" + c.site, "down", s.now - b.t0); }
+  function genOp(s, c) {
+    if (c.doc.length > 6 && s.r() < DEL_P) return { t: "del", p: Math.floor(s.r() * c.doc.length), site: c.site };
+    const spots = [c.doc.length]; for (let i = 0; i < c.doc.length; i++) if (c.doc[i] === " ") spots.push(i);
+    const w = WORDS[c.site][Math.floor(s.r() * 4)];
+    return { t: "ins", p: spots[Math.floor(s.r() * spots.length)], s: " " + w, site: c.site };
+  }
+  function serverReceive(s, c, msg, b) {
+    const sv = s.srv;
+    if (msg.kind === "save") { sv.doc = msg.doc; sv.lastSaver = c.site; return; }
+    let op = msg.op;
+    for (let i = msg.base; i < sv.rev; i++) op = T(op, sv.log[i]);
+    sv.doc = applyOp(sv.doc, op); sv.log.push(op); sv.rev++;
+    if (s.stage < 3 && s.now - sv.flushAt >= FLUSH) { sv.flushRev = sv.rev; sv.flushDoc = sv.doc; sv.flushAt = s.now; }
+    if (s.stage === 3 && sv.rev - sv.snapRev >= SNAP) { sv.snapRev = sv.rev; sv.snapDoc = sv.doc; }
+    s.cl.forEach(o => sendDown(s, o, o === c ? { kind: "ack", size: 20 } : { kind: "op", op, size: opBytes(op) }, b));
+  }
+  function clientReceive(s, c, msg, b) {
+    if (msg.kind === "reload") { c.doc = msg.doc; return; }
+    if (msg.kind === "ack") { c.rev++; c.inflight = null; if (c.buffer.length) { c.inflight = c.buffer.shift(); sendUp(s, c, { kind: "op", op: c.inflight, base: c.rev, size: opBytes(c.inflight) }, b); } return; }
+    let r = msg.op;
+    if (c.inflight) { const r2 = T(r, c.inflight); c.inflight = T(c.inflight, r); r = r2; }
+    c.buffer = c.buffer.map(L => { const r2 = T(r, L), L2 = T(L, r); r = r2; return L2; });
+    c.doc = applyOp(c.doc, r); c.rev++;
+  }
+  function localEdit(s, c, b) {
+    const op = genOp(s, c);
+    c.doc = applyOp(c.doc, op); b.ops++; c.typed++;
+    if (op.t === "ins") b.chars += op.s.length;
+    b.edits.push({ site: c.site, op });
+    if (s.stage === 0) return;
+    if (!c.inflight) { c.inflight = op; sendUp(s, c, { kind: "op", op, base: c.rev, size: opBytes(op) }, b); }
+    else c.buffer.push(op);
+  }
+  function burst(s) {
+    const t0 = s.now, b = { t0, ops: 0, chars: 0, msgs: 0, bytes: 0, edits: [], lostOps: 0, lostChars: 0, lostWords: [] };
+    s.cl.forEach(c => { c.lat2 = () => LAT[c.site] * (0.8 + 0.4 * s.r()); for (let k = 0; k < EDITS; k++) push(s, { t: t0 + s.r() * 1000, kind: "edit", c }); });
+    if (s.stage === 0) s.cl.forEach(c => push(s, { t: t0 + 1000 + s.r() * 200, kind: "save", c }));
+    let reloaded = false;
+    while (s.q.length) {
+      s.q.sort((x, y) => x.t - y.t || x.n - y.n);
+      const ev = s.q.shift(); s.now = ev.t;
+      if (ev.kind === "edit") localEdit(s, ev.c, b);
+      else if (ev.kind === "save") sendUp(s, ev.c, { kind: "save", doc: ev.c.doc, size: 40 + ev.c.doc.length }, b);
+      else if (ev.kind === "up") serverReceive(s, ev.c, ev.msg, b);
+      else if (ev.kind === "down") clientReceive(s, ev.c, ev.msg, b);
+      if (s.stage === 0 && !reloaded && !s.q.some(e => e.kind === "save" || e.kind === "up")) {
+        reloaded = true; s.cl.forEach(c => sendDown(s, c, { kind: "reload", doc: s.srv.doc, size: 40 + s.srv.doc.length }, b));
+      }
+    }
+    if (s.stage === 0) b.edits.forEach(e => { if (e.site !== s.srv.lastSaver) { b.lostOps++; if (e.op.t === "ins") { b.lostChars += e.op.s.length; b.lostWords.push(e.op.s.trim()); } } });
+    s.now = Math.max(s.now, t0 + 1000) + 1; s.secs++;
+    b.converged = s.cl.every(c => c.doc === s.srv.doc);
+    ["ops", "chars", "msgs", "bytes", "lostOps", "lostChars"].forEach(f => s.tot[f] += b[f]);
+    s.last = b; return b;
+  }
+  function kill(s) {
+    const sv = s.srv;
+    if (s.stage === 0) return { kind: "stateless" };
+    let moved = null;
+    if (s.stage >= 2 && s.alive.length > 1) { const dead = s.own; s.alive = s.alive.filter(x => x !== dead); s.ring = buildRing(s.alive, VN); s.own = owner(s.ring, keyHash(DOC)); moved = { from: dead, to: s.own }; }
+    if (s.stage < 3) {
+      const lost = sv.rev - sv.flushRev, fromLen = sv.doc.length;
+      sv.doc = sv.flushDoc; sv.log.length = sv.flushRev; sv.rev = sv.flushRev;
+      s.cl.forEach(c => { c.doc = sv.doc; c.rev = sv.rev; c.inflight = null; c.buffer = []; });
+      s.tot.lostOps += lost;
+      return { kind: "memory", lost, fromLen, toLen: sv.doc.length, flushRev: sv.flushRev, moved };
+    }
+    let doc = sv.snapDoc; for (let i = sv.snapRev; i < sv.rev; i++) doc = applyOp(doc, sv.log[i]);
+    const ok = doc === sv.doc; sv.doc = doc;
+    return { kind: "log", lost: 0, snapRev: sv.snapRev, replayed: sv.rev - sv.snapRev, ok, moved };
+  }
+  const sname = k => "Doc server " + k.slice(2);
+
+  // scripted runs: numbers in each stage's "what breaks next" come from these
+  const H = (() => {
+    const o = {};
+    let s = makeSim(0, 7); burst(s); o.s0 = s.last; o.s0doc = s.srv.doc;
+    s = makeSim(1, 7); for (let i = 0; i < 3; i++) burst(s); o.s1 = { s, tot: { ...s.tot } };
+    s = makeSim(2, 7); for (let i = 0; i < 8; i++) burst(s); const at2 = s.secs; o.s2 = { k: kill(s), at: at2 };
+    s = makeSim(3, 7); for (let i = 0; i < 8; i++) burst(s); o.s3log = s.srv.log.slice(); o.s3doc = s.srv.doc; o.s3 = { k: kill(s) };
+    return o;
+  })();
+
+  // ================= capacity model shared by 5b and the estimate =================
+  const HEAD = 0.7;
+  const nice = k => { const q = Math.pow(10, Math.max(0, Math.floor(Math.log10(k)) - 1)); return Math.round(k / q) * q; };
+  function capModel(v) {
+    const editors = v.users * v.conc, servers = Math.ceil(editors / (v.conn * HEAD)), opsIn = editors * v.ops;
+    const out = opsIn * (v.per - 1) + opsIn, docs = editors / v.per, hotOut = v.hot * v.ops * (v.hot - 1);
+    return { editors, servers, opsIn, out, docs, perServerIn: opsIn / servers, perServerOut: out / servers, hotOut };
+  }
+  function storeModel(v) {
+    const opsDay = v.docs * v.ops, logB = opsDay * v.opB, snaps = opsDay / v.K, snapB = snaps * v.docKB * 1000;
+    const worst = v.K * v.rep / 1000, avg = worst / 2;
+    return { opsDay, logB, snaps, snapB, worst, avg, opsSec: opsDay / 86400 };
+  }
+  const CAP_DEF = { users: 1e8, conc: 0.05, conn: 50000, ops: 0.5, per: 1.5, hot: 50 };
+  const STORE_DEF = { docs: Math.pow(10, 7.7), ops: 1000, opB: 60, docKB: 30, K: nice(Math.pow(10, 2.7)), rep: 20 };
+  const CD = capModel(CAP_DEF);
+
+  $("hldKicker").innerHTML = `A real simulation: ${NAMES.join(", ")} edit one note that starts as <span class="mono">"${INIT}"</span>. Each press is one second in which each of them makes ${EDITS} edits (mostly inserting a word, sometimes deleting a letter) on their own screen. Their network delays are about ${LAT.join(", ")} ms, so edits cross in flight. Every stage runs real code; the replica cards below show each copy's text.`;
+
+  const STAGES = [
+    {
+      name: "1 · Save the file",
+      adds: `Each browser edits its own copy and, after typing, sends the <b>whole document</b> to an API server that stores it in a database row. Everyone then reloads the stored version.`,
+      why: "It is how a plain form or file upload works, and it is fine for one person.",
+      breaks: () => { const b = H.s0; return `In a scripted second, ${b.lostOps} of ${b.ops} edits vanished: the last save overwrote the others (lost words: ${b.lostWords.slice(0, 5).map(w => `"${w}"`).join(", ")}${b.lostWords.length > 5 ? ", …" : ""}). And every save ships the whole file. Edits must travel as small operations, merged in one agreed order.`; }
+    },
+    {
+      name: "2 · Ops via a doc server",
+      adds: `Each browser holds a WebSocket to a <b>doc server</b>. An edit shows on screen at once and is sent as a small op with the revision it was based on, one op in flight at a time. The server transforms it past anything committed since that revision (OT), numbers it, acks the sender and broadcasts it; browsers transform incoming ops past their own unacknowledged ones.`,
+      why: "One ordering point per document means every copy applies the same ops in the same order, so they converge, and nobody waits for a lock.",
+      breaks: () => { const t = H.s1.tot; return `In a scripted 3 seconds, ${t.ops} edits and ${t.msgs} messages, and all ${NAMES.length} copies ended identical with nothing lost. But one server can't hold everyone: with 5b's defaults, ${fmt(CD.editors)} people are connected at the peak, which needs ${CD.servers} servers of ${fmt(CAP_DEF.conn)} sockets, and all editors of one document must still meet on the same one.`; }
+    },
+    {
+      name: "3 · Shard by document",
+      adds: `Many doc servers. A <b>coordinator</b> keeps a consistent-hash ring of live servers (${VN} points each); <span class="mono">${DOC}</span> hashes to one owner, so all its editors land on the same server. Each server keeps its documents in memory and saves them to the database every ${FLUSH / 1000} s.`,
+      why: "Documents are independent, so they split cleanly by id while each one keeps a single order. The ring means a server joining or leaving moves only its neighbours' documents.",
+      breaks: () => { const k = H.s2.k; return `The live document exists only in the owner's memory between saves. In a scripted run, killing the owner after ${H.s2.at} s lost ${k.lost} ops that had already been acknowledged: their authors saw them saved, then they were gone. ${sname(k.moved.to)} took over from the last save at revision ${k.flushRev}.`; }
+    },
+    {
+      name: "4 · Op log + snapshots",
+      adds: `The owner appends every op to a durable <b>op log</b> (partitioned by document id) before acking it. A worker writes a <b>snapshot</b> every ${SNAP} ops; loading a document means latest snapshot plus the ops after it. Titles and permissions live in a <b>metadata DB</b>; cursors stay in memory.`,
+      why: "The log is the truth and snapshots are only a shortcut to it, so a crash loses nothing acknowledged and opening stays fast. History comes free.",
+      breaks: () => { const k = H.s3.k; return `Kill the owner now: in a scripted run ${sname(k.moved.to)} loaded the snapshot at revision ${k.snapRev}, replayed ${k.replayed} ops and rebuilt the exact text, losing ${k.lost} ops. What's left is depth: OT vs CRDT (5a), connections (5b), storage (5c), presence (5d), offline (5e) and history (5f).`; }
+    }
+  ];
+
+  // diagram layout: wide and narrow
+  const WIDE = { c0: [85, 90], c1: [85, 200], c2: [85, 310], api: [330, 200], ds: [330, 200], ds1: [330, 110], ds2: [330, 210], ds3: [330, 310], coord: [560, 60], db: [560, 230], oplog: [560, 150], snaps: [560, 240], meta: [560, 330] };
+  const NAR = { c0: [58, 40], c1: [170, 40], c2: [282, 40], api: [170, 165], ds: [170, 165], ds1: [58, 165], ds2: [170, 165], ds3: [282, 165], coord: [282, 255], db: [170, 345], oplog: [58, 345], snaps: [170, 345], meta: [282, 345] };
+  const P = k => { const a = (narrowMQ.matches ? NAR : WIDE)[k]; return { x: a[0], y: a[1] }; };
+  let stage = 0, sim, dots = [], note = "";
+  function nodesOf() {
+    const n = ["c0", "c1", "c2"];
+    if (stage === 0) n.push("api", "db");
+    if (stage === 1) n.push("ds", "db");
+    if (stage >= 2) n.push(...SERVERS, "coord");
+    if (stage === 2) n.push("db");
+    if (stage === 3) n.push("oplog", "snaps", "meta");
+    return n;
+  }
+  function edgesOf() {
+    const k = srvKey(sim), e = [];
+    ["c0", "c1", "c2"].forEach(c => e.push([c, k]));
+    if (stage <= 2) e.push([k, "db"]);
+    if (stage >= 2) e.push(["coord", k, "dash"]);
+    if (stage === 3) e.push([k, "oplog"], ["oplog", "snaps", "dash"], [k, "meta", "dash"]);
+    return e;
+  }
+  function label(k) {
+    if (k[0] === "c" && k.length === 2) return NAMES[+k[1]];
+    if (SERVERS.includes(k)) return narrowMQ.matches ? "Server " + k.slice(2) : sname(k);
+    return { api: "API server", ds: "Doc server", coord: "Coordinator", db: "Docs DB", oplog: "Op log", snaps: "Snapshots", meta: "Metadata DB" }[k];
+  }
+  function sub(k) {
+    const sv = sim.srv;
+    if (k[0] === "c" && k.length === 2) { const c = sim.cl[+k[1]]; return stage === 0 ? `${c.doc.length} chars` : `rev ${c.rev} · ${(c.inflight ? 1 : 0) + c.buffer.length} out`; }
+    if (k === "api") return "PUT whole doc";
+    if (k === "ds") return `rev ${sv.rev}`;
+    if (SERVERS.includes(k)) return !sim.alive.includes(k) ? "down" : k === sim.own ? `owns ${DOC}` : "other docs";
+    if (k === "coord") return `ring of ${sim.alive.length}`;
+    if (k === "db") return stage === 0 ? (sv.lastSaver === null ? "1 row" : `last: ${NAMES[sv.lastSaver]}`) : `saved rev ${sv.flushRev}`;
+    if (k === "oplog") return `${sv.rev} ops`;
+    if (k === "snaps") return `at rev ${sv.snapRev}`;
+    if (k === "meta") return "titles, ACLs";
+    return "";
+  }
+  function resetSim() {
+    sim = makeSim(stage, 11); dots = []; note = "";
+    sim.onMsg = (from, to, kind, at) => { if (dots.length < 40) dots.push({ from, to, kind, f: 0, wait: at / 900 }); };
+  }
+  function stepDots(dt) {
+    dots.forEach(d => { if (d.wait > 0) d.wait -= dt; else d.f += dt / 0.45; });
+    dots = dots.filter(d => d.f < 1);
+  }
+  function draw() {
+    const nar = narrowMQ.matches, VW = nar ? 340 : 660, VH = nar ? 420 : 400, w = nar ? 104 : 140, h = nar ? 46 : 50;
+    $("arch").setAttribute("viewBox", `0 0 ${VW} ${VH}`);
+    let s = "";
+    edgesOf().forEach(([a, b, dash]) => { const p = P(a), q = P(b); s += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="var(--line)" stroke-width="2"${dash ? ' stroke-dasharray="5 4"' : ""}/>`; });
+    const col = { op: "var(--accent)", down: "var(--ok)", save: "var(--amber)" };
+    dots.forEach(d => { if (d.wait > 0) return; const p = P(d.from), q = P(d.to); s += `<circle cx="${p.x + (q.x - p.x) * d.f}" cy="${p.y + (q.y - p.y) * d.f}" r="6" fill="${col[d.kind]}" stroke="var(--panel)" stroke-width="1.5"/>`; });
+    nodesOf().forEach(k => {
+      const n = P(k), dead = SERVERS.includes(k) && !sim.alive.includes(k), own = stage >= 2 && k === sim.own, store = ["db", "oplog", "snaps", "meta"].includes(k);
+      const client = k[0] === "c" && k.length === 2, diff = client && stage > 0 && sim.cl[+k[1]].doc !== sim.srv.doc;
+      const stroke = dead ? "var(--bad)" : diff ? "var(--bad)" : own ? "var(--accent)" : store ? "var(--accent)" : "var(--ink)";
+      s += `<rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="${store ? 14 : 6}" fill="var(--panel)" stroke="${stroke}" stroke-width="${own ? 2.6 : 1.6}"${dead ? ' stroke-dasharray="5 4"' : ""}/>`;
+      s += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" font-family="var(--display)" font-size="${nar ? 13 : 15}" font-weight="700" fill="${dead ? "var(--muted)" : "var(--ink)"}">${label(k)}</text>`;
+      s += `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" font-family="var(--mono)" font-size="${nar ? 10.5 : 11.5}" fill="${dead ? "var(--bad)" : "var(--muted)"}">${sub(k)}</text>`;
+    });
+    s += nar
+      ? `<text x="8" y="${VH - 26}" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue op sent · green ack or broadcast</text><text x="8" y="${VH - 10}" font-family="var(--mono)" font-size="12" fill="var(--muted)">amber whole-document save</text>`
+      : `<text x="12" y="392" font-family="var(--mono)" font-size="12" fill="var(--muted)">blue op sent · green ack or broadcast · amber whole-document save</text>`;
+    $("arch").innerHTML = s;
+  }
+  const clip = t => t.length > 110 ? t.slice(0, 45) + " … " + t.slice(-55) : t;
+  function render() {
+    const t = sim.tot, b = sim.last, conv = sim.cl.every(c => c.doc === sim.srv.doc);
+    $("cost").innerHTML = `
+      <div><span>Seconds typed</span><b>${sim.secs}</b></div>
+      <div><span>Edits made</span><b>${t.ops}</b></div>
+      <div><span>Edits lost</span><b style="color:${t.lostOps ? "var(--bad)" : "var(--ok)"}">${t.lostOps}</b></div>
+      <div><span>Messages</span><b>${fmt(t.msgs)}</b></div>
+      <div><span>Bytes on the wire</span><b>${bytes(t.bytes)}</b></div>
+      <div><span>Copies identical</span><b style="color:${conv ? "var(--ok)" : "var(--bad)"}">${conv ? "yes" : "no"}</b></div>`;
+    $("simNote").innerHTML = note || (!b ? "Press <b>Type for 1 s</b>." : stage === 0
+      ? (b.lostOps ? `<b style="color:var(--bad)">${NAMES[sim.srv.lastSaver]}'s save arrived last</b> and replaced the others: ${b.lostOps} of ${b.ops} edits this second are gone (${b.lostWords.slice(0, 6).map(w => `"${w}"`).join(", ")}).` : "Only one save this second, nothing overwritten.")
+      : `This second: ${b.ops} edits, ${b.msgs} messages. Every op was transformed into one order; all copies ${b.converged ? "match the server" : "do not match yet"}.`);
+    $("board").innerHTML = `<span class="stage-label">Each copy of the document</span>` +
+      [{ name: stage === 0 ? "Database" : stage >= 2 ? sname(sim.own) : "Doc server", doc: sim.srv.doc, meta: stage === 0 ? "stored row" : `rev ${sim.srv.rev}` }]
+        .concat(sim.cl.map(c => ({ name: c.name, doc: c.doc, meta: stage === 0 ? `typed ${c.typed}` : `rev ${c.rev}` })))
+        .map((x, i) => `<div class="replica ${i && x.doc !== sim.srv.doc ? "diff" : i && b ? "same" : ""}"><div class="hd"><b>${x.name}</b><span class="t">${x.meta} · ${x.doc.length} chars</span></div><div class="txt">${esc(clip(x.doc))}</div></div>`).join("");
+  }
+  function renderExplain() {
+    const st = STAGES[stage];
+    $("explain").innerHTML = `
+      <div><h3>What this step adds</h3><p>${st.adds}</p></div>
+      <div><h3>Why, from first principles</h3><p>${st.why}</p></div>
+      <div class="callout"><p><b>What breaks next:</b> ${st.breaks()}</p></div>`;
+    $("stages").innerHTML = STAGES.map((x, i) => `<button aria-pressed="${i === stage}" data-s="${i}">${x.name}</button>`).join("");
+  }
+  $("stages").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; stage = +b.dataset.s; resetSim(); renderExplain(); render(); };
+  $("send").onclick = () => { note = ""; dots = []; burst(sim); render(); };
+  $("kill").onclick = () => {
+    const before = srvKey(sim), r = kill(sim); dots = [];
+    if (r.kind === "stateless") note = `The API server keeps nothing between requests, so killing it loses nothing. The damage here is done by the saves themselves, not by crashes.`;
+    else if (r.kind === "memory") note = `<b style="color:var(--bad)">${stage === 1 ? "Doc server" : sname(before)} died.</b> ${r.lost ? `${r.lost} acknowledged op${r.lost === 1 ? "" : "s"} since the last save (revision ${r.flushRev}) existed only in its memory and ${r.lost === 1 ? "is" : "are"} gone; the text went from ${r.fromLen} to ${r.toLen} characters.` : "Nothing had changed since the last save, so this time nothing was lost."} ${r.moved ? `${sname(r.moved.to)} owns ${DOC} now.` : stage === 1 ? "It restarts from the database, and every document it held was unavailable meanwhile." : "It was the last server left, so it restarts."}`;
+    else note = `<b style="color:var(--ok)">${sname(before)} died.</b> ${r.moved ? sname(r.moved.to) : "The restarted server"} loaded the snapshot at revision ${r.snapRev} and replayed ${r.replayed} op${r.replayed === 1 ? "" : "s"} from the log: ${r.ok ? "the exact same text" : "a mismatch"}, nothing lost.`;
+    render();
+  };
+  $("reset").onclick = () => { resetSim(); render(); };
+  narrowMQ.addEventListener("change", () => { dots = []; });
+
+  // ================= 5a: OT by hand =================
+  let otMode = 0;
+  const OTM = ["Ben deletes a character", "Ben inserts text"];
+  function renderOT() {
+    const base = $("otBase").value, L = base.length;
+    $("otApos").max = L; $("otBpos").max = otMode === 0 ? Math.max(0, L - 1) : L;
+    if (+$("otApos").value > L) $("otApos").value = L;
+    const aPos = +$("otApos").value, bPos = Math.min(+$("otBpos").value, otMode === 0 ? Math.max(0, L - 1) : L);
+    $("otAposOut").textContent = aPos; $("otBposOut").textContent = bPos;
+    $("otModes").innerHTML = OTM.map((m, i) => `<button aria-pressed="${i === otMode}" data-m="${i}">${m}</button>`).join("");
+    $("otBlabel").textContent = otMode === 0 ? "Ben deletes the character at" : "…at position";
+    $("otBtextWrap").style.display = otMode === 0 ? "none" : "";
+    const A = { t: "ins", p: aPos, s: $("otAtext").value, site: 0 };
+    const B = otMode === 0 ? (L ? { t: "del", p: bPos, site: 1 } : { t: "noop", site: 1 }) : { t: "ins", p: bPos, s: $("otBtext").value, site: 1 };
+    const anaNaive = applyOp(applyOp(base, A), B), benNaive = applyOp(applyOp(base, B), A);
+    const B2 = T(B, A), A2 = T(A, B), anaOT = applyOp(applyOp(base, A), B2), benOT = applyOp(applyOp(base, B), A2);
+    const q = t => `"${esc(t)}"`;
+    $("otTable").innerHTML = `
+      <tr><td><b>Ana</b></td><td>her insert, then Ben's op</td><td class="txtcell">${q(anaNaive)}</td><td class="txtcell">${q(anaOT)}</td></tr>
+      <tr><td><b>Ben</b></td><td>his op, then Ana's insert</td><td class="txtcell">${q(benNaive)}</td><td class="txtcell">${q(benOT)}</td></tr>
+      <tr><td><b>Same?</b></td><td></td><td class="${anaNaive === benNaive ? "y" : "n"}">${anaNaive === benNaive ? "yes" : "no: diverged"}</td><td class="${anaOT === benOT ? "y" : "n"}">${anaOT === benOT ? "yes" : "no"}</td></tr>`;
+    $("otNotes").innerHTML = [
+      `On Ana's screen, Ben's <span class="mono">${opText(B)}</span> arrives after her insert of ${A.s.length} character${A.s.length === 1 ? "" : "s"} at ${A.p}, so OT rewrites it as <span class="mono">${opText(B2)}</span>${B2.p !== B.p ? " (shifted right past her text)" : B2.t === "noop" ? "" : " (unchanged: it is before her insert)"}.`,
+      `On Ben's screen, Ana's <span class="mono">${opText(A)}</span> becomes <span class="mono">${opText(A2)}</span>${A2.p !== A.p ? (B.t === "del" ? " (shifted left: one character before it is gone)" : " (shifted right past his text)") : ""}.`,
+      B.t === "ins" && A.p === B.p ? `Both inserted at the same spot. A fixed tie-break (here, Ana's site id is lower, so her text goes first) makes both screens choose the same order.` : `Without OT, ${anaNaive === benNaive ? "this pair happens to agree because neither op moves the other's position. Move the sliders so the edits overlap" : "the two screens now disagree forever, and every later edit builds on different text"}.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  $("otModes").onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; otMode = +b.dataset.m; $("otBpos").value = otMode === 0 ? 8 : 4; renderOT(); };
+  ["otBase", "otAtext", "otApos", "otBpos", "otBtext"].forEach(id => $(id).oninput = renderOT);
+
+  function renderCRDT() {
+    const n = Math.round(Math.pow(10, +$("crChars").value)), dead = +$("crDead").value, id = +$("crId").value;
+    $("crCharsOut").textContent = fmt(n); $("crDeadOut").textContent = dead.toFixed(1) + "×"; $("crIdOut").textContent = id + " B";
+    const text = n, meta = n * (1 + dead) * (id + 1), deadText = n * dead;
+    $("crResults").innerHTML = `
+      <div><span>Plain text (OT server)</span><b>${bytes(text)}</b></div>
+      <div><span>CRDT ids + tombstones</span><b style="color:var(--amber)">${bytes(meta + deadText)}</b></div>
+      <div><span>Overhead factor</span><b>${((meta + deadText + text) / text).toFixed(0)}×</b></div>`;
+  }
+  ["crChars", "crDead", "crId"].forEach(x => $(x).oninput = renderCRDT);
+
+  // ================= 5b: connections and routing =================
+  function capInputs() { return { users: Math.pow(10, +$("kUsers").value), conc: +$("kConc").value, conn: +$("kConn").value, ops: +$("kOps").value, per: +$("kPer").value, hot: +$("kHot").value }; }
+  const RT = 20000, RV = 100;
+  function ringMove(S) {
+    const before = buildRing(Array.from({ length: S }, (_, i) => "s" + i), RV), after = buildRing(Array.from({ length: S + 1 }, (_, i) => "s" + i), RV);
+    let mR = 0, mM = 0;
+    for (let i = 0; i < RT; i++) { const h = keyHash("doc:" + i); if (owner(before, h) !== owner(after, h)) mR++; if (h % S !== h % (S + 1)) mM++; }
+    return { mR, mM };
+  }
+  let ringCacheS = -1, ringCache = null;
+  function renderCap() {
+    const v = capInputs(), m = capModel(v);
+    $("kUsersOut").textContent = fmt(v.users); $("kConcOut").textContent = pct(v.conc); $("kConnOut").textContent = fmt(v.conn); $("kOpsOut").textContent = v.ops.toFixed(1); $("kPerOut").textContent = v.per.toFixed(1); $("kHotOut").textContent = v.hot;
+    $("kResults").innerHTML = `
+      <div><span>Connected at the peak</span><b>${fmt(m.editors)}</b></div>
+      <div><span>Open documents</span><b>${fmt(m.docs)}</b></div>
+      <div><span>Doc servers (at ${pct(HEAD)} full)</span><b style="color:var(--accent)">${m.servers}</b></div>
+      <div><span>Ops in per second</span><b>${fmt(m.opsIn)}</b></div>
+      <div><span>Messages out per second</span><b>${fmt(m.out)}</b></div>
+      <div><span>Per server: in / out</span><b>${fmt(m.perServerIn)} / ${fmt(m.perServerOut)}</b></div>
+      <div><span>Busiest doc: messages out/s</span><b style="color:${v.hot > 100 ? "var(--bad)" : "var(--ink)"}">${fmt(m.hotOut)}</b></div>`;
+    $("kFormula").textContent = `connected  = ${fmt(v.users)} × ${pct(v.conc)} = ${fmt(m.editors)}
+servers    = ceil(${fmt(m.editors)} / (${fmt(v.conn)} × ${HEAD})) = ${m.servers}
+ops in/s   = ${fmt(m.editors)} × ${v.ops.toFixed(1)} = ${fmt(m.opsIn)}
+msgs out/s = ops in × (editors per doc − 1) + acks = ${fmt(m.out)}
+busiest    = ${v.hot} × ${v.ops.toFixed(1)} × ${v.hot - 1} = ${fmt(m.hotOut)} msgs/s`;
+    $("kNotes").innerHTML = [
+      `Connections, not CPU, size the fleet: ${fmt(m.editors)} open sockets at ${fmt(v.conn)} per server is ${m.servers} servers, yet each one handles only ${fmt(m.perServerIn)} ops a second. Holding a socket costs memory (buffers, the document, its recent ops), not compute.`,
+      `Fan-out grows with the square of a document's editors: the busiest document, with ${v.hot} editors, sends ${fmt(m.hotOut)} messages a second from one server${v.hot > 100 ? ". That is why Google Docs lets about 100 people work in a file at once and above that lets only the owner and some editors edit" : ", all from one process. That is why products cap it; Google Docs documents about 100 people working in a file at once"}.`,
+      `Routing: a gateway (or the client, after asking the coordinator) hashes the doc id onto the ring and opens the socket to the owner. When a server dies, the coordinator removes it, its documents fall to the next servers on the ring, and their clients reconnect and resend unacknowledged ops.`
+    ].map(x => `<li>${x}</li>`).join("");
+    const S = Math.min(m.servers, 400);
+    if (S !== ringCacheS) { ringCacheS = S; ringCache = ringMove(S); }
+    const r = ringCache;
+    $("ringIntro").innerHTML = `Go from ${S} to ${S + 1} doc servers. ${fmt(RT)} real document ids are hashed both onto a ring (${RV} points per server) and with <span class="mono">hash mod N</span>. Every document that changes owner must be unloaded and reloaded, and its editors reconnect.${m.servers > 400 ? " (Capped at 400 servers to keep the test quick.)" : ""}`;
+    $("ringResults").innerHTML = `
+      <div><span>Moved with a ring</span><b style="color:var(--ok)">${pct(r.mR / RT)}</b></div>
+      <div><span>Moved with mod N</span><b style="color:var(--bad)">${pct(r.mM / RT)}</b></div>
+      <div><span>Ideal (1 / (N+1))</span><b>${pct(1 / (S + 1))}</b></div>`;
+  }
+  ["kUsers", "kConc", "kConn", "kOps", "kPer", "kHot"].forEach(x => $(x).oninput = renderCap);
+
+  // ================= 5c: storage =================
+  function storeInputs() { return { docs: Math.pow(10, +$("sDocs").value), ops: +$("sOps").value, opB: +$("sOpB").value, docKB: +$("sDocKB").value, K: nice(Math.pow(10, +$("sK").value)), rep: +$("sRep").value }; }
+  function renderStore() {
+    const v = storeInputs(), m = storeModel(v);
+    $("sDocsOut").textContent = fmt(v.docs); $("sOpsOut").textContent = fmt(v.ops); $("sOpBOut").textContent = v.opB + " B"; $("sDocKBOut").textContent = v.docKB + " KB"; $("sKOut").textContent = fmt(v.K); $("sRepOut").textContent = v.rep + " µs";
+    $("sResults").innerHTML = `
+      <div><span>Ops written per second (avg)</span><b>${fmt(m.opsSec)}</b></div>
+      <div><span>Op log per day</span><b>${bytes(m.logB)}</b></div>
+      <div><span>Snapshots per day</span><b>${fmt(m.snaps)}</b></div>
+      <div><span>Snapshot bytes per day</span><b style="color:var(--accent)">${bytes(m.snapB)}</b></div>
+      <div><span>Replay on open: average</span><b>${ms(m.avg)}</b></div>
+      <div><span>Replay on open: worst</span><b style="color:var(--amber)">${ms(m.worst)}</b></div>`;
+    $("sFormula").textContent = `log/day       = ${fmt(v.docs)} docs × ${fmt(v.ops)} ops × ${v.opB} B = ${bytes(m.logB)}
+snapshots/day = ${fmt(m.opsDay)} ops / ${fmt(v.K)} = ${fmt(m.snaps)}  × ${v.docKB} KB = ${bytes(m.snapB)}
+worst replay  = ${fmt(v.K)} ops × ${v.rep} µs = ${ms(m.worst)}  (average half that)`;
+    $("sNotes").innerHTML = [
+      `Snapshot writes fall as 1/N and replay time grows as N. At N = ${fmt(v.K)}, each snapshot replaces ${fmt(v.K)} ops of ${v.opB} B (${bytes(v.K * v.opB)}) with ${v.docKB} KB of text, so snapshots cost ${(m.snapB / m.logB).toFixed(1)}× the bytes of the log itself. ${m.snapB > 3 * m.logB ? "Raise N, or snapshot on a timer only for documents that changed." : m.worst > 100 ? "Opening now replays too much; lower N." : "A reasonable middle."}`,
+      `Write the log with an append-only, write-optimized store (an LSM-tree database such as Cassandra or Bigtable keyed by <span class="mono">(doc_id, rev)</span>, or a log like Kafka partitioned by doc id). Both keep one document's ops in order and in one place.`,
+      `Compaction: once a snapshot at revision S is safe in blob storage, ops before S are needed only for history. Keep them for a while (5e and 5f show why), then squash runs of them into coarser history checkpoints.`
+    ].map(x => `<li>${x}</li>`).join("");
+    // chart: both curves over N from 10 to 10,000 (log scale), each normalized to its own max
+    const nar = narrowMQ.matches, W = nar ? 420 : 720, Hh = 220, L = 46, R = 14, top = 16, bot = 36;
+    $("sChart").setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+    const X = k => L + (Math.log10(k) - 1) / 3 * (W - L - R), Ys = f => top + (1 - f) * (Hh - top - bot);
+    const ks = []; for (let e = 1; e <= 4.0001; e += 0.05) ks.push(Math.pow(10, e));
+    const snapMax = storeModel({ ...v, K: 10 }).snapB, repMax = storeModel({ ...v, K: 10000 }).worst;
+    let s = "";
+    [0, 0.5, 1].forEach(f => { s += `<line x1="${L}" y1="${Ys(f)}" x2="${W - R}" y2="${Ys(f)}" stroke="var(--grid)"/>`; });
+    [10, 100, 1000, 10000].forEach(k => { s += `<text x="${X(k)}" y="${Hh - 16}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">${fmt(k)}</text>`; });
+    s += `<text x="${W - R}" y="${Hh - 3}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="var(--muted)">snapshot every N ops</text>`;
+    s += `<text x="4" y="${Ys(1) + 4}" font-family="var(--mono)" font-size="11" fill="var(--muted)">max</text><text x="4" y="${Ys(0) + 4}" font-family="var(--mono)" font-size="11" fill="var(--muted)">0</text>`;
+    const path = f => ks.map((k, i) => `${i ? "L" : "M"}${X(k).toFixed(1)},${Ys(f(k)).toFixed(1)}`).join("");
+    s += `<path d="${path(k => storeModel({ ...v, K: k }).snapB / snapMax)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
+    s += `<path d="${path(k => storeModel({ ...v, K: k }).worst / repMax)}" fill="none" stroke="var(--amber)" stroke-width="2.5"/>`;
+    const cx = X(v.K);
+    s += `<line x1="${cx}" y1="${top}" x2="${cx}" y2="${Hh - bot}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    s += `<circle cx="${cx}" cy="${Ys(m.snapB / snapMax)}" r="5" fill="var(--accent)"/><circle cx="${cx}" cy="${Ys(m.worst / repMax)}" r="5" fill="var(--amber)"/>`;
+    s += `<text x="${Math.min(cx + 6, W - R - 70)}" y="${top + 10}" font-family="var(--mono)" font-size="11" fill="var(--ink)">N = ${fmt(v.K)}</text>`;
+    $("sChart").innerHTML = s;
+  }
+  ["sDocs", "sOps", "sOpB", "sDocKB", "sK", "sRep"].forEach(x => $(x).oninput = renderStore);
+
+  // ================= 5d: presence =================
+  function renderPresence() {
+    const n = +$("pN").value, mv = +$("pMoves").value, thr = +$("pThr").value, pb = +$("pB").value;
+    $("pNOut").textContent = n; $("pMovesOut").textContent = mv; $("pThrOut").textContent = thr ? thr + " ms" : "no limit"; $("pBOut").textContent = pb + " B";
+    const sent = thr ? Math.min(mv, 1000 / thr) : mv, rawIn = n * mv, inS = n * sent, out = inS * (n - 1), editOut = n * 1 * (n - 1);
+    $("pResults").innerHTML = `
+      <div><span>Cursor updates in, raw</span><b>${fmt(rawIn)}/s</b></div>
+      <div><span>After throttling</span><b style="color:var(--ok)">${fmt(inS)}/s</b></div>
+      <div><span>Presence messages out</span><b>${fmt(out)}/s</b></div>
+      <div><span>Presence bandwidth out</span><b>${bytes(out * pb)}/s</b></div>
+      <div><span>Edit messages out (1 op/s each)</span><b>${fmt(editOut)}/s</b></div>`;
+    // a real cursor transform: Ben's cursor at 12, Ana inserts "hello " at 4
+    const cur = T({ t: "ins", p: 12, s: "", site: 1 }, { t: "ins", p: 4, s: "hello ", site: 0 }).p;
+    $("pNotes").innerHTML = [
+      `Each editor's cursor moves ${mv} times a second; sending every move would put ${fmt(rawIn * (n - 1))} messages a second on the wire for this one document. Throttling to one every ${thr || "0"} ms keeps ${fmt(inS)} in and ${fmt(out)} out, ${out > editOut ? (out / editOut).toFixed(1) + "× more than the edits themselves" : "below the edit traffic"}.`,
+      `A cursor is sent as <span class="mono">(rev, pos)</span>. When ops arrive, each client moves remote cursors through them with the same transform as text: Ben's cursor at 12, after Ana inserts "hello " at 4, moves to ${cur}.`,
+      `Presence is never written to the op log or a database: it lives in the owner's memory, is lost on failover (clients just resend), and an entry with no heartbeat for a few seconds is removed. Losing it costs nothing; persisting it would multiply write load for no benefit.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["pN", "pMoves", "pThr", "pB"].forEach(x => $(x).oninput = renderPresence);
+
+  // ================= 5e: offline =================
+  const dur = m => m >= 1440 ? (m / 1440).toFixed(m < 14400 ? 1 : 0) + " days" : m >= 60 ? (m / 60).toFixed(1) + " h" : Math.round(m) + " min";
+  function renderOffline() {
+    const mins = Math.max(1, Math.round(Math.pow(10, +$("oMin").value))), mine = +$("oMine").value, theirs = +$("oTheirs").value, comp = +$("oComp").value, keep = +$("oKeep").value;
+    $("oMinOut").textContent = dur(mins); $("oMineOut").textContent = mine; $("oTheirsOut").textContent = theirs; $("oCompOut").textContent = comp; $("oKeepOut").textContent = keep + " days";
+    const myOps = mins * mine, myComp = Math.ceil(myOps / comp), their = mins * theirs;
+    const tRaw = myOps * their, tComp = myComp * their, gone = mins > keep * 1440;
+    $("oResults").innerHTML = `
+      <div><span>Your queued ops</span><b>${fmt(myOps)}</b></div>
+      <div><span>After composing</span><b>${fmt(myComp)}</b></div>
+      <div><span>Ops you must catch up on</span><b>${fmt(their)}</b></div>
+      <div><span>Transforms, op by op</span><b>${fmt(tRaw)}</b></div>
+      <div><span>Transforms, composed</span><b style="color:var(--ok)">${fmt(tComp)}</b></div>
+      <div><span>At 1 µs each</span><b>${ms(tComp / 1000)}</b></div>
+      <div><span>Server still has your base?</span><b style="color:${gone ? "var(--bad)" : "var(--ok)"}">${gone ? "no" : "yes"}</b></div>`;
+    $("oNotes").innerHTML = [
+      `Every one of your ${fmt(myOps)} queued ops must be transformed past every one of the ${fmt(their)} ops others made: ${fmt(tRaw)} transforms. Composing your queue first (consecutive keystrokes become one insert, an insert then a delete of the same text cancels) cuts it to ${fmt(tComp)}.`,
+      gone ? `<b>${dur(mins)} offline is longer than the ${keep} days of individual ops the server keeps.</b> It can no longer replay "everything since your base revision", so it cannot transform your queue. Fall back: fetch the latest snapshot, diff your offline copy against the base you started from, and apply that diff as new ops (a three-way merge), or save your copy as a separate version and let the user choose.` : `The server still holds every op since your base revision (${dur(mins)} ago, kept for ${keep} days), so the ordinary transform path works; the user just sees a short "syncing" state.`,
+      `Correct is not the same as sensible: after long divergence, both sides may have rewritten the same paragraph and OT will keep both edits interleaved. Long offline sessions are where CRDT-based editors (and showing the user what merged) shine.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["oMin", "oMine", "oTheirs", "oComp", "oKeep"].forEach(x => $(x).oninput = renderOffline);
+
+  // ================= 5f: history, rebuilt from the scripted op log =================
+  const HLOG = H.s3log;
+  $("hRev").max = HLOG.length; $("hRev").value = HLOG.length;
+  $("hKicker").innerHTML = `Because the op log holds every change in order, any revision can be rebuilt: start from the nearest snapshot at or below it and replay forward. Below is the real log of ${HLOG.length} ops from the stage 4 scripted run in the design above. Drag through its history.`;
+  function textAt(rev) { let d = INIT; for (let i = 0; i < rev; i++) d = applyOp(d, HLOG[i]); return d; }
+  function diffOps(from, to) {
+    let p = 0; while (p < from.length && p < to.length && from[p] === to[p]) p++;
+    let e = 0; while (e < from.length - p && e < to.length - p && from[from.length - 1 - e] === to[to.length - 1 - e]) e++;
+    return { dels: from.length - p - e, ins: to.length - p - e, at: p, text: to.slice(p, to.length - e) };
+  }
+  function renderHistory() {
+    const rev = +$("hRev").value, K = +$("hK").value, N = HLOG.length;
+    $("hRevOut").textContent = rev + " / " + N; $("hKOut").textContent = K;
+    const snap = Math.floor(rev / K) * K, replay = rev - snap, txt = textAt(rev), cur = textAt(N), op = rev ? HLOG[rev - 1] : null;
+    let shown = esc(txt);
+    if (op && op.t === "ins") shown = esc(txt.slice(0, op.p)) + "<mark>" + esc(op.s) + "</mark>" + esc(txt.slice(op.p + op.s.length));
+    $("hText").innerHTML = shown || "&nbsp;";
+    const d = diffOps(cur, txt), restoreOps = d.dels + (d.ins ? 1 : 0), snaps = Math.floor(N / K);
+    $("hResults").innerHTML = `
+      <div><span>Last op shown</span><b style="font-size:0.95rem">${op ? NAMES[op.site] + ": " + esc(opText(op)) : "none (original)"}</b></div>
+      <div><span>Load from snapshot at rev</span><b>${snap}</b></div>
+      <div><span>Ops replayed</span><b>${replay}</b></div>
+      <div><span>Snapshots stored</span><b>${snaps}</b></div>
+      <div><span>Ops to restore this version</span><b style="color:var(--accent)">${rev === N ? 0 : restoreOps}</b></div>`;
+    $("hNotes").innerHTML = [
+      `Showing revision ${rev} costs reading one snapshot (revision ${snap}) and replaying ${replay} op${replay === 1 ? "" : "s"}; with a snapshot every ${K} ops no revision needs more than ${K - 1}. Fewer snapshots save storage, more make history scrubbing smoother.`,
+      rev === N ? `This is the current text. Drag back to pick an older version to restore.` : `Restoring revision ${rev} does <b>not</b> delete revisions ${rev + 1}–${N}. The server computes the difference from the current text and appends it as new ops (${d.dels} single-character delete${d.dels === 1 ? "" : "s"}${d.ins ? ` and one insert of ${d.ins} character${d.ins === 1 ? "" : "s"}` : ""} at position ${d.at}), revision ${N + 1} onward. History stays linear, other editors receive the restore like any edit, and the restore itself can be undone.`,
+      `A named version is just a label on a revision number. "Version history" in the UI groups runs of ops by author and time, so people see a few dozen versions rather than every keystroke.`
+    ].map(x => `<li>${x}</li>`).join("");
+  }
+  ["hRev", "hK"].forEach(x => $(x).oninput = renderHistory);
+
+  // ================= worked example: estimate =================
+  function renderEstimate() {
+    const c = CD, st = storeModel(STORE_DEF);
+    $("estResults").innerHTML = `
+      <div><span>Connected at the peak</span><b>${fmt(c.editors)}</b></div>
+      <div><span>Doc servers</span><b>${c.servers}</b></div>
+      <div><span>Ops in per second (peak)</span><b>${fmt(c.opsIn)}</b></div>
+      <div><span>Messages out per second</span><b>${fmt(c.out)}</b></div>
+      <div><span>Op log per day</span><b>${bytes(st.logB)}</b></div>
+      <div><span>Snapshot writes per day</span><b>${bytes(st.snapB)}</b></div>
+      <div><span>Worst replay on open</span><b>${ms(st.worst)}</b></div>`;
+    $("estFormula").textContent = `${fmt(CAP_DEF.users)} editing users × ${pct(CAP_DEF.conc)} at peak       = ${fmt(c.editors)} sockets
+${fmt(c.editors)} / (${fmt(CAP_DEF.conn)} per server × ${HEAD})        = ${c.servers} doc servers
+${fmt(c.editors)} × ${CAP_DEF.ops} ops/s                         = ${fmt(c.opsIn)} ops/s in
+${fmt(STORE_DEF.docs)} docs × ${fmt(STORE_DEF.ops)} ops × ${STORE_DEF.opB} B             = ${bytes(st.logB)} of log a day
+snapshot every ${STORE_DEF.K} ops × ${STORE_DEF.rep} µs per replayed op = ${ms(st.worst)} worst open`;
+    $("estNote").innerHTML = `The takeaways: the fleet is sized by open sockets (${c.servers} servers each doing only ${fmt(c.perServerIn)} ops a second), the op log is a modest ${bytes(st.logB)} a day that an LSM-based store absorbs easily at ${fmt(st.opsSec)} writes a second on average, and the snapshot interval keeps every open under ${ms(st.worst)} of replay. The scarce resource is not throughput but one process per document, which is why the busy-document cap and fast failover matter more than raw capacity.`;
+  }
+
+  // ================= boot =================
+  function renderAll() { renderCap(); renderStore(); renderPresence(); renderOffline(); renderHistory(); renderOT(); renderCRDT(); render(); }
+  resetSim(); renderExplain(); renderAll(); renderEstimate();
+  let resizeT = null;
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { renderStore(); draw(); }, 60); });
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; stepDots(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

@@ -102,6 +102,11 @@
   .vs .h { font: 500 .78rem/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; display: block; margin-bottom: .3rem; }
   .vs .bad { color: var(--bad); } .vs .good { color: var(--ok); }
   .vs svg { display: block; width: 100%; height: auto; font-family: var(--mono); color: var(--ink); }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -594,9 +599,9 @@ MAE 6 flats: w = 2.0 b = 7.0 -&gt; 900 sq ft: 25.0
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. A model predicts 3 delivery times with errors +4, −4 and 0 minutes. What are the sum of errors, the MAE and the MSE?</p><summary>Show answer</summary><p class="a">Sum: <code>4 − 4 + 0 = 0</code>, which wrongly suggests a perfect model. MAE: <code>(4 + 4 + 0) / 3 ≈ 2.67</code> minutes. MSE: <code>(16 + 16 + 0) / 3 ≈ 10.67</code> minutes squared (RMSE ≈ 3.27 minutes).</p></details>
-<details><p class="q">2. Two models see an ok email. Model A says P(spam) = 0.6, model B says P(spam) = 0.99. Both are wrong at a 0.5 cut-off. What does log loss charge each?</p><summary>Show answer</summary><p class="a">The probability given to the truth (ok) is <code>1 − P(spam)</code>. A: <code>−ln 0.4 ≈ 0.9163</code>. B: <code>−ln 0.01 ≈ 4.6052</code>, five times more. Accuracy counts them as the same single mistake; log loss punishes B's confidence.</p></details>
-<details><p class="q">3. You are predicting house prices from a scraped dataset where a few rows have prices typed with an extra zero. Which loss would you start with, and why?</p><summary>Show answer</summary><p class="a">MAE (or a blend that behaves like it for big errors). A price ten times too high gives an error so large that its square would dominate MSE, dragging the line toward the bad rows, just like flat F. MAE charges it in proportion, so the clean rows still decide the fit. Better still: find and fix the bad rows.</p></details>
+<details><summary><span class="q">1. A model predicts 3 delivery times with errors +4, −4 and 0 minutes. What are the sum of errors, the MAE and the MSE?</span><span class="sa">Show answer</span></summary><p class="a">Sum: <code>4 − 4 + 0 = 0</code>, which wrongly suggests a perfect model. MAE: <code>(4 + 4 + 0) / 3 ≈ 2.67</code> minutes. MSE: <code>(16 + 16 + 0) / 3 ≈ 10.67</code> minutes squared (RMSE ≈ 3.27 minutes).</p></details>
+<details><summary><span class="q">2. Two models see an ok email. Model A says P(spam) = 0.6, model B says P(spam) = 0.99. Both are wrong at a 0.5 cut-off. What does log loss charge each?</span><span class="sa">Show answer</span></summary><p class="a">The probability given to the truth (ok) is <code>1 − P(spam)</code>. A: <code>−ln 0.4 ≈ 0.9163</code>. B: <code>−ln 0.01 ≈ 4.6052</code>, five times more. Accuracy counts them as the same single mistake; log loss punishes B's confidence.</p></details>
+<details><summary><span class="q">3. You are predicting house prices from a scraped dataset where a few rows have prices typed with an extra zero. Which loss would you start with, and why?</span><span class="sa">Show answer</span></summary><p class="a">MAE (or a blend that behaves like it for big errors). A price ten times too high gives an error so large that its square would dominate MSE, dragging the line toward the bad rows, just like flat F. MAE charges it in proportion, so the clean rows still decide the fit. Better still: find and fix the bad rows.</p></details>
 </section>
 
 <section data-step="Wrap-up">
@@ -605,7 +610,7 @@ MAE 6 flats: w = 2.0 b = 7.0 -&gt; 900 sq ft: 25.0
 </section>
 
 <section data-step-join>
-<h2><span class="tag">j · Next time</span>Lesson 08 · Gradient descent</h2>
+<h2><span class="tag">j · Next time</span><a href="08-gradient-descent.html">Lesson 08 · Gradient descent</a></h2>
 <p>We now have a bowl-shaped loss over the knobs and know that training means reaching its bottom, so next we turn Lesson 05's slopes into an algorithm that walks there one step at a time, for two knobs or two billion.</p>
 </section>
 
@@ -619,7 +624,7 @@ MAE 6 flats: w = 2.0 b = 7.0 -&gt; 900 sq ft: 25.0
 
 <nav class="pn" aria-label="Lesson navigation">
   <a href="06-probability.html">← Lesson 06 · Probability basics for ML</a>
-  <span class="muted">Next: Lesson 08 · Gradient descent (coming soon)</span>
+  <a href="08-gradient-descent.html">Lesson 08 · Gradient descent →</a>
 </nav>
 </main>
 

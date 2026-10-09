@@ -72,6 +72,11 @@
   .pn { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; font: 500 .85rem/1.5 var(--mono); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
   .pn .muted { color: var(--muted); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -263,9 +268,9 @@ print(predict(6, best_t))             <span class="c"># 1  (spam)</span></code><
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. A thermostat that turns on the heater when the temperature drops below 20°C, with 20 set by an engineer. Is that machine learning?</p><summary>Show answer</summary><p class="a">No. It has a threshold like our spam model, but a human chose the 20. It becomes ML only if the threshold is picked automatically from data, for example from records of when people felt cold.</p></details>
-<details><p class="q">2. Put these in order from broadest to narrowest: deep learning, AI, machine learning.</p><summary>Show answer</summary><p class="a">AI ⊃ machine learning ⊃ deep learning. Every deep learning system is an ML system, and every ML system is an AI system.</p></details>
-<details><p class="q">3. In our worked example, suppose email G had 4 "!" instead of 1. What would the best threshold be, and how many mistakes would it make?</p><summary>Show answer</summary><p class="a">Now spam emails have counts 3, 5, 4, 4 and ok emails have 0, 1, 0, 2. Any threshold of 3 separates them perfectly: t = 3 gives 0 mistakes (100%). Changing the data changed what the model learned.</p></details>
+<details><summary><span class="q">1. A thermostat that turns on the heater when the temperature drops below 20°C, with 20 set by an engineer. Is that machine learning?</span><span class="sa">Show answer</span></summary><p class="a">No. It has a threshold like our spam model, but a human chose the 20. It becomes ML only if the threshold is picked automatically from data, for example from records of when people felt cold.</p></details>
+<details><summary><span class="q">2. Put these in order from broadest to narrowest: deep learning, AI, machine learning.</span><span class="sa">Show answer</span></summary><p class="a">AI ⊃ machine learning ⊃ deep learning. Every deep learning system is an ML system, and every ML system is an AI system.</p></details>
+<details><summary><span class="q">3. In our worked example, suppose email G had 4 "!" instead of 1. What would the best threshold be, and how many mistakes would it make?</span><span class="sa">Show answer</span></summary><p class="a">Now spam emails have counts 3, 5, 4, 4 and ok emails have 0, 1, 0, 2. Any threshold of 3 separates them perfectly: t = 3 gives 0 mistakes (100%). Changing the data changed what the model learned.</p></details>
 </section>
 
 <section data-step="Wrap-up">

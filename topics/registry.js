@@ -109,8 +109,15 @@ window.TOPICS = [
     usedIn: "Google Chubby, ZooKeeper, etcd, Redis",
     glyph: "lock"
   },
-  { slug: "crdt", title: "Collaborative Editing (OT and CRDTs)", area: "Real-time updates", status: "planned",
-    blurb: "Two people type at the same spot offline. See how both edits survive the merge." },
+  {
+    slug: "crdt",
+    title: "Collaborative Editing (OT and CRDTs)",
+    area: "Real-time updates",
+    status: "ready",
+    blurb: "Type into two offline copies, reconnect and watch naive indexes diverge (\"hat\" vs \"aht\") while OT transforms and a sequence CRDT with ids and tombstones converge.",
+    usedIn: "Google Docs, Figma, Yjs, Automerge",
+    glyph: "merge"
+  },
   { slug: "vector-clocks", title: "Vector Clocks", area: "Distributed systems", status: "planned",
     blurb: "Track causality between events and spot concurrent writes." }
 ];
@@ -190,7 +197,14 @@ window.QUESTIONS = [
     blurb: "Grow a cache from one LRU node to a sharded, replicated cluster, kill nodes and make a key go viral, then measure keys moved by consistent hashing, hot-key load and stampede queries.",
     concepts: ["lru-cache", "consistent-hashing", "quorum", "bloom-filter"]
   },
-  { slug: "google-docs", title: "Design Google Docs", level: "hld", status: "planned", blurb: "Real-time collaborative editing with OT or CRDTs." },
+  {
+    slug: "google-docs",
+    title: "Design Google Docs",
+    level: "hld",
+    status: "ready",
+    blurb: "Three editors type at once through four design stages: OT through one owner server per document, a hash ring, an op log with snapshots, then presence, offline merge and version history sized live.",
+    concepts: ["crdt", "consistent-hashing", "kafka", "lsm-tree", "rate-limiter"]
+  },
   { slug: "dropbox", title: "Design Dropbox", level: "hld", status: "planned", blurb: "Chunked uploads, presigned URLs and sync across devices." },
   {
     slug: "lld-parking-lot",
@@ -219,7 +233,15 @@ window.QUESTIONS = [
     concepts: ["rate-limiter"],
     patterns: ["Strategy", "Factory", "Decorator", "Observer"]
   },
-  { slug: "lld-elevator", title: "Design an Elevator System", level: "lld", status: "planned", blurb: "Cars, requests and a dispatcher, with elevator state and scheduling strategies." },
+  {
+    slug: "lld-elevator",
+    title: "Design an Elevator System",
+    level: "lld",
+    status: "ready",
+    blurb: "Press hall and car buttons in a three-car, ten-floor building, step it tick by tick, swap nearest-car for a LOOK-aware dispatcher and watch waits drop, and race a button thread against the control loop.",
+    concepts: [],
+    patterns: ["State", "Strategy", "Observer", "Command"]
+  },
   { slug: "lld-vending-machine", title: "Design a Vending Machine", level: "lld", status: "planned", blurb: "Inventory, coins and change, driven by the State pattern." },
   { slug: "lld-splitwise", title: "Design Splitwise", level: "lld", status: "planned", blurb: "Users, groups, expenses and balances, with equal, exact and percent splits." },
   { slug: "lld-library", title: "Design a Library Management System", level: "lld", status: "planned", blurb: "Books, copies, members, loans, holds and fines." },
@@ -277,7 +299,9 @@ window.DSA = [
       problems: ["Traversal orders", "Level order", "Maximum depth", "Validate a BST"] }
   ] },
   { area: "Heap", patterns: [
-    { slug: "top-k", title: "Top K and Two Heaps", status: "planned", blurb: "Keep the k largest with a min-heap, and a running median with two heaps." }
+    { slug: "top-k", title: "Top K and Two Heaps", status: "ready",
+      blurb: "Keep the k best with a size-k heap, merge sorted lists by their fronts, and track a running median with two heaps, with every sift drawn as an array and a tree.",
+      problems: ["Kth largest", "K most frequent", "Merge k sorted lists", "Running median"] }
   ] },
   { area: "Graph", patterns: [
     { slug: "graph-search", title: "BFS, Topological Sort and Union-Find", status: "planned", blurb: "Shortest paths in unweighted graphs, dependency order and connected groups." }
@@ -306,7 +330,8 @@ window.LESSONS = [
       blurb: "Probability as counting a part out of a whole: rules, conditional probability, distributions and expected value, the language a model uses to say how sure it is." },
     { num: 7, slug: "07-loss-functions", title: "Loss functions", math: [2, 3, 4], status: "ready",
       blurb: "Turn a line's knobs over five flats and watch MAE and MSE react, see one typo pull the squared-error fit off course, and price confident wrong spam guesses with log loss." },
-    { num: 8, slug: "08-gradient-descent", title: "Gradient descent", math: [5], status: "planned", blurb: "Walk downhill on the loss, one small step at a time." },
+    { num: 8, slug: "08-gradient-descent", title: "Gradient descent", math: [5], status: "ready",
+      blurb: "Feel the slope and step downhill: walk one knob, then two, to the bottom of the five-flat loss bowl, and watch a learning rate crawl, converge, bounce or blow up." },
     { num: 9, slug: "09-linear-regression", title: "Linear regression end to end", math: [1, 3, 5, 7], status: "planned", blurb: "Fit a line to data: model, loss and training together." },
     { num: 10, slug: "10-logistic-regression", title: "Logistic regression and classification", math: [4], status: "planned", blurb: "Turn a score into a probability and a yes/no answer." },
     { num: 11, slug: "11-splits", title: "Train, validation and test splits", status: "planned", blurb: "Why a model must be graded on data it never saw." },
@@ -381,8 +406,8 @@ window.MATH = [
     blurb: "Σ is a for-loop: add one term per item, divide by n for the mean, and weight the terms for an expected value.", usedBy: [3, 6, 7, 9, 14] },
   { num: 4, slug: "m04-exponents-logs", title: "Exponents and logarithms", status: "ready",
     blurb: "Exponents and logs as counting, e from compound interest, and −ln p punishing a confidently wrong answer.", usedBy: [7, 10, 21, 31, 40] },
-  { num: 5, slug: "m05-gradient", title: "Partial derivatives and the gradient", status: "planned",
-    blurb: "Slopes along each knob separately, bundled into one downhill arrow.", usedBy: [8, 9, 23] },
+  { num: 5, slug: "m05-gradient", title: "Partial derivatives and the gradient", status: "ready",
+    blurb: "Nudge one knob at a time to get partial derivatives, stack them into the gradient, and see why −∇L points downhill, across the contour lines.", usedBy: [8, 9, 23] },
   { num: 6, slug: "m06-variance", title: "Mean, variance and standard deviation", status: "planned",
     blurb: "How spread out numbers are, measured in one number.", usedBy: [12, 25, 26] },
   { num: 7, slug: "m07-matmul", title: "Matrix multiplication and shapes", status: "planned",

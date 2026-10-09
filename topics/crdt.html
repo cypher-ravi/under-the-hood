@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Collaborative Editing (OT and CRDTs)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/lab.css?v=8">
+<style>
+  .canvas-panel { display: grid; gap: 14px; padding: 16px; }
+  .sub { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .reps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .rep { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 10px; background: var(--paper); min-width: 0; align-content: start; }
+  .rep-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rep-head h3 { font-size: 1.05rem; }
+  .rep input { font: 600 18px/1.2 var(--mono); padding: 10px 10px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; min-width: 0; letter-spacing: .04em; }
+  .rep input:focus { border-color: var(--accent); }
+  .cells { display: flex; flex-wrap: wrap; gap: 3px; min-height: 40px; }
+  .cell { width: 26px; display: grid; justify-items: center; gap: 2px; }
+  .cell b { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); font: 600 14px/1 var(--mono); }
+  .cell span { font: 500 10px/1 var(--mono); color: var(--muted); }
+  .cell.new b { border-color: var(--accent); color: var(--accent); }
+  .lbl { font: 600 10.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .elems { display: flex; flex-wrap: wrap; gap: 3px; }
+  .el { min-width: 38px; padding: 3px 4px; display: grid; justify-items: center; gap: 2px; border: 1px solid var(--accent); border-radius: 3px; background: var(--panel); }
+  .el b { font: 600 14px/1 var(--mono); color: var(--ink); }
+  .el span { font: 500 10px/1 var(--mono); color: var(--accent); white-space: nowrap; }
+  .el.dead { border-style: dashed; border-color: var(--muted); background: transparent; }
+  .el.dead b { color: var(--muted); text-decoration: line-through; }
+  .el.dead span { color: var(--muted); }
+  .internals { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .internals .mono { color: var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chips span { font: 500 11.5px/1 var(--mono); padding: 5px 6px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font: 500 11.5px/1.45 var(--mono); color: var(--muted); max-height: 150px; overflow-y: auto; }
+  .log li { overflow-wrap: anywhere; padding-left: 8px; border-left: 2px solid var(--line); }
+  .log li.recv { border-left-color: var(--accent); color: var(--ink); }
+  .log li.bad { border-left-color: var(--bad); color: var(--bad); }
+  .wire { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+  .wire.cut { border-color: var(--amber); border-style: dashed; }
+  .lane { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .lane > span { font: 600 11.5px/1.3 var(--mono); color: var(--muted); }
+  .pkts { display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px; align-items: center; }
+  .pkt { position: relative; overflow: hidden; font: 500 11.5px/1 var(--mono); padding: 6px 7px 8px; border-radius: var(--radius); border: 1px solid var(--accent); background: var(--panel); color: var(--ink); }
+  .pkt i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+  .pkt.held { border-color: var(--amber); border-style: dashed; background: var(--amber-soft); }
+  .pkts em { font: 500 11.5px/1 var(--mono); color: var(--muted); font-style: normal; }
+  .verdict-box { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; border: 1px solid var(--line); }
+  .verdict-box b { font: 600 15px/1.3 var(--mono); overflow-wrap: anywhere; }
+  .verdict-box.ok b { color: var(--ok); }
+  .verdict-box.warn { border-color: var(--amber); }
+  .verdict-box.warn b { color: var(--amber); }
+  .verdict-box.bad { border-color: var(--bad); }
+  .verdict-box.bad b { color: var(--bad); }
+  .verdict-box p { font-size: 13px; color: var(--muted); }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modes button { font-size: 12.5px; padding: 8px 10px; }
+  .modes button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presets button { font-size: 12px; padding: 7px 9px; }
+  .stat-row b { overflow-wrap: anywhere; text-align: right; }
+  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-wrap: anywhere; }
+  table.data tr.cur td { background: var(--accent-soft); }
+  table.data tr.clk { cursor: pointer; }
+  table.data tr.clk:hover td { background: var(--paper); }
+  table.data.wrapc th, table.data.wrapc td { white-space: normal; padding-right: 8px; }
+  table.data.wrapc { font-size: 13px; }
+  .x { font-family: var(--mono); font-weight: 600; color: var(--accent); }
+  .x.bad { color: var(--bad); }
+  .x.ok { color: var(--ok); }
+  .exlists { display: grid; gap: 8px; }
+  .exlists > div { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .exlists > div > span { font: 600 12px/1.3 var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../">← All topics</a>
+    <span class="eyebrow">Real-time updates</span>
+  </div>
+
+  <header class="intro">
+    <h1>Collaborative Editing (OT and CRDTs)</h1>
+    <p class="lede">Alice and Bob edit the same text at the same moment, each on their own copy, and each edit travels over the network to the other copy. An edit that only says "insert h at index 1" can land in the wrong place, because the other copy has changed in the meantime. Two fixes are used in practice. <b>Operational transformation (OT)</b> rewrites an incoming edit to account for the edits it raced with. A <b>CRDT</b> gives every character a permanent id, so edits never mention positions at all and can be applied in any order.</p>
+    <nav class="toc" aria-label="On this page">
+      <a href="#simulation">Simulation</a><a href="#example">Worked example</a><a href="#story">The story</a><a href="#principles">First principles</a><a href="#notice">What to notice</a><a href="#interview">Interview angle</a>
+    </nav>
+  </header>
+
+  <section class="stage" id="simulation" data-step="Simulation">
+    <div class="panel canvas-panel">
+      <div class="sub"><span class="eyebrow" id="modeLabel"></span><span class="eyebrow" id="netLabel"></span></div>
+      <div class="reps">
+        <div class="rep" id="repA">
+          <div class="rep-head"><h3>Alice</h3><span class="eyebrow">site A</span></div>
+          <input id="inA" type="text" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Alice's copy of the document">
+          <div class="cells" id="cellsA" aria-label="Alice's text with indexes"></div>
+          <div class="internals" id="intA"></div>
+          <div><span class="lbl">What happened here, newest first</span><ul class="log" id="logA" style="margin-top:6px"></ul></div>
+        </div>
+        <div class="rep" id="repB">
+          <div class="rep-head"><h3>Bob</h3><span class="eyebrow">site B</span></div>
+          <input id="inB" type="text" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Bob's copy of the document">
+          <div class="cells" id="cellsB" aria-label="Bob's text with indexes"></div>
+          <div class="internals" id="intB"></div>
+          <div><span class="lbl">What happened here, newest first</span><ul class="log" id="logB" style="margin-top:6px"></ul></div>
+        </div>
+      </div>
+      <div class="wire" id="wire">
+        <span class="lbl" id="wireLabel">Network</span>
+        <div class="lane"><span>Alice → Bob</span><div class="pkts" id="pktB"></div></div>
+        <div class="lane"><span>Bob → Alice</span><div class="pkts" id="pktA"></div></div>
+      </div>
+      <div class="verdict-box" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <div class="modes" role="tablist" aria-label="How edits are merged" id="modes">
+        <button role="tab" data-mode="naive">1 · Naive indexes</button>
+        <button role="tab" data-mode="ot">2 · OT</button>
+        <button role="tab" data-mode="crdt">3 · CRDT (RGA)</button>
+      </div>
+      <p id="modeNote" style="font-size:13.5px"></p>
+      <div style="display:grid;gap:6px">
+        <span class="lbl">Start from</span>
+        <div class="presets" id="presets">
+          <button data-preset="cat">"cat": insert vs delete</button>
+          <button data-preset="spot">Both type at one spot</button>
+          <button data-preset="same">Both delete one letter</button>
+          <button data-preset="blank">Fresh "cat", online</button>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="primary" id="conn"></button>
+        <button id="sync">Deliver everything now</button>
+      </div>
+      <div class="controls">
+        <button id="dlvB">Deliver 1 → Bob</button>
+        <button id="dlvA">Deliver 1 → Alice</button>
+      </div>
+      <label class="field" for="delay"><span class="row"><span>Network delay per edit</span><b class="mono num" id="delayOut"></b></span>
+        <input type="range" id="delay" min="0" max="5" step="1" value="3"></label>
+      <p style="font-size:13px;color:var(--muted)">Type in either box. Every keystroke becomes one-letter edits that are sent to the other copy. Disconnect to edit offline, then reconnect and watch the queued edits arrive.</p>
+      <div id="stats" style="display:grid;gap:6px"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="compare" data-step="Same history, three ways">
+    <div class="sub">
+      <h2>Same history, three ways</h2>
+      <span class="eyebrow">tap a row to switch</span>
+    </div>
+    <p class="kicker" style="color:var(--muted)">Each row replays exactly what you did in the simulation (every edit, and every delivery in the order it happened) through a different merge engine.</p>
+    <div class="table-wrap" id="cmpTable"></div>
+    <p id="cmpNote"></p>
+    <p><b>Naive.</b> An edit is just (index, letter). The receiver applies that index to whatever its own text looks like now, even though the sender meant a different text.</p>
+    <p><b>OT.</b> The same edits, plus a count of how many of the receiver's edits the sender had already seen. The receiver walks the incoming edit past each of its own edits the sender had not seen, adjusting the index each time, then applies it. This is the two-party scheme from the Jupiter system: with only two parties and in-order delivery, these four rules are enough.</p>
+    <div class="table-wrap"><table class="data wrapc">
+      <thead><tr><th>Incoming</th><th>Your unseen edit</th><th>Becomes</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">ins(p)</td><td class="mono">ins(q), q &lt; p</td><td class="mono">ins(p+1)</td></tr>
+        <tr><td class="mono">ins(p) / del(p)</td><td class="mono">del(q), q &lt; p</td><td class="mono">p − 1</td></tr>
+        <tr><td class="mono">ins(p)</td><td class="mono">ins(p), same spot</td><td class="mono">Alice's first</td></tr>
+        <tr><td class="mono">del(p)</td><td class="mono">del(p), same letter</td><td class="mono">no-op</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>CRDT (RGA).</b> Every letter gets an id (counter, site) when it is typed, and keeps it forever. An insert says "new id right after id X"; a delete only marks the letter as a tombstone. Edits name ids, never positions, so the order they arrive in stops mattering.</p>
+  </section>
+
+  <section class="panel article" id="example" data-step="Worked example: naive and OT">
+    <span class="eyebrow">Worked example</span>
+    <h2>"cat": one insert and one delete at the same moment</h2>
+    <p class="kicker">Both copies start as <span class="x">cat</span>. Alice inserts <span class="mono">h</span> at index 1 because she wants "chat". At the same moment Bob deletes index 0 because he wants "at". What they both meant, together: the c is gone and an h sits in front of the a. Every value below is computed by the engines the simulation runs (preset "cat").</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Each edits its own copy</h3>
+        <p>Alice's copy becomes <span class="x" data-x="nLocA"></span> and she sends <span class="x" data-x="nMsgA"></span>. Bob's becomes <span class="x" data-x="nLocB"></span> and he sends <span class="x" data-x="nMsgB"></span>. Neither has seen the other's edit yet.</p>
+      </div></li>
+      <li><div>
+        <h3>Naive: apply the index as it arrives</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Copy</th><th>Receives</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Alice</td><td class="mono" data-x="nMsgB"></td><td class="mono" data-x="nEndA"></td></tr>
+            <tr><td>Bob</td><td class="mono" data-x="nMsgA"></td><td class="mono warn" data-x="nEndB"></td></tr>
+          </tbody>
+        </table></div>
+        <p>The copies disagree, and nothing else is coming to fix it. Alice's "index 1" meant "between c and a". On Bob's copy the c is already gone, so index 1 now means "between a and t".</p>
+      </div></li>
+      <li><div>
+        <h3>OT: transform, then apply</h3>
+        <p>Alice receives <span class="x" data-x="oMsgB"></span>. Bob had not seen her <span class="mono" data-x="oMsgA"></span>. The delete is at a smaller index than her insert, so the insert does not move it: it stays <span class="x" data-x="oXA"></span> and her copy reads <span class="x ok" data-x="oEndA"></span>.</p>
+        <p>Bob receives <span class="x" data-x="oMsgA"></span>. Alice had not seen his <span class="mono" data-x="oMsgB"></span>, which removed a letter in front of index 1, so the insert shifts left by one: <span class="x" data-x="oXB"></span>. His copy reads <span class="x ok" data-x="oEndB"></span>.</p>
+        <p class="formula">ins(p) after a concurrent del(q) with q &lt; p → ins(p − 1)</p>
+        <p>Both copies match, and both edits did what their author meant. The cost: each side has to remember its own recent edits until it knows the other side has seen them.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="example-crdt" data-step="Worked example: CRDT ids">
+    <span class="eyebrow">Worked example, continued</span>
+    <h2>The same race with ids instead of indexes</h2>
+    <p class="kicker">In the CRDT the starting letters have ids <span class="x" data-x="cSeed"></span> (counter, site; site 0 made the starting text), and both copies' counters sit at <span class="x" data-x="cClock"></span>.</p>
+    <ol class="steps">
+      <li><div>
+        <h3>Edits name ids</h3>
+        <p>Alice's insert becomes <span class="x" data-x="cMsgA"></span>: a fresh id from her counter, placed after the c. Bob's delete becomes <span class="x" data-x="cMsgB"></span>. The c stays in his list as a tombstone; it is only hidden.</p>
+      </div></li>
+      <li><div>
+        <h3>Merging is order-free</h3>
+        <p>Alice marks <span class="mono" data-x="cDel"></span> as deleted. Bob looks for <span class="mono" data-x="cDel"></span>, finds it (that is why tombstones are kept), and puts h right after it, because the next element has a smaller id. Both lists end up the same:</p>
+        <div class="exlists">
+          <div><span>Alice</span><div class="elems" data-xl="cListA"></div></div>
+          <div><span>Bob</span><div class="elems" data-xl="cListB"></div></div>
+        </div>
+        <p>Visible text: <span class="x ok" data-x="cEndA"></span> and <span class="x ok" data-x="cEndB"></span>.</p>
+      </div></li>
+      <li><div>
+        <h3>Two inserts after the same letter</h3>
+        <p>Now say Alice inserts h after the c while Bob inserts r there too. They get <span class="x" data-x="tA"></span> and <span class="x" data-x="tB"></span>: same counter, so the site breaks the tie and A ranks higher. When a new element arrives, a copy skips over any neighbours with a larger id, so the larger id always ends up first. Both copies read <span class="x ok" data-x="tEnd"></span>, whatever the delivery order. No transform was needed, but every letter now carries an id, and every deleted letter stays in memory.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="story" data-step="The story: OT">
+    <span class="eyebrow">The story</span>
+    <h2>From GROVE to Google Docs</h2>
+    <p>In 1989 Clarence Ellis and Simon Gibbs, working at MCC in Austin, presented "Concurrency Control in Groupware Systems" at ACM SIGMOD. Their outline editor, GROVE, let several people edit at once with no locks: each person's edits showed up on their own screen straight away, and edits arriving from others were transformed before they were applied. That is the idea of operational transformation, and their algorithm was called dOPT.</p>
+    <p>It was harder than it looked. During the 1990s researchers found sequences of edits among three or more sites where dOPT left copies different, and a long line of papers followed, each adding conditions a transform has to satisfy and each finding new corner cases.</p>
+    <p>In 1995 David Nichols, Pavel Curtis, Michael Dixon and John Lamping at Xerox PARC described the Jupiter collaboration system at UIST. Their shortcut was to put a server in the middle. Every client talks only to the server, so any transform involves just two parties, the case that is easy to get right. The simulation on this page uses Jupiter's two-party scheme.</p>
+    <p>Google Wave, announced at Google I/O in May 2009, built its live editing on Jupiter-style OT. Wave did not last, but the approach did: in 2010 Google rebuilt the Docs editor around a server that puts all edits in one order and clients that transform against it, and explained the design in a blog series that September. Most OT editors still work this way.</p>
+    <blockquote class="pull">OT is easy with two parties and hard with many. Production systems make it two parties by putting a server in the middle.</blockquote>
+  </section>
+
+  <section class="panel article" id="story-crdt" data-step="The story: CRDTs">
+    <span class="eyebrow">The story, continued</span>
+    <h2>Give every letter a name</h2>
+    <p>A different line of work asked: what if edits never mentioned positions? WOOT (Oster, Urso, Molli and Imine, 2006) gave each character a permanent id and described inserts as "between these two ids". Treedoc and Logoot followed in 2009, and RGA (Roh, Jeon, Kim and Lee, 2011) used the "insert after this id, larger ids first" rule shown above.</p>
+    <p>In 2011 Marc Shapiro, Nuno Preguiça, Carlos Baquero and Marek Zawirski named the whole family <b>conflict-free replicated data types</b> and defined <b>strong eventual consistency</b>: replicas that have received the same updates are in the same state, in any order, with no coordination. Counters, sets, maps and text can all be built this way.</p>
+    <p>Libraries followed. Kevin Jahns's Yjs (its YATA algorithm was published at GROUP in 2016) and Automerge, which grew out of Martin Kleppmann and Alastair Beresford's 2017 JSON CRDT paper, made CRDTs practical in the browser. Figma, writing in 2019, took a middle path: its multiplayer system borrows CRDT ideas but keeps a central server as the authority, because it has one anyway.</p>
+    <ol class="timeline">
+      <li><span class="year">1989</span><p>Ellis and Gibbs, GROVE and dOPT (SIGMOD): the first operational transformation.</p></li>
+      <li><span class="year">1995</span><p>Jupiter at Xerox PARC (UIST): OT through a central server, two parties at a time.</p></li>
+      <li><span class="year">2006</span><p>WOOT: characters with permanent ids, no transforms.</p></li>
+      <li><span class="year">2009</span><p>Google Wave announced with OT; Treedoc and Logoot published.</p></li>
+      <li><span class="year">2010</span><p>The new Google Docs editor runs on server-ordered OT.</p></li>
+      <li><span class="year">2011</span><p>Shapiro, Preguiça, Baquero and Zawirski define CRDTs and strong eventual consistency; RGA published.</p></li>
+      <li><span class="year">2016–17</span><p>YATA (Yjs) and the JSON CRDT behind Automerge.</p></li>
+      <li><span class="year">2019</span><p>Figma explains its server-authoritative, CRDT-inspired multiplayer.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel article" id="principles" data-step="First principles">
+    <span class="eyebrow">From first principles</span>
+    <h2>Rebuilding the idea from the problem</h2>
+    <div class="qa">
+      <div><span class="q">What</span><p>Ways to let several people edit one document at once, each seeing their own typing instantly, and still end with identical copies that keep everyone's edits.</p></div>
+      <div><span class="q">Why</span><p>Waiting for a server before showing a keystroke feels laggy, and locking a paragraph blocks your co-authors. So every copy edits first and reconciles later. An edit described by position goes stale the moment someone else edits earlier in the text.</p></div>
+      <div><span class="q">When</span><p>Shared documents, code editors with live sharing, design tools, whiteboards, notes apps that sync between your own devices, and anything that must work offline and merge later.</p></div>
+      <div><span class="q">Where</span><p>OT where there is always a server to put edits in one order (Google Docs). CRDTs where peers sync directly or stay offline for a long time (Yjs, Automerge, local-first apps), and inside servers that want merges that never fail.</p></div>
+      <div><span class="q">How</span><p>OT: send (operation, what I had seen); the receiver transforms it past every concurrent operation, then applies it. CRDT: give each element a unique id (counter, site), describe inserts relative to ids, keep deleted elements as tombstones, and break ties with a fixed order on ids so every copy makes the same choice.</p></div>
+    </div>
+    <div class="aside">
+      <p><b>The one-line insight:</b> a position is only meaningful against one exact version of the text. Either translate positions between versions (OT) or stop using positions (CRDT).</p>
+      <p><b>Convergence is not enough:</b> naive indexes can converge on text nobody wanted (try "Both delete one letter"). The goal has two parts: every copy ends the same, and every edit keeps its author's intent.</p>
+    </div>
+  </section>
+
+  <section class="notes" id="notice" data-step="What to notice">
+    <div class="panel">
+      <h2>What to notice</h2>
+      <ul>
+        <li>Preset "cat" in mode 1, then Reconnect: Alice ends with "hat", Bob with "aht". Switch to mode 2 or 3 and the same history gives "hat" on both.</li>
+        <li>"Both delete one letter" starts from "cart" and both remove the r. Naive converges on "ca": the second delete, still pointing at index 2, removes the t that nobody touched. OT turns the second delete into a no-op and the CRDT finds the r already tombstoned; both end with "cat".</li>
+        <li>"Both type at one spot": Alice types XY and Bob types uv right after the a. Naive ends with "auvXYbc" against "aXYuvbc". OT and the CRDT keep each word together: "aXYuvbc" on both.</li>
+        <li>Set the delay to manual and deliver to one side only. The copies differ for a while, which is allowed; they only have to match once every edit has arrived.</li>
+        <li>In mode 3, type and delete a few words. The visible text stays short while the element list keeps growing: every deleted letter is still stored as a tombstone.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="notes" id="interview" data-step="Interview angle">
+    <div class="panel">
+      <h2>Interview angle</h2>
+      <div class="callout">
+        <p><b>Pick by topology.</b> If every edit goes through your servers anyway (a <a href="../questions/google-docs.html">Google Docs design</a>), OT with a server-assigned revision number per document is the proven choice: the server orders edits, clients transform against what they missed. If clients sync peer to peer or stay offline for days, use a CRDT.</p>
+        <p><b>OT's cost is the server.</b> One ordering point per document, so route all editors of a document to the same server (consistent hashing on the doc id) and keep an operation log plus periodic snapshots.</p>
+        <p><b>CRDT's cost is metadata.</b> An id per character and tombstones that cannot simply be dropped: a late edit may still refer to a deleted letter. You can only collect a tombstone once every replica has seen the delete, which is hard when some replicas are offline. Real libraries shrink this by storing runs of letters typed together as one item.</p>
+        <p><b>Neither needs consensus for text.</b> Unlike <a href="raft.html">Raft</a> or <a href="quorum.html">quorum</a> writes, nobody waits for agreement before showing a keystroke. Copies may differ for a while and are guaranteed to converge once all edits arrive.</p>
+        <p><b>Also mention:</b> cursors and presence go on a separate, lossy channel; undo must undo your own edits, not the last edit; and rich text adds formatting ranges that need the same care.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const OTHER = { A: "B", B: "A" }, NAME = { A: "Alice", B: "Bob" };
+  const RANK = { A: 2, B: 1, "0": 0 };
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const show = ch => ch === " " ? "␣" : ch;
+  const qc = ch => `'${show(ch)}'`;
+  const fmt = op => !op || op.k === "noop" ? "no-op" : op.k === "ins" ? `ins(${op.p}, ${qc(op.ch)})` : `del(${op.p})`;
+  const idS = id => id ? `(${id[0]},${id[1]})` : "start";
+  const idEq = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
+  const idCmp = (a, b) => (a[0] - b[0]) || (RANK[a[1]] - RANK[b[1]]);
+
+  // ---------- OT transform (two-party, Jupiter style) ----------
+  // returns [a', b']: a' = a rewritten to apply after b, b' = b rewritten to apply after a
+  function xform(a, b) {
+    if (a.k === "noop" || b.k === "noop") return [a, b];
+    const A = { ...a }, B = { ...b };
+    if (a.k === "ins" && b.k === "ins") {
+      if (a.p < b.p || (a.p === b.p && RANK[a.s] > RANK[b.s])) B.p++; else A.p++;
+    } else if (a.k === "ins" && b.k === "del") {
+      if (a.p <= b.p) B.p++; else A.p--;
+    } else if (a.k === "del" && b.k === "ins") {
+      if (b.p <= a.p) A.p++; else B.p--;
+    } else {
+      if (a.p < b.p) B.p--; else if (a.p > b.p) A.p--; else return [{ k: "noop", s: a.s }, { k: "noop", s: b.s }];
+    }
+    return [A, B];
+  }
+
+  // ---------- the three engines ----------
+  const ENG = {
+    naive: {
+      init: t => ({ doc: [...t] }),
+      doc: r => r.doc.join(""),
+      local(st, rep, s, op) {
+        if (op.k === "ins") { const p = Math.min(op.p, rep.doc.length); rep.doc.splice(p, 0, op.ch); const m = { k: "ins", p, ch: op.ch, from: s }; return { msg: m, text: `you: ${fmt(m)}` }; }
+        if (op.p >= rep.doc.length) return null;
+        const ch = rep.doc.splice(op.p, 1)[0];
+        return { msg: { k: "del", p: op.p, ch, from: s }, text: `you: del(${op.p}) removes ${qc(ch)}` };
+      },
+      recv(st, rep, to, m) {
+        const who = NAME[m.from];
+        if (m.k === "ins") {
+          const p = Math.min(m.p, rep.doc.length);
+          rep.doc.splice(p, 0, m.ch);
+          return { applied: { k: "ins", p }, text: `from ${who}: ${fmt(m)} applied as is${p !== m.p ? ` (index past the end, put at ${p})` : ""}` };
+        }
+        if (m.p >= rep.doc.length) { st.stats.wrong++; return { applied: null, cls: "bad", text: `from ${who}: del(${m.p}), but there is no index ${m.p}: lost` }; }
+        const ch = rep.doc.splice(m.p, 1)[0];
+        if (ch !== m.ch) { st.stats.wrong++; return { applied: { k: "del", p: m.p }, cls: "bad", text: `from ${who}: del(${m.p}) removes ${qc(ch)}, but ${who} deleted ${qc(m.ch)}` }; }
+        return { applied: { k: "del", p: m.p }, text: `from ${who}: del(${m.p}) removes ${qc(ch)}` };
+      },
+      label: m => fmt(m)
+    },
+    ot: {
+      init: t => ({ doc: [...t], sent: 0, recv: 0, out: [] }),
+      doc: r => r.doc.join(""),
+      local(st, rep, s, op) {
+        let o;
+        if (op.k === "ins") { const p = Math.min(op.p, rep.doc.length); rep.doc.splice(p, 0, op.ch); o = { k: "ins", p, ch: op.ch, s }; }
+        else { if (op.p >= rep.doc.length) return null; const ch = rep.doc.splice(op.p, 1)[0]; o = { k: "del", p: op.p, ch, s }; }
+        const msg = { op: o, n: rep.sent, seen: rep.recv, from: s };
+        rep.out.push({ op: o, n: rep.sent }); rep.sent++;
+        return { msg, text: `you: ${fmt(o)} · edit #${msg.n}, had seen ${msg.seen} of ${NAME[OTHER[s]]}'s` };
+      },
+      recv(st, rep, to, m) {
+        const who = NAME[m.from];
+        rep.out = rep.out.filter(o => o.n >= m.seen);   // the sender had already seen these
+        let op = m.op; const steps = [];
+        for (const o of rep.out) {
+          const [a, b] = xform(op, o.op);
+          st.stats.xf++;
+          steps.push(`past your ${fmt(o.op)} → ${fmt(a)}`);
+          op = a; o.op = b;
+        }
+        rep.recv++;
+        let applied = null, tail;
+        if (op.k === "ins") { rep.doc.splice(op.p, 0, op.ch); applied = { k: "ins", p: op.p }; tail = "inserted"; }
+        else if (op.k === "del") { const ch = rep.doc.splice(op.p, 1)[0]; applied = { k: "del", p: op.p }; tail = `removes ${qc(ch)}`; }
+        else tail = "nothing to do";
+        return { applied, op, text: `from ${who}: ${fmt(m.op)}${steps.length ? ", " + steps.join(", ") : " (nothing to transform past)"}: ${tail}` };
+      },
+      label: m => `${fmt(m.op)} · seen ${m.seen}`
+    },
+    crdt: {
+      init: t => ({ list: [...t].map((ch, i) => ({ id: [i + 1, "0"], ch, dead: false, after: i ? [i, "0"] : null })), clock: t.length }),
+      doc: r => r.list.filter(e => !e.dead).map(e => e.ch).join(""),
+      local(st, rep, s, op) {
+        const vis = rep.list.filter(e => !e.dead);
+        if (op.k === "ins") {
+          const p = Math.min(op.p, vis.length), after = p ? vis[p - 1].id : null, id = [++rep.clock, s];
+          integrate(rep, { id, ch: op.ch, after, dead: false });
+          return { msg: { k: "ins", id, after, ch: op.ch, from: s }, text: `you: ${qc(op.ch)} gets id ${idS(id)}, after ${idS(after)}` };
+        }
+        if (op.p >= vis.length) return null;
+        const e = vis[op.p]; e.dead = true;
+        return { msg: { k: "del", id: e.id, ch: e.ch, from: s }, text: `you: tombstone ${qc(e.ch)} ${idS(e.id)}` };
+      },
+      recv(st, rep, to, m) {
+        const who = NAME[m.from];
+        if (m.k === "ins") {
+          rep.clock = Math.max(rep.clock, m.id[0]);
+          const { i, skipped } = integrate(rep, { id: m.id, ch: m.ch, after: m.after, dead: false });
+          const p = rep.list.slice(0, i).filter(e => !e.dead).length;
+          return { applied: { k: "ins", p }, text: `from ${who}: ${qc(m.ch)} ${idS(m.id)} after ${idS(m.after)}${skipped ? `, skips ${skipped} larger id${skipped > 1 ? "s" : ""}` : ""}: shows at index ${p}` };
+        }
+        const i = rep.list.findIndex(e => idEq(e.id, m.id)), e = rep.list[i];
+        if (e.dead) return { applied: null, text: `from ${who}: delete ${idS(m.id)}, already a tombstone: nothing to do` };
+        const p = rep.list.slice(0, i).filter(x => !x.dead).length;
+        e.dead = true;
+        return { applied: { k: "del", p }, text: `from ${who}: delete ${idS(m.id)} ${qc(e.ch)}: tombstoned` };
+      },
+      label: m => m.k === "ins" ? `${qc(m.ch)} ${idS(m.id)} after ${idS(m.after)}` : `delete ${idS(m.id)}`
+    }
+  };
+  // RGA: start right after the reference element, skip neighbours with a larger id, insert before the first smaller one
+  function integrate(rep, el) {
+    let i = el.after ? rep.list.findIndex(e => idEq(e.id, el.after)) + 1 : 0, skipped = 0;
+    while (i < rep.list.length && idCmp(rep.list[i].id, el.id) > 0) { i++; skipped++; }
+    rep.list.splice(i, 0, el);
+    return { i, skipped };
+  }
+
+  function makeRun(kind, init) {
+    const E = ENG[kind];
+    return { kind, reps: { A: E.init(init), B: E.init(init) }, q: { A: [], B: [] }, logs: { A: [], B: [] }, stats: { wrong: 0, xf: 0, edits: 0, delivered: 0 } };
+  }
+  function localEdit(st, s, ops) {
+    let n = 0;
+    ops.forEach(op => {
+      const res = ENG[st.kind].local(st, st.reps[s], s, op);
+      if (!res) return;
+      st.q[OTHER[s]].push(res.msg); st.logs[s].push({ cls: "", text: res.text }); st.stats.edits++; n++;
+    });
+    return n;
+  }
+  function deliver(st, to) {
+    const m = st.q[to].shift();
+    if (!m) return null;
+    const res = ENG[st.kind].recv(st, st.reps[to], to, m);
+    st.logs[to].push({ cls: res.cls || "recv", text: res.text }); st.stats.delivered++;
+    return res;
+  }
+  const docOf = (st, s) => ENG[st.kind].doc(st.reps[s]);
+  function replay(script, kind) {
+    const st = makeRun(kind, script.init);
+    script.events.forEach(ev => ev.t === "edit" ? localEdit(st, ev.s, ev.ops) : deliver(st, ev.to));
+    return st;
+  }
+
+  // ---------- page state ----------
+  const MODES = {
+    naive: { label: "Naive indexes", note: "Each edit is sent as (index, letter) and applied as is on arrival. Nothing accounts for what the other side did in the meantime." },
+    ot: { label: "Operational transformation", note: "Each edit carries how many of the other side's edits its author had seen. On arrival it is transformed past every edit its author had not seen, then applied (the two-party Jupiter scheme)." },
+    crdt: { label: "Sequence CRDT (RGA)", note: "Each letter has a permanent id (counter, site). Inserts say \"after id X\", deletes leave a tombstone. Concurrent inserts after the same letter are ordered by id, larger first." }
+  };
+  const DELAYS = [0.5, 1, 2, 3, 5, null];
+  let mode = "naive", script, live, connected = true, reconnectAt = 0;
+  const sentAt = { A: [], B: [] };   // per destination, one timestamp per queued message
+  const now = () => performance.now();
+
+  const PRESETS = {
+    cat: { init: "cat", conn: false, events: [{ t: "edit", s: "A", ops: [{ k: "ins", p: 1, ch: "h" }] }, { t: "edit", s: "B", ops: [{ k: "del", p: 0 }] }] },
+    spot: { init: "abc", conn: false, events: [{ t: "edit", s: "A", ops: [{ k: "ins", p: 1, ch: "X" }, { k: "ins", p: 2, ch: "Y" }] }, { t: "edit", s: "B", ops: [{ k: "ins", p: 1, ch: "u" }, { k: "ins", p: 2, ch: "v" }] }] },
+    same: { init: "cart", conn: false, events: [{ t: "edit", s: "A", ops: [{ k: "del", p: 2 }] }, { t: "edit", s: "B", ops: [{ k: "del", p: 2 }] }] },
+    blank: { init: "cat", conn: true, events: [] }
+  };
+  function loadPreset(name) {
+    const P = PRESETS[name];
+    script = { init: P.init, events: P.events.map(e => ({ ...e, ops: e.ops && e.ops.map(o => ({ ...o })) })) };
+    connected = P.conn; reconnectAt = now();
+    rebuild(true);
+  }
+  function rebuild(resetTimes) {
+    live = replay(script, mode);
+    ["A", "B"].forEach(to => {
+      const n = live.q[to].length, t = now();
+      if (resetTimes) sentAt[to] = Array(n).fill(t);
+      while (sentAt[to].length > n) sentAt[to].shift();
+      while (sentAt[to].length < n) sentAt[to].push(t);
+    });
+    render();
+  }
+
+  // typing: diff the box against the copy's text, turn the change into one-letter edits
+  function onInput(s) {
+    const el = $("in" + s), old = docOf(live, s), nw = el.value;
+    let a = 0; while (a < old.length && a < nw.length && old[a] === nw[a]) a++;
+    let b = 0; while (b < old.length - a && b < nw.length - a && old[old.length - 1 - b] === nw[nw.length - 1 - b]) b++;
+    const ops = [];
+    for (let i = 0; i < old.length - a - b; i++) ops.push({ k: "del", p: a });
+    const ins = nw.slice(a, nw.length - b);
+    [...ins].forEach((ch, j) => ops.push({ k: "ins", p: a + j, ch }));
+    if (!ops.length) return;
+    script.events.push({ t: "edit", s, ops });
+    const n = localEdit(live, s, ops), t = now();
+    for (let i = 0; i < n; i++) sentAt[OTHER[s]].push(t);
+    lastNew[s] = ins.length ? { from: a, to: a + ins.length } : null;
+    render();
+  }
+  const lastNew = { A: null, B: null };
+
+  function deliverOne(to) {
+    if (!live.q[to].length) return false;
+    const el = $("in" + to), focused = document.activeElement === el;
+    let c = focused ? el.selectionStart : 0;
+    script.events.push({ t: "dlv", to });
+    const res = deliver(live, to);
+    sentAt[to].shift();
+    const ap = res && res.applied;
+    if (ap) {
+      if (ap.k === "ins" && ap.p < c) c++;
+      if (ap.k === "del" && ap.p < c) c--;
+      lastNew[to] = ap.k === "ins" ? { from: ap.p, to: ap.p + 1 } : null;
+    }
+    render();
+    if (focused) el.setSelectionRange(c, c);
+    return true;
+  }
+
+  // ---------- drawing ----------
+  function render() {
+    const st = live;
+    document.querySelectorAll("#modes button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === mode));
+    $("modeLabel").textContent = MODES[mode].label;
+    $("modeNote").textContent = MODES[mode].note;
+    ["A", "B"].forEach(s => {
+      const d = docOf(st, s), el = $("in" + s);
+      if (el.value !== d) el.value = d;
+      const nw = lastNew[s];
+      $("cells" + s).innerHTML = [...d].map((ch, i) => `<div class="cell${nw && i >= nw.from && i < nw.to ? " new" : ""}"><b>${esc(show(ch))}</b><span>${i}</span></div>`).join("") || `<span style="font-size:12.5px;color:var(--muted)">(empty)</span>`;
+      $("int" + s).innerHTML = internals(st, s);
+      $("log" + s).innerHTML = st.logs[s].slice(-8).reverse().map(l => `<li class="${l.cls}">${esc(l.text)}</li>`).join("") || `<li>nothing yet</li>`;
+    });
+    renderWire();
+    renderStats();
+    renderVerdict();
+    renderCompare();
+    $("conn").textContent = connected ? "Disconnect" : "Reconnect";
+    $("sync").disabled = !connected || !(st.q.A.length + st.q.B.length);
+    $("dlvA").disabled = !connected || !st.q.A.length;
+    $("dlvB").disabled = !connected || !st.q.B.length;
+    const dv = DELAYS[+$("delay").value];
+    $("delayOut").textContent = dv === null ? "manual" : dv + " s";
+  }
+  function internals(st, s) {
+    const r = st.reps[s];
+    if (mode === "naive") return `<span>Stores only the text. Edits are bare indexes.</span>`;
+    if (mode === "ot") {
+      const out = r.out.map(o => `<span>#${o.n} ${esc(fmt(o.op))}</span>`).join("");
+      return `<span>Sent <b class="mono">${r.sent}</b> · received <b class="mono">${r.recv}</b></span>
+        <span class="lbl">Own edits ${NAME[OTHER[s]]} may not have seen</span><div class="chips">${out || `<span>none</span>`}</div>`;
+    }
+    const els = r.list.map(e => `<div class="el${e.dead ? " dead" : ""}" title="${e.dead ? "tombstone" : "visible"}"><b>${esc(show(e.ch))}</b><span>${e.id[0]},${e.id[1]}</span></div>`).join("");
+    const dead = r.list.filter(e => e.dead).length;
+    return `<span class="lbl">Element list · clock ${r.clock} · ${dead} tombstone${dead === 1 ? "" : "s"}</span><div class="elems">${els || `<span>(empty)</span>`}</div>`;
+  }
+  function renderWire() {
+    const dv = DELAYS[+$("delay").value], t = now();
+    $("wire").classList.toggle("cut", !connected);
+    $("netLabel").textContent = connected ? (dv === null ? "online · manual delivery" : `online · ${dv} s delay`) : "offline: edits queue up";
+    $("wireLabel").textContent = connected ? "Network · edits in flight" : "Network cut · edits held until reconnect";
+    ["B", "A"].forEach(to => {
+      const q = live.q[to];
+      $("pkt" + to).innerHTML = q.map((m, i) => {
+        let pr = 0;
+        if (connected && dv !== null) pr = Math.min(1, (t - Math.max(sentAt[to][i] || t, reconnectAt)) / (dv * 1000));
+        return `<span class="pkt${connected ? "" : " held"}">${esc(ENG[mode].label(m))}<i style="width:${(pr * 100).toFixed(0)}%"></i></span>`;
+      }).join("") || `<em>empty</em>`;
+    });
+  }
+  function renderStats() {
+    const st = live, A = docOf(st, "A"), B = docOf(st, "B");
+    const rows = [
+      ["Alice's text", `"${esc(A)}"`], ["Bob's text", `"${esc(B)}"`],
+      ["Edits made (one per letter)", st.stats.edits], ["Edits delivered", st.stats.delivered],
+      ["In flight to Bob / to Alice", `${st.q.B.length} / ${st.q.A.length}`]
+    ];
+    if (mode === "naive") rows.push(["Deletes that hit the wrong letter or nothing", st.stats.wrong]);
+    if (mode === "ot") rows.push(["Transforms performed", st.stats.xf]);
+    if (mode === "crdt") {
+      const n = s => st.reps[s].list.length, d = s => st.reps[s].list.filter(e => e.dead).length;
+      rows.push(["Elements stored, Alice / Bob", `${n("A")} / ${n("B")}`], ["Tombstones, Alice / Bob", `${d("A")} / ${d("B")}`],
+        ["Ids stored per visible letter (Alice)", A.length ? (n("A") / A.length).toFixed(2) : "–"]);
+    }
+    $("stats").innerHTML = rows.map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join("");
+  }
+  function status(st) {
+    const fl = st.q.A.length + st.q.B.length, A = docOf(st, "A"), B = docOf(st, "B");
+    return { fl, A, B, conv: !fl && A === B, div: !fl && A !== B };
+  }
+  function renderVerdict() {
+    const v = $("verdict"), s = status(live);
+    if (s.fl) {
+      v.className = "verdict-box warn";
+      v.innerHTML = `<b>${s.fl} edit${s.fl > 1 ? "s" : ""} in flight.</b><p>${connected ? "The copies may differ until everything has arrived." : "The network is cut, so edits wait in the queues. Press Reconnect."} Right now Alice has "${esc(s.A)}" and Bob has "${esc(s.B)}".</p>`;
+      return;
+    }
+    if (s.div) {
+      v.className = "verdict-box bad";
+      v.innerHTML = `<b>Diverged: "${esc(s.A)}" vs "${esc(s.B)}".</b><p>Every edit has arrived and the copies still differ, so they will stay different forever. Each side applied the other's index to a text the sender never saw.</p>`;
+      return;
+    }
+    const crdt = status(replay(script, "crdt"));
+    if (mode === "naive" && crdt.A !== s.A) {
+      v.className = "verdict-box warn";
+      v.innerHTML = `<b>Converged on "${esc(s.A)}", but on the wrong text.</b><p>Both copies match, yet ${live.stats.wrong} delete${live.stats.wrong === 1 ? "" : "s"} hit a letter its author never chose. OT and the CRDT end with "${esc(crdt.A)}" for this same history.</p>`;
+      return;
+    }
+    v.className = "verdict-box ok";
+    v.innerHTML = `<b>Converged: both read "${esc(s.A)}".</b><p>${mode === "naive" ? (live.stats.edits ? "No two edits overlapped in a way that broke the indexes this time. Disconnect and edit both sides to break it." : "Type in either box to make an edit.") : mode === "ot" ? `${live.stats.xf} transform${live.stats.xf === 1 ? "" : "s"} adjusted incoming edits so both copies agree.` : "Every copy applied the same set of id-based edits; the order they arrived in did not matter."}</p>`;
+  }
+  function renderCompare() {
+    const res = Object.keys(MODES).map(k => ({ k, st: replay(script, k) }));
+    let h = `<table class="data wrapc"><thead><tr><th>Engine</th><th>Alice</th><th>Bob</th><th>Status</th></tr></thead><tbody>`;
+    res.forEach(({ k, st }) => {
+      const s = status(st);
+      const lab = s.fl ? `${s.fl} queued` : s.conv ? "converged" : "diverged";
+      h += `<tr class="clk${k === mode ? " cur" : ""}" data-mode="${k}"><td class="mono">${{ naive: "Naive", ot: "OT", crdt: "CRDT" }[k]}</td><td class="mono">"${esc(s.A)}"</td><td class="mono">"${esc(s.B)}"</td><td class="mono ${s.div ? "warn" : s.conv ? "okc" : ""}">${lab}</td></tr>`;
+    });
+    $("cmpTable").innerHTML = h + "</tbody></table>";
+    const S = Object.fromEntries(res.map(r => [r.k, status(r.st)]));
+    let note;
+    if (S.crdt.fl) note = "Some edits are still in flight. Deliver them all to compare the final texts.";
+    else if (S.naive.div) note = `Naive indexes diverged. OT and the CRDT both converged${S.ot.A === S.crdt.A ? ` on the same text, "${S.ot.A}"` : ""}.`;
+    else if (S.naive.A !== S.crdt.A) note = `Naive converged on "${S.naive.A}", which is not what OT and the CRDT produce ("${S.crdt.A}"): an index landed on the wrong letter.`;
+    else note = `All three agree on "${S.crdt.A}". Disconnect and edit both copies to make them differ.`;
+    if (!S.crdt.fl && S.ot.conv && S.crdt.conv && S.ot.A !== S.crdt.A) note += ` OT and the CRDT broke a tie between concurrent inserts differently ("${S.ot.A}" vs "${S.crdt.A}"); both are fine, as long as every copy of one system agrees.`;
+    $("cmpNote").textContent = note;
+  }
+
+  // ---------- network clock ----------
+  function tick() {
+    const dv = DELAYS[+$("delay").value];
+    if (!live.q.A.length && !live.q.B.length) return;
+    if (connected && dv !== null) {
+      const t = now();
+      let any = true;
+      while (any) {
+        any = false;
+        for (const to of ["B", "A"]) {
+          if (live.q[to].length && t - Math.max(sentAt[to][0], reconnectAt) >= dv * 1000) { deliverOne(to); any = true; }
+        }
+      }
+    }
+    renderWire();
+  }
+  setInterval(tick, 100);
+
+  // ---------- controls ----------
+  ["A", "B"].forEach(s => $("in" + s).addEventListener("input", () => onInput(s)));
+  $("conn").onclick = () => { connected = !connected; if (connected) reconnectAt = now(); render(); };
+  $("sync").onclick = () => { if (!connected) return; while (live.q.B.length || live.q.A.length) { deliverOne("B"); deliverOne("A"); } };
+  $("dlvA").onclick = () => connected && deliverOne("A");
+  $("dlvB").onclick = () => connected && deliverOne("B");
+  $("delay").oninput = () => render();
+  $("modes").onclick = e => { const b = e.target.closest("[data-mode]"); if (!b) return; mode = b.dataset.mode; lastNew.A = lastNew.B = null; rebuild(false); };
+  $("cmpTable").onclick = e => { const r = e.target.closest("[data-mode]"); if (!r) return; mode = r.dataset.mode; rebuild(false); };
+  $("presets").onclick = e => { const b = e.target.closest("[data-preset]"); if (!b) return; lastNew.A = lastNew.B = null; loadPreset(b.dataset.preset); };
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 100); });
+
+  // ---------- worked example: computed with the same engines ----------
+  function fillExample() {
+    const X = {};
+    const run = kind => { const st = makeRun(kind, "cat"); localEdit(st, "A", [{ k: "ins", p: 1, ch: "h" }]); localEdit(st, "B", [{ k: "del", p: 0 }]); return st; };
+    let st = run("naive");
+    X.nLocA = docOf(st, "A"); X.nLocB = docOf(st, "B"); X.nMsgA = fmt(st.q.B[0]); X.nMsgB = fmt(st.q.A[0]);
+    deliver(st, "A"); deliver(st, "B"); X.nEndA = docOf(st, "A"); X.nEndB = docOf(st, "B");
+    st = run("ot");
+    X.oMsgA = fmt(st.q.B[0].op); X.oMsgB = fmt(st.q.A[0].op);
+    X.oXA = fmt(deliver(st, "A").op); X.oXB = fmt(deliver(st, "B").op); X.oEndA = docOf(st, "A"); X.oEndB = docOf(st, "B");
+    st = run("crdt");
+    const seed = makeRun("crdt", "cat").reps.A;
+    X.cSeed = seed.list.map(e => `${e.ch} ${idS(e.id)}`).join(", "); X.cClock = seed.clock;
+    X.cDel = idS(st.q.A[0].id); X.cMsgA = ENG.crdt.label(st.q.B[0]); X.cMsgB = ENG.crdt.label(st.q.A[0]);
+    deliver(st, "A"); deliver(st, "B"); X.cEndA = docOf(st, "A"); X.cEndB = docOf(st, "B");
+    const lists = { cListA: st.reps.A.list, cListB: st.reps.B.list };
+    const t2 = makeRun("crdt", "cat"); localEdit(t2, "A", [{ k: "ins", p: 1, ch: "h" }]); localEdit(t2, "B", [{ k: "ins", p: 1, ch: "r" }]);
+    X.tA = ENG.crdt.label(t2.q.B[0]); X.tB = ENG.crdt.label(t2.q.A[0]);
+    deliver(t2, "A"); deliver(t2, "B"); X.tEnd = docOf(t2, "A") === docOf(t2, "B") ? docOf(t2, "A") : `${docOf(t2, "A")} / ${docOf(t2, "B")}`;
+    document.querySelectorAll("[data-x]").forEach(el => el.textContent = X[el.dataset.x]);
+    document.querySelectorAll("[data-xl]").forEach(el => el.innerHTML = lists[el.dataset.xl].map(e => `<div class="el${e.dead ? " dead" : ""}"><b>${esc(show(e.ch))}</b><span>${e.id[0]},${e.id[1]}</span></div>`).join(""));
+  }
+
+  fillExample();
+  loadPreset("cat");
+</script>
+<script src="../shared/progress.js"></script>
+</body>
+</html>

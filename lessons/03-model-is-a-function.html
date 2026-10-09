@@ -99,6 +99,11 @@
   .mathneed .tag { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); }
   .mathneed ul { margin: 0; padding-left: 1.1rem; } .mathneed li { margin: .1rem 0; }
   .mathneed p { margin: 0; color: var(--muted); font-size: .9rem; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -329,9 +334,9 @@ print(mean_y, round(sum((mean_y - y) ** 2 for y in Y), 2))   <span class="c"># 2
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. Using the trained model <code>ŷ = 2.15x + 5.6</code>, what rent does it predict for a 1,000 sq ft flat? How far off is it from flat D's real rent?</p><summary>Show answer</summary><p class="a"><code>x = 10</code>, so <code>2.15 × 10 + 5.6 = 27.1</code>, about ₹27,100. Flat D's real rent is ₹28,000, so the miss is −0.9 (₹900 too low). Its squared miss, 0.81, is one part of the total 1.90.</p></details>
-<details><p class="q">2. You add a second feature, number of bedrooms (<code>x₂</code>), to the straight-line model. Write the new function. How many knobs does it have?</p><summary>Show answer</summary><p class="a"><code>ŷ = w₁·x₁ + w₂·x₂ + b</code>. Each feature gets its own weight, plus one bias: 3 parameters. With <code>d</code> features a line-shaped model has <code>d + 1</code> parameters. Lesson 04 shows how to write this compactly with vectors.</p></details>
-<details><p class="q">3. Which part of the model does training change: the formula <code>w · x + b</code>, or the values of <code>w</code> and <code>b</code>? And which part did a person decide?</p><summary>Show answer</summary><p class="a">Training changes only the values of <code>w</code> and <code>b</code>. A person decided the formula (the model family) and how to score a setting (total squared error). If the true relationship were curved, no setting of these two knobs could capture it; you would need a different family.</p></details>
+<details><summary><span class="q">1. Using the trained model <code>ŷ = 2.15x + 5.6</code>, what rent does it predict for a 1,000 sq ft flat? How far off is it from flat D's real rent?</span><span class="sa">Show answer</span></summary><p class="a"><code>x = 10</code>, so <code>2.15 × 10 + 5.6 = 27.1</code>, about ₹27,100. Flat D's real rent is ₹28,000, so the miss is −0.9 (₹900 too low). Its squared miss, 0.81, is one part of the total 1.90.</p></details>
+<details><summary><span class="q">2. You add a second feature, number of bedrooms (<code>x₂</code>), to the straight-line model. Write the new function. How many knobs does it have?</span><span class="sa">Show answer</span></summary><p class="a"><code>ŷ = w₁·x₁ + w₂·x₂ + b</code>. Each feature gets its own weight, plus one bias: 3 parameters. With <code>d</code> features a line-shaped model has <code>d + 1</code> parameters. Lesson 04 shows how to write this compactly with vectors.</p></details>
+<details><summary><span class="q">3. Which part of the model does training change: the formula <code>w · x + b</code>, or the values of <code>w</code> and <code>b</code>? And which part did a person decide?</span><span class="sa">Show answer</span></summary><p class="a">Training changes only the values of <code>w</code> and <code>b</code>. A person decided the formula (the model family) and how to score a setting (total squared error). If the true relationship were curved, no setting of these two knobs could capture it; you would need a different family.</p></details>
 </section>
 
 <section data-step="Wrap-up">

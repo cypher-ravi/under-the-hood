@@ -105,6 +105,11 @@
   .mathneed .tag { font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); }
   .mathneed ul { margin: 0; padding-left: 1.1rem; } .mathneed li { margin: .1rem 0; }
   .mathneed p { margin: 0; color: var(--muted); font-size: .9rem; }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -375,9 +380,9 @@ print(X.T.shape)        <span class="c"># (2, 4)  transpose flips rows and colum
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. Compute <code>[2, −1, 3] · [4, 0, 1]</code>.</p><summary>Show answer</summary><p class="a"><code>2×4 + (−1)×0 + 3×1 = 8 + 0 + 3 = 11</code>.</p></details>
-<details><p class="q">2. A dataset has 1,000 examples and 20 features. What is the shape of <code>X</code>, how long must <code>w</code> be, and what shape is <code>X @ w</code>?</p><summary>Show answer</summary><p class="a"><code>X</code> is 1000 × 20 (one row per example). <code>w</code> needs 20 entries, one per feature column. <code>X @ w</code> has shape (1000,): one prediction per example. If <code>w</code> had 19 entries, numpy would raise a shape error.</p></details>
-<details><p class="q">3. What is <code>[2, 1] · [−1, 2]</code>, and what does that tell you about the two arrows?</p><summary>Show answer</summary><p class="a"><code>2×(−1) + 1×2 = 0</code>. A dot product of zero (with neither vector being all zeros) means the arrows are at a right angle. In ML language, the two vectors share nothing in common direction; later, with embeddings, that will read as "unrelated".</p></details>
+<details><summary><span class="q">1. Compute <code>[2, −1, 3] · [4, 0, 1]</code>.</span><span class="sa">Show answer</span></summary><p class="a"><code>2×4 + (−1)×0 + 3×1 = 8 + 0 + 3 = 11</code>.</p></details>
+<details><summary><span class="q">2. A dataset has 1,000 examples and 20 features. What is the shape of <code>X</code>, how long must <code>w</code> be, and what shape is <code>X @ w</code>?</span><span class="sa">Show answer</span></summary><p class="a"><code>X</code> is 1000 × 20 (one row per example). <code>w</code> needs 20 entries, one per feature column. <code>X @ w</code> has shape (1000,): one prediction per example. If <code>w</code> had 19 entries, numpy would raise a shape error.</p></details>
+<details><summary><span class="q">3. What is <code>[2, 1] · [−1, 2]</code>, and what does that tell you about the two arrows?</span><span class="sa">Show answer</span></summary><p class="a"><code>2×(−1) + 1×2 = 0</code>. A dot product of zero (with neither vector being all zeros) means the arrows are at a right angle. In ML language, the two vectors share nothing in common direction; later, with embeddings, that will read as "unrelated".</p></details>
 </section>
 
 <section data-step="Wrap-up">

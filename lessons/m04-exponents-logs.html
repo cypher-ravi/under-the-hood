@@ -87,6 +87,11 @@
   figure.lab .btns { margin-top: .6rem; }
   figure.lab .fn { margin-top: .6rem; }
   .key i.line { height: 0; width: 18px; border-radius: 0; background: none; border-top: 2px dashed var(--amber); }
+  /* check-yourself: question lives in the summary so it shows while closed */
+  details summary:has(.q)::before { content: none; }
+  details summary .q { display: block; font: 600 1rem/1.55 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); margin-bottom: .3rem; }
+  details summary .sa::before { content: "▸ "; }
+  details[open] summary .sa::before { content: "▾ "; }
 </style>
 </head>
 <body>
@@ -553,9 +558,9 @@ print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4
 
 <section data-step-join>
 <h2><span class="tag">h · Check yourself</span>Three quick questions</h2>
-<details><p class="q">1. What is 10<sup>−2</sup>, and what is log<sub>10</sub> 0.01?</p><summary>Show answer</summary><p class="a"><code>10<sup>−2</sup> = 1 / 10<sup>2</sup> = 1/100 = 0.01</code>. The log asks the same question backwards, "10 to the what is 0.01?", so <code>log<sub>10</sub> 0.01 = −2</code>. A number below 1 has a negative log.</p></details>
-<details><p class="q">2. A model gave the right answer probability 0.5 on one email and 0.25 on another. Using −ln 0.5 = 0.6931, what is −ln 0.25?</p><summary>Show answer</summary><p class="a"><code>0.25 = 0.5 × 0.5</code>, and logs turn multiplication into addition, so <code>−ln 0.25 = 0.6931 + 0.6931 = 1.3863</code>. Halving the probability given to the right answer always adds the same 0.6931 to the cost.</p></details>
-<details><p class="q">3. Why do models add up log-probabilities instead of multiplying probabilities?</p><summary>Show answer</summary><p class="a">Multiplying hundreds of numbers below 1 produces a value too small for a float to store, so it rounds to 0 (underflow) and every long sentence looks equally impossible. Because <code>ln(x · y) = ln x + ln y</code>, adding logs carries the same information as the product, but as an ordinary number like −782.4.</p></details>
+<details><summary><span class="q">1. What is 10<sup>−2</sup>, and what is log<sub>10</sub> 0.01?</span><span class="sa">Show answer</span></summary><p class="a"><code>10<sup>−2</sup> = 1 / 10<sup>2</sup> = 1/100 = 0.01</code>. The log asks the same question backwards, "10 to the what is 0.01?", so <code>log<sub>10</sub> 0.01 = −2</code>. A number below 1 has a negative log.</p></details>
+<details><summary><span class="q">2. A model gave the right answer probability 0.5 on one email and 0.25 on another. Using −ln 0.5 = 0.6931, what is −ln 0.25?</span><span class="sa">Show answer</span></summary><p class="a"><code>0.25 = 0.5 × 0.5</code>, and logs turn multiplication into addition, so <code>−ln 0.25 = 0.6931 + 0.6931 = 1.3863</code>. Halving the probability given to the right answer always adds the same 0.6931 to the cost.</p></details>
+<details><summary><span class="q">3. Why do models add up log-probabilities instead of multiplying probabilities?</span><span class="sa">Show answer</span></summary><p class="a">Multiplying hundreds of numbers below 1 produces a value too small for a float to store, so it rounds to 0 (underflow) and every long sentence looks equally impossible. Because <code>ln(x · y) = ln x + ln y</code>, adding logs carries the same information as the product, but as an ordinary number like −782.4.</p></details>
 </section>
 
 <section data-step="Wrap-up">
@@ -578,7 +583,7 @@ print(round(sum(math.log(p) for p in probs), 2))        <span class="c"># -782.4
 
 <nav class="pn" aria-label="Lesson navigation">
   <a href="m03-summation.html">← Math M03 · Summation (Σ) and averages</a>
-  <span class="muted">Next: Math M05 · Partial derivatives and the gradient (coming soon)</span>
+  <a href="m05-gradient.html">Math M05 · Partial derivatives and the gradient →</a>
 </nav>
 </main>
 
