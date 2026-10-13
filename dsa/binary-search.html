@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=8">
+<link rel="stylesheet" href="../shared/lab.css?v=9">
 <style>
   .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
@@ -21,7 +21,9 @@
   .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
   .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
   .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
-  .note { font-size: 14px; color: var(--muted); }
+  .flip { display: flex; flex-wrap: wrap; gap: 6px; }
+  .flip span { font: 600 13px/1 var(--mono); padding: 10px 0; width: 40px; text-align: center; border-radius: var(--radius); border: 1.5px solid var(--bad); color: var(--bad); background: var(--panel); }
+  .flip span.y { border-color: var(--ok); color: var(--panel); background: var(--ok); }
 </style>
 </head>
 <body>
@@ -35,22 +37,52 @@
 
   <header class="intro">
     <h1>Binary Search on the Answer</h1>
-    <p class="lede">Keep a range that is guaranteed to contain the answer, look at its middle, and use one comparison to throw away half of it. The range can be positions in a sorted array, or it can be every value the answer could possibly take, like every eating speed from 1 to the biggest pile. As long as a single yes/no question splits the range cleanly into "no" then "yes", halving finds the boundary in O(log n) checks.</p>
+    <p class="lede">Look at the middle of what's left, and use one yes/no answer to throw away half of it. The same loop finds a number in a sorted array, or the smallest setting that works, in about 20 looks for a million options.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> keep a range that must contain the answer. Check its middle. Keep the half the answer is in.</li>
+        <li><b>When:</b> sorted data, or any yes/no question whose answers go "no, no, no, yes, yes" as the value grows.</li>
+        <li><b>Why it's fast:</b> each look halves the range. n options need about log₂ n looks: 1,000,000 → 20.</li>
+        <li><b>The one thing to get right:</b> whether mid stays in the range (<span class="mono">hi = mid</span>) or not (<span class="mono">hi = mid − 1</span>).</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>Every look rules out half of what's left</h2>
-    <p>Looking for 56 in a sorted list of 15 numbers, you could check them one by one: up to 15 looks. But one look at the middle tells you much more than "is this it?". If the middle value is 37, then 56 can't be at or before it, because everything there is at most 37. Eight positions vanish in one comparison. Look at the middle of what's left, and repeat.</p>
-    <p>After k looks at most n / 2<sup>k</sup> positions remain, so 15 positions take at most 4 looks and a million take at most 20. The only thing that matters is that one comparison at the middle tells you <b>which side</b> the answer must be on. Sorted order gives you that for free. So does any yes/no question whose answers go "no, no, no, yes, yes" as the value grows, which is how the same loop ends up searching over answers instead of array positions.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>The higher-or-lower game</h2>
+    <p>I'm thinking of a number from 1 to 100. You guess, and I say "higher" or "lower". The smart first guess is 50: whatever I answer, 50 numbers are gone. Then 25 or 75, and so on. You'll always win within 7 guesses.</p>
+    <p>Binary search is that game played on a sorted array. Below we look for 56 among 11 sorted numbers. Each look checks the middle of what's left (the dark cell) and greys out the half that can't hold 56.</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <p class="insight">One look at the middle tells you more than "is this it?". Because the array is sorted, it tells you <b>which side</b> the answer is on, so half the candidates disappear at once.</p>
+  </section>
+
+  <section class="panel article" id="flip" data-nav="The real requirement">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>You don't need a sorted array. You need a flip.</h2>
+    <p>Sorted order is one way to know which side to keep. The more general version: ask the same yes/no question about every position. If the answers look like this, binary search works.</p>
+    <div class="flip" aria-label="Answers: no, no, no, no, yes, yes, yes">
+      <span>no</span><span>no</span><span>no</span><span>no</span><span class="y">yes</span><span class="y">yes</span><span class="y">yes</span>
+    </div>
+    <p>All the "no"s come first, then all the "yes"es. Binary search finds the <b>first yes</b>. Some examples of the question:</p>
+    <ul class="signals">
+      <li>"Is <span class="mono">a[i] ≥ 3</span>?" on a sorted array: the first yes is where 3 starts (Problem 2).</li>
+      <li>"Is build number v broken?": the first yes is the first bad build.</li>
+      <li>"Can I eat all the bananas in time at speed k?": the first yes is the slowest speed that works (Problem 4).</li>
+    </ul>
+    <p>The last example has no array to search at all. You search the possible <i>answers</i>, which is where the page gets its name.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">Recognizing the pattern</span>
+    <h2>Three ways the pattern shows up</h2>
     <div class="variants">
-      <div><h3>Exact match</h3><p>Compare the middle with the target and keep the half it must be in. Stop when you hit it or the range is empty.</p><a href="#p1">Problem 1: Find a target</a></div>
-      <div><h3>First true (boundary)</h3><p>Turn the question into a predicate that is false, then true. Halve until the range is a single position: the first true.</p><a href="#p2">Problem 2: Insert position</a><a href="#p3">Problem 3: Rotated sorted array</a></div>
-      <div><h3>Search the answer space</h3><p>The array isn't what you search. You search the possible answers, and each guess is tested by a feasibility check.</p><a href="#p4">Problem 4: Slowest speed that finishes</a></div>
+      <div><h3>Exact match</h3><p>Compare the middle with the target and keep the half it must be in. Stop when you hit it or nothing is left.</p><a href="#p1">Problem 1: Find a target</a></div>
+      <div><h3>First yes</h3><p>Turn the question into a yes/no that flips once. Halve until one position is left: the first yes.</p><a href="#p2">Problem 2: Insert position</a><a href="#p3">Problem 3: Rotated sorted array</a></div>
+      <div><h3>Search the answers</h3><p>Guess an answer, check if it works, and halve the range of possible answers.</p><a href="#p4">Problem 4: Slowest speed that finishes</a></div>
     </div>
   </section>
 
@@ -59,51 +91,52 @@
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
     <ul class="signals">
-      <li>The input is <b>sorted</b> (or sorted and then rotated), and you need a position, a count, or a nearest value.</li>
-      <li>The constraints hint at O(log n): n up to 10<sup>9</sup>, or "do better than linear".</li>
-      <li>The question asks for the <b>minimum</b> value that works or the <b>maximum</b> value that still works: smallest speed, least capacity, largest minimum distance.</li>
-      <li>If you guess an answer x, you can <b>check</b> whether x is good enough in roughly linear time, and anything bigger than a good x is also good (or anything smaller is).</li>
-      <li>Phrases like "first", "last", "earliest day", "insert position", "first bad version".</li>
+      <li>The input is <b>sorted</b> (or sorted and then rotated) and you need a position or a nearest value.</li>
+      <li>The limits hint at O(log n): n up to 10<sup>9</sup>, or "do better than linear".</li>
+      <li>You're asked for the <b>smallest</b> value that works or the <b>largest</b> that still works: least speed, least capacity, largest gap.</li>
+      <li>If you guess an answer, you can <b>check</b> it quickly, and anything bigger than a working answer also works.</li>
+      <li>Words like "first", "last", "earliest", "insert position", "first bad version".</li>
     </ul>
-    <div class="aside"><p><b>Counter-signal:</b> binary search needs monotonic answers. If "x works" doesn't imply "x + 1 works" (for example the check can flip back and forth), halving can jump past the answer. Then you need a scan, a DP, or a different structure. And on an unsorted array, sorting first costs O(n log n), which only pays off if you will search many times.</p></div>
+    <div class="aside"><p><b>When not to:</b> if the yes/no answers can flip back and forth, halving can jump right past the answer. And sorting an unsorted array first costs O(n log n), which only pays off if you'll search it many times.</p></div>
   </section>
 
   <!-- Template -->
   <section class="panel article" id="template" data-nav="Template">
     <span class="eyebrow">Template</span>
-    <h2>Two skeletons, one invariant each</h2>
+    <h2>Two skeletons</h2>
+    <p>Learn the second one well. Almost every harder problem turns into it.</p>
     <div class="tmpl-pair">
       <div>
-        <h3>Exact match (closed range)</h3>
+        <h3>Exact match</h3>
 <pre class="tmpl">lo, hi = 0, len(a) - 1
-<span class="c"># invariant: if target is in a,</span>
-<span class="c"># it is somewhere in a[lo..hi]</span>
 while lo &lt;= hi:
     mid = (lo + hi) // 2
     if a[mid] == target:
         return mid
     if a[mid] &lt; target:
-        lo = mid + 1   <span class="c"># mid and left: too small</span>
+        lo = mid + 1  <span class="c"># left half out</span>
     else:
-        hi = mid - 1   <span class="c"># mid and right: too big</span>
-return -1          <span class="c"># range is empty</span></pre>
+        hi = mid - 1  <span class="c"># right half out</span>
+return -1             <span class="c"># nothing left</span></pre>
       </div>
       <div>
-        <h3>First true (lower bound)</h3>
-<pre class="tmpl">lo, hi = 0, n      <span class="c"># n means "none is true"</span>
-<span class="c"># invariant: ok(i) is false for i &lt; lo</span>
-<span class="c">#            ok(i) is true  for i &gt;= hi</span>
+        <h3>First yes</h3>
+<pre class="tmpl">lo, hi = 0, n     <span class="c"># n = "no yes"</span>
 while lo &lt; hi:
     mid = (lo + hi) // 2
     if ok(mid):
-        hi = mid       <span class="c"># mid may be the first true</span>
+        hi = mid      <span class="c"># mid may be it</span>
     else:
-        lo = mid + 1   <span class="c"># mid is false, skip it</span>
-return lo          <span class="c"># lo == hi: the boundary</span></pre>
+        lo = mid + 1  <span class="c"># mid is a no</span>
+return lo</pre>
       </div>
     </div>
-    <p>The exact version is for "is it here?". The first-true version is the one to memorise, because almost every harder problem reduces to it: pick a predicate <span class="mono">ok</span> that is false, false, …, true, true over the range, and the loop finds where it flips. <span class="mono">ok(i) = a[i] &gt;= target</span> gives the insert position; <span class="mono">ok(k) = "speed k finishes in time"</span> gives the slowest speed that works.</p>
-    <p>Two habits prevent most bugs. Write the invariant down before the loop, then check that each update keeps it true: <span class="mono">hi = mid</span> (not <span class="mono">mid - 1</span>) when mid might be the answer. And make sure every update shrinks the range: with <span class="mono">mid = (lo + hi) // 2</span> and <span class="mono">lo &lt; hi</span>, mid is always below hi, so both branches make progress. In languages with fixed-size integers, write <span class="mono">lo + (hi - lo) / 2</span> to avoid overflow.</p>
+    <p>Two habits prevent almost every bug:</p>
+    <ol class="plan">
+      <li><span><b>Say what the range means</b> before writing the loop: "the answer is always somewhere in lo..hi". Then check each update keeps that true. If mid might be the answer, keep it: <span class="mono">hi = mid</span>, not <span class="mono">mid − 1</span>.</span></li>
+      <li><span><b>Make sure every round shrinks the range</b>, or the loop never ends. With <span class="mono">lo &lt; hi</span>, mid is always below hi, so both branches make progress.</span></li>
+    </ol>
+    <p class="note">In Java or C++, write <span class="mono">lo + (hi − lo) / 2</span> so the sum can't overflow.</p>
   </section>
 
   <!-- Problem 1 -->
@@ -115,25 +148,51 @@ return lo          <span class="c"># lo == hi: the boundary</span></pre>
       <p>You get an array of integers in non-decreasing order and a target value. Return an index where the target appears, or −1 if it isn't in the array. Use O(log n) comparisons.</p>
       <div class="io"><div><span>Input</span>[3, 8, 12, 17, 21, 26, 30, 34, 41], target 26</div><div><span>Output</span>5</div></div>
     </div>
-    <details class="hint"><summary>Think first: the middle is 21 and you want 26. What's ruled out?</summary><p>Everything at or left of the middle is at most 21, so none of it can be 26. Move <span class="mono">lo</span> to <span class="mono">mid + 1</span>. If the middle were bigger than the target, the right side would go instead. If the range ever becomes empty (<span class="mono">lo &gt; hi</span>), the target isn't there.</p></details>
+    <p class="think">The middle is 21 and you want 26. Which half can you throw away?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Scan from the left until you find it. Up to n looks, and it ignores the sorting.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Everything at or left of 21 is at most 21, so none of it can be 26. One comparison at the middle rules out that whole half.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>lo = first index, hi = last index.</span></li>
+      <li><span>Look at the middle. Equal to the target? Return it.</span></li>
+      <li><span>Middle too small: lo = mid + 1. Too big: hi = mid − 1.</span></li>
+      <li><span>If lo passes hi, nothing is left: return −1.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">L = lo, R = hi, mid = the middle being checked. Grey cells are ruled out.</p>
     <div id="viz1"></div>
-    <p class="legend">L = lo, R = hi, mid = the middle being checked. Grey cells are ruled out.</p>
     <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Linear scan: O(n)</span></div>
+    <p class="slip">Writing <span class="mono">hi = mid</span> here. The middle was already checked, so it must leave the range, or the loop can spin forever.</p>
   </section>
 
   <!-- Problem 2 -->
   <section class="panel article problem" id="p2" data-nav="Insert position" data-num="P2">
-    <span class="eyebrow">Problem 2 · First true</span>
+    <span class="eyebrow">Problem 2 · First yes</span>
     <h2>Where would the target go?</h2>
     <div class="qbox">
       <h3>Question</h3>
-      <p>You get an array in non-decreasing order and a target. Return the smallest index i with <span class="mono">a[i] ≥ target</span>. That is where the target should be inserted to keep the array sorted, and if the target is already present it is its first occurrence. If every element is smaller, return the length of the array.</p>
+      <p>You get an array in non-decreasing order and a target. Return the smallest index i with <span class="mono">a[i] ≥ target</span>. That's where the target should be inserted to keep the array sorted, and its first copy if it's already there. If every element is smaller, return the length of the array.</p>
       <div class="io"><div><span>Input</span>[1, 3, 3, 3, 5, 8, 9], target 3</div><div><span>Output</span>1 (the first 3)</div><div><span>Target 6</span>5 (between 5 and 8)</div></div>
     </div>
-    <details class="hint"><summary>Think first: why can't you stop as soon as a[mid] equals the target?</summary><p>There may be more copies to the left. Instead, ask a yes/no question at every index: "is <span class="mono">a[i] ≥ target</span>?". Along a sorted array the answers go F, F, T, T, T. You want the first T. If mid says T, it could be the first one, so keep it: <span class="mono">hi = mid</span>. If it says F, it and everything left of it are F: <span class="mono">lo = mid + 1</span>.</p></details>
+    <p class="think">The middle is a 3 and the target is 3. Why can't you stop there?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Scan from the left until you hit something ≥ target. O(n).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">There may be more 3s to the left, so finding one isn't enough. Ask "is <span class="mono">a[i] ≥ target</span>?" at each index instead. On a sorted array the answers go no, no, yes, yes, yes, and you want the first yes.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>lo = 0, hi = n (n stands for "every element is smaller").</span></li>
+      <li><span>Middle says yes? It could be the first yes, so keep it: hi = mid.</span></li>
+      <li><span>Middle says no? It and everything left of it are no: lo = mid + 1.</span></li>
+      <li><span>When lo meets hi, that's the first yes.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The second row is the yes/no question: F cells are proven "no" (left of lo), T cells are proven "yes" (from hi on), and ? cells aren't decided yet.</p>
     <div id="viz2"></div>
-    <div class="aside"><p><b>Same shape, different story:</b> "versions 1 to n, and from some version on every build is broken; find the first broken one with few checks" is this problem with <span class="mono">ok(v) = is_bad(v)</span>. The second row of the picture is the predicate: F cells are proven false (left of lo), T cells are proven true (from hi on), and ? cells haven't been decided yet.</p></div>
     <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Scan from the left: O(n)</span></div>
+    <p class="slip">Returning as soon as <span class="mono">a[mid] == target</span>. That finds <i>a</i> copy, not the first one.</p>
   </section>
 
   <!-- Problem 3 -->
@@ -142,42 +201,82 @@ return lo          <span class="c"># lo == hi: the boundary</span></pre>
     <h2>Search in a rotated sorted array</h2>
     <div class="qbox">
       <h3>Question</h3>
-      <p>An array of distinct integers was sorted in increasing order and then rotated: some prefix was cut off and moved to the end, so <span class="mono">[2, 5, 9, 14, 20]</span> might now read <span class="mono">[14, 20, 2, 5, 9]</span>. Given the rotated array and a target, return the target's index or −1, in O(log n) time.</p>
+      <p>An array of distinct integers was sorted and then rotated: a front chunk was cut off and moved to the end, so <span class="mono">[2, 5, 9, 14, 20]</span> might now read <span class="mono">[14, 20, 2, 5, 9]</span>. Given the rotated array and a target, return the target's index or −1, in O(log n) time.</p>
       <div class="io"><div><span>Input</span>[15, 18, 22, 27, 3, 6, 9, 11], target 6</div><div><span>Output</span>5</div></div>
     </div>
-    <details class="hint"><summary>Think first: cut the range at mid. What is always true of the two halves?</summary><p>The rotation point can only be on one side, so <b>at least one half is sorted</b>. Compare <span class="mono">a[lo]</span> with <span class="mono">a[mid]</span> to see which. For the sorted half you can tell from its two ends whether the target could be inside it. If it could, keep that half; if not, the target can only be in the other half.</p></details>
+    <p class="think">Cut the array in half at the middle. Can both halves contain the "drop" from 27 to 3?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Scan every element. O(n). Plain binary search fails because the array isn't sorted as a whole.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The drop is in only one half, so <b>at least one half is properly sorted</b>. For a sorted half, its two ends tell you whether the target could be inside. If yes, keep that half. If no, the target can only be in the other one.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Look at the middle. Is it the target? Done.</span></li>
+      <li><span>If <span class="mono">a[lo] ≤ a[mid]</span>, the left half is sorted. Otherwise the right half is.</span></li>
+      <li><span>Is the target between the sorted half's two ends? Keep that half. If not, keep the other.</span></li>
+      <li><span>Repeat until found, or nothing is left.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Amber outline = the half known to be sorted at this step. Grey = ruled out.</p>
     <div id="viz3"></div>
-    <p class="legend">Amber outline = the half that is known to be sorted at this step. Grey = ruled out.</p>
     <div class="cx"><span class="good">Time O(log n)</span><span class="good">Space O(1)</span><span class="meh">Linear scan: O(n)</span></div>
+    <p class="slip">Checking only one end of the sorted half. The target must be at least its left end <i>and</i> below its right end (or the middle).</p>
   </section>
 
   <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Slowest speed that finishes" data-num="P4">
-    <span class="eyebrow">Problem 4 · Search the answer space</span>
+    <span class="eyebrow">Problem 4 · Search the answers</span>
     <h2>The slowest eating speed that still finishes in time</h2>
     <div class="qbox">
       <h3>Question</h3>
-      <p>There are several piles of bananas and a guard returns in h hours. Each hour you pick one pile and eat up to k bananas from it; if the pile has fewer than k left, you finish it and wait out the rest of that hour. Find the smallest whole number k that lets you finish every pile within h hours. (h is at least the number of piles, so some speed always works.)</p>
+      <p>There are piles of bananas and a guard returns in h hours. Each hour you pick one pile and eat up to k bananas from it. If the pile has fewer than k left, you finish it and wait out the rest of that hour. Find the smallest whole number k that lets you finish every pile within h hours. (h is at least the number of piles, so some speed always works.)</p>
       <div class="io"><div><span>Input</span>piles [3, 6, 7, 11], h = 8</div><div><span>Output</span>4</div><div><span>Why</span>at k = 4: 1 + 2 + 2 + 3 = 8 hours; at k = 3: 1 + 2 + 3 + 4 = 10</div></div>
     </div>
-    <details class="hint"><summary>Think first: if speed k finishes in time, what about k + 1?</summary><p>Eating faster never takes more hours, so once a speed works, every faster speed works too. The question "does speed k finish?" goes no, no, …, yes, yes as k runs from 1 to the largest pile (at that speed each pile takes one hour). That's a first-true search over speeds, not over the array. Checking one speed costs one pass: <span class="mono">sum(ceil(p / k))</span>.</p></details>
+    <p class="think">If speed 5 finishes in time, does speed 6?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Try k = 1, 2, 3, … until one finishes in time. Each try costs a pass over the piles, and the biggest pile could be huge.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Eating faster never takes longer. So "does speed k finish in time?" goes no, no, …, yes, yes as k grows. That's a first-yes search, over speeds instead of array positions.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>The answer is between 1 and the biggest pile (at that speed every pile takes one hour).</span></li>
+      <li><span>Guess the middle speed k. Hours needed = sum of ⌈pile / k⌉.</span></li>
+      <li><span>Fits in h hours? k might be the answer: hi = k. Too slow? lo = k + 1.</span></li>
+      <li><span>When lo meets hi, that's the slowest speed that works.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The top line is every possible speed. The shaded band is the range still in play and the dot is the guess. Green ticks are proven fast enough, red ticks too slow. Below, each pile shows its hours at speed k.</p>
     <div id="viz4"></div>
-    <div class="aside"><p><b>Read the picture:</b> the top line is every possible speed. The shaded band is the range [lo, hi] that still contains the answer, and the dot marks the guessed k. Green ticks are speeds proven fast enough, red ticks are proven too slow. Below, each pile shows how many hours it takes at speed k.</p></div>
     <div class="cx"><span class="good">Time O(n log max)</span><span class="good">Space O(1)</span><span class="meh">Try every speed: O(n · max)</span></div>
+    <p class="slip">Searching from 0. Speed 0 divides by zero; the smallest real speed is 1.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
     <h2>Why halving is safe, why it stops, and why it's fast</h2>
+    <p>Using the "first yes" skeleton:</p>
     <div class="qa">
-      <div><span class="q">Invariant</span><p>For first true: every index below lo is known false, and every index from hi on is known true (with hi = n standing for "nothing true yet"). At the start nothing is below lo = 0 and nothing is at or above hi = n, so it holds trivially. If <span class="mono">ok(mid)</span> is true, setting hi = mid keeps "from hi on is true" because the predicate is monotonic. If it's false, everything up to mid is false, so lo = mid + 1 keeps "below lo is false".</p></div>
-      <div><span class="q">Termination</span><p>While lo &lt; hi, the floor of the average satisfies lo ≤ mid &lt; hi. So hi = mid strictly lowers hi and lo = mid + 1 strictly raises lo: the range shrinks every round and the loop must end. The classic exact search shrinks too, because both updates skip mid itself.</p></div>
-      <div><span class="q">The answer</span><p>The loop ends with lo = hi. Everything below is false and everything from there on is true, so lo is exactly the first true position, or n if there is none. No final check is needed.</p></div>
-      <div><span class="q">O(log n)</span><p>Each round keeps at most half of the range (rounded up), so after k rounds at most n / 2<sup>k</sup> + 1 positions remain. The range hits size one after about log₂ n rounds. For answer-space searches the "n" is the size of the answer range, and each round also pays for one feasibility check.</p></div>
-      <div><span class="q">In an interview</span><p>Say what the range means ("the answer is always inside [lo, hi]") and what the predicate is, then show that both branches keep that true and shrink the range. For answer-space problems, argue monotonicity out loud ("faster never takes longer") before writing the loop.</p></div>
+      <div><span class="q">Always true</span><p>Everything left of lo is a known "no", and everything from hi on is a known "yes". At the start nothing is known, so this holds.</p></div>
+      <div><span class="q">Each step</span><p>If mid says yes, so does everything after it, so hi = mid keeps the rule. If mid says no, so does everything before it, so lo = mid + 1 keeps it.</p></div>
+      <div><span class="q">It stops</span><p>While lo &lt; hi, mid sits in lo..hi−1, so each branch shrinks the range by at least one.</p></div>
+      <div><span class="q">The answer</span><p>At the end lo = hi. Everything before is "no" and everything from there is "yes", so lo is the first yes (or n if there is none).</p></div>
+      <div><span class="q">O(log n)</span><p>Each round keeps at most half, so about log₂ n rounds. When searching answers, n is the size of the answer range, and each round also pays for one check.</p></div>
     </div>
     <p class="formula">size after k rounds ≤ n / 2^k  ⇒  rounds ≈ log₂ n  (10⁶ → 20, 10⁹ → 30)</p>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Find a target</h3><p><span class="mono">lo ≤ hi</span>; mid leaves the range on both sides.</p></div>
+      <div><h3>First yes</h3><p><span class="mono">lo &lt; hi</span>; yes → hi = mid, no → lo = mid + 1.</p></div>
+      <div><h3>Rotated</h3><p>One half is sorted. Is the target inside it? Keep it, else the other.</p></div>
+      <div><h3>Search the answers</h3><p>Range = possible answers. Check one guess per round.</p></div>
+    </div>
+    <p>Next pattern: <a href="tree-traversal.html">DFS and BFS on Trees</a>.</p>
   </section>
 </main>
 </div>
@@ -210,7 +309,7 @@ return lo          <span class="c"># lo == hi: the boundary</span></pre>
 
   // ---------- The idea: run the classic search and draw the range at each look ----------
   (function () {
-    const a = [2, 5, 8, 12, 16, 23, 29, 37, 41, 50, 56, 63, 71, 80, 94], t = 56;
+    const a = [5, 8, 12, 16, 23, 29, 37, 41, 50, 56, 63], t = 56;
     let lo = 0, hi = a.length - 1, html = "", look = 0;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1, m = rangeMarks(a.length, lo, hi);

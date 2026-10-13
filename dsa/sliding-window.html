@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../shared/lab.css?v=8">
+<link rel="stylesheet" href="../shared/lab.css?v=9">
 <style>
   .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .variants div { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; background: var(--panel); }
@@ -42,22 +42,47 @@
 
   <header class="intro">
     <h1>Sliding Window</h1>
-    <p class="lede">Keep a contiguous range of the array and a small summary of what is inside it. Move the right edge to take one element in and the left edge to let one go, updating the summary as you go. Nothing gets recomputed from scratch, so every subarray you care about is checked in one pass.</p>
+    <p class="lede">Look at a run of neighbouring elements through a window, then slide it along. One element comes in on the right, one leaves on the left, and you patch a running total instead of starting over.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> a range from <span class="mono">L</span> to <span class="mono">R</span> plus a small summary of what's inside it: a sum, letter counts, or a set.</li>
+        <li><b>When:</b> the question is about a <b>contiguous</b> piece (subarray, substring) and asks for the longest, shortest or best one.</li>
+        <li><b>Why it's fast:</b> each element enters the window once and leaves at most once. O(n) instead of O(n·k) or O(n²).</li>
+        <li><b>The one thing to get right:</b> when to shrink from the left, and why a window you dropped can never become useful again.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>Neighbouring subarrays share almost everything</h2>
-    <p>Take the subarray from index 2 to 5 and the one from 3 to 6. They share indices 3, 4 and 5. If you already know the sum of the first, the sum of the second is that sum, <b>plus</b> the element that came in on the right, <b>minus</b> the one that left on the left. That is two operations, not four.</p>
-    <p>A brute-force scan recomputes every range from scratch, which costs O(n·k) for windows of size k, or O(n²) when the size can vary. A sliding window keeps a running summary (a sum, a letter count, a set) and patches it by one element at each move. Each index enters the window once and leaves at most once, so the whole scan is O(n).</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Best sum of 4 numbers in a row</h2>
+    <p>Here are seven numbers: <span class="mono">4, 2, 7, 1, 5, 3, 6</span>. Which four neighbours have the biggest sum?</p>
+    <p>The slow way adds up each group of four from scratch. But look at two groups side by side. Moving one step right only changes two numbers: one comes in, one goes out. Everything in the middle stays.</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>Window</th><th>In</th><th>Out</th><th>Sum</th></tr></thead>
+      <tbody>
+        <tr><td>0–3</td><td>–</td><td>–</td><td>4 + 2 + 7 + 1 = 14</td></tr>
+        <tr><td>1–4</td><td>5</td><td>4</td><td>14 + 5 − 4 = 15</td></tr>
+        <tr class="win"><td>2–5</td><td>3</td><td>2</td><td>15 + 3 − 2 = 16 (best)</td></tr>
+        <tr><td>3–6</td><td>6</td><td>7</td><td>16 + 6 − 7 = 15</td></tr>
+      </tbody>
+    </table></div>
+    <p>After the first window, each slide costs two operations no matter how wide the window is. With a million numbers and windows of 1,000, that's about 2 million operations instead of about a billion.</p>
+    <p class="insight">Neighbouring windows share almost everything. Keep a running summary and patch it with what came in and what went out, instead of recomputing.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>The window either has a fixed size, or it stretches and shrinks. Which one you're in decides how the left edge moves.</p>
     <div class="variants">
-      <div><h3>Fixed size</h3><p>The window length k is given. Every step adds one on the right and drops one on the left, so the size never changes.</p><a href="#p1">Problem 1: Best sum of k in a row</a><a href="#p2">Problem 2: Find every anagram</a></div>
-      <div><h3>Variable, longest</h3><p>Grow the right edge as long as the window stays valid. When it breaks, shrink from the left until it is valid again, then record the size.</p><a href="#p3">Problem 3: Longest run without repeats</a></div>
-      <div><h3>Variable, shortest</h3><p>Grow until the window first becomes valid, then shrink from the left for as long as it stays valid, recording each size on the way.</p><a href="#p4">Problem 4: Shortest subarray reaching a target</a></div>
+      <div><h3>Fixed size</h3><p>The length k is given. Each step adds one on the right and drops one on the left, so the size never changes.</p><a href="#p1">Problem 1: Best sum of k in a row</a><a href="#p2">Problem 2: Find every anagram</a></div>
+      <div><h3>Stretchy, longest</h3><p>Grow the right edge while the window is fine. When it breaks, shrink from the left until it's fine again, then record the size.</p><a href="#p3">Problem 3: Longest run without repeats</a></div>
+      <div><h3>Stretchy, shortest</h3><p>Grow until the window first works. Then shrink from the left for as long as it still works, recording each size.</p><a href="#p4">Problem 4: Shortest subarray reaching a target</a></div>
     </div>
   </section>
 
@@ -65,13 +90,14 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for a sliding window when you see one or more of these:</p>
     <ul class="signals">
-      <li>The question is about a <b>contiguous</b> piece of the input: a subarray, a substring, a run of days.</li>
-      <li>It asks for the <b>longest</b>, <b>shortest</b>, <b>maximum</b>, <b>minimum</b> or <b>count</b> of such pieces.</li>
-      <li>A window size <b>k</b> is given outright (fixed window), or there is a condition like "at most two distinct", "no repeats" or "sum at least T" (variable window).</li>
-      <li>The condition is <b>monotone</b>: if a window breaks it, every larger window containing it breaks it too. That is what makes shrinking from the left safe.</li>
+      <li>The question is about a <b>contiguous</b> piece: a subarray, a substring, a run of days.</li>
+      <li>It asks for the <b>longest</b>, <b>shortest</b>, <b>largest</b> or <b>count</b> of such pieces.</li>
+      <li>A size <b>k</b> is given (fixed window), or there's a rule like "no repeats", "at most two kinds" or "sum at least T" (stretchy window).</li>
+      <li>Breaking the rule is <b>permanent under growth</b>: if a window breaks it, every bigger window around it breaks it too. That's what makes shrinking from the left safe.</li>
     </ul>
-    <div class="aside"><p><b>Counter-signals:</b> if the elements don't have to be next to each other (a subsequence), you are probably looking at DP. If a sum condition allows negative numbers, growing the window can make the sum smaller, so monotonicity fails; prefix sums with a hash map are the usual fix.</p></div>
+    <div class="aside"><p><b>When not to:</b> if the elements don't have to sit next to each other (a subsequence), think dynamic programming instead. And if a sum rule allows negative numbers, adding an element can make the sum smaller, so the "permanent" property fails. Prefix sums with a hash map are the usual fix there.</p></div>
   </section>
 
   <!-- Template -->
@@ -83,19 +109,24 @@
 <pre class="tmpl">state = summary(a[0:k])
 record(state)
 for R in range(k, len(a)):
-    add(a[R])          <span class="c"># comes in on the right</span>
-    remove(a[R - k])   <span class="c"># leaves on the left</span>
+    add(a[R])        <span class="c"># in on the right</span>
+    remove(a[R - k]) <span class="c"># out on the left</span>
     record(state)</pre></div>
-      <div><h3>Variable size</h3>
+      <div><h3>Stretchy</h3>
 <pre class="tmpl">L = 0
 for R in range(len(a)):
     add(a[R])
-    while window_is_bad():   <span class="c"># or: while still good</span>
+    while window_is_bad():
         remove(a[L])
         L += 1
     record(R - L + 1)</pre></div>
     </div>
-    <p>What changes between problems is the <b>state</b> you keep (a sum, a count per letter, a set) and the <b>condition</b> that tells you when to shrink. In an interview, name both before writing code. For "longest" problems you record after shrinking; for "shortest" problems you record inside the shrink loop, while the window is still valid.</p>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>Fixed or stretchy?</b> If the problem gives you k, it's fixed. If it gives you a rule, it's stretchy.</span></li>
+      <li><span><b>What summary do you keep?</b> A sum, a count per letter, or a set of what's inside. It must be cheap to add one element and remove one.</span></li>
+      <li><span><b>When do you shrink, and where do you record?</b> For "longest", shrink while the window is bad and record after. For "shortest", shrink while it's still good and record inside the loop.</span></li>
+    </ol>
   </section>
 
   <!-- Problem 1 -->
@@ -107,9 +138,23 @@ for R in range(len(a)):
       <p>Given an array of integers and a number k, return the largest sum you can get by adding up k elements that sit next to each other.</p>
       <div class="io"><div><span>Input</span>[2, 1, 5, 1, 3, 2], k = 3</div><div><span>Output</span>9 (5 + 1 + 3)</div></div>
     </div>
-    <details class="hint"><summary>Think first: how does one window's sum become the next?</summary><p>Moving the window one step right brings in <span class="mono">a[R]</span> and pushes out <span class="mono">a[R − k]</span>. Everything in between stays. So the new sum is the old sum plus one number minus another, no loop over the window needed.</p></details>
+    <p class="think">When the window slides one step, which numbers actually change?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For every starting point, add up the next k numbers. There are about n starts and each costs k additions, so O(n·k).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Sliding right brings in <span class="mono">a[R]</span> and pushes out <span class="mono">a[R − k]</span>. Everything in between stays. So the new sum is the old sum plus one number minus another.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Add up the first k numbers. That's the best so far.</span></li>
+      <li><span>For each R from k to the end: add a[R], subtract a[R − k].</span></li>
+      <li><span>If the new sum beats the best, keep it.</span></li>
+      <li><span>Return the best.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Press Next to step through, or try your own numbers. Blue band: the current window. Green border: just came in. Red border: just left. Green dashed outline: the best window so far.</p>
     <div id="viz1"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Re-adding every window: O(n·k)</span></div>
+    <p class="slip">Starting the best at 0. If every number is negative the answer is below zero. Start from the first window's sum instead.</p>
   </section>
 
   <!-- Problem 2 -->
@@ -121,49 +166,105 @@ for R in range(len(a)):
       <p>Given a text and a shorter pattern, both in lowercase letters, return every index in the text where a rearrangement of the pattern begins.</p>
       <div class="io"><div><span>Input</span>text "cbaebabacd", pattern "abc"</div><div><span>Output</span>[0, 6] ("cba" and "bac")</div></div>
     </div>
-    <details class="hint"><summary>Think first: what makes two strings anagrams?</summary><p>They have the same count of each letter. The window must be exactly as long as the pattern, so it is a fixed window. Keep a letter count for the window, add the new right letter, remove the old left letter, and compare with the pattern's counts. Comparing 26 counters is constant work; to go further, track how many letters currently match and update that number instead.</p></details>
+    <p class="think">Two words are anagrams. What do they have in common, letter by letter?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>At every start, take the next m letters (m is the pattern length), sort them and compare with the sorted pattern. That's O(n·m log m).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Anagrams have the same count of each letter. The window is always exactly m letters long, so it's a fixed window: slide it and change just two counts per step, one up and one down.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Count the pattern's letters.</span></li>
+      <li><span>For each R: add one to the count of text[R].</span></li>
+      <li><span>Once the window is longer than m, subtract one for the letter at R − m.</span></li>
+      <li><span>If the counts match the pattern's, record the start R − m + 1. With 26 letters this check is constant work.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The top row is the text with the window over it. The boxes below show each letter's count in the window next to what the pattern needs. A box turns green when they agree; all green means an anagram.</p>
     <div id="viz2"></div>
     <div class="cx"><span class="good">Time O(n) with a 26-letter alphabet</span><span class="good">Space O(1)</span><span class="meh">Sorting every window: O(n·m log m)</span></div>
+    <p class="slip">Forgetting to remove the letter that leaves on the left. The counts keep growing and never match the pattern again.</p>
   </section>
 
   <!-- Problem 3 -->
   <section class="panel article problem" id="p3" data-nav="Longest run without repeats" data-num="P3">
-    <span class="eyebrow">Problem 3 · Variable, longest</span>
+    <span class="eyebrow">Problem 3 · Stretchy, longest</span>
     <h2>Longest substring with no repeated character</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given a string, return the length of the longest stretch of consecutive characters in which no character appears twice.</p>
       <div class="io"><div><span>Input</span>"abcabcbb"</div><div><span>Output</span>3 ("abc")</div></div>
     </div>
-    <details class="hint"><summary>Think first: when the window breaks, where can it restart?</summary><p>Keep the window's characters in a set. When the new character <span class="mono">s[R]</span> is already inside, no window that still contains the earlier copy can be valid, so drop characters from the left until that copy is gone. Then add <span class="mono">s[R]</span> and record the size. A map from character to last index lets L jump there in one move instead of stepping.</p></details>
+    <p class="think">A repeat just showed up. Where is the earliest the next good window can start?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Try every substring and check it for repeats. There are about n²/2 substrings, so this is O(n²) at best.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">If the new character <span class="mono">s[R]</span> is already in the window, every window that still holds the earlier copy is broken. So drop characters from the left until that copy is gone. L never needs to move back.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Keep a set of the window's characters. L starts at 0.</span></li>
+      <li><span>For each R: while s[R] is in the set, remove s[L] and move L right.</span></li>
+      <li><span>Add s[R] and record the length R − L + 1 if it's the best.</span></li>
+      <li><span>Speed-up: store each character's last index, so L can jump past the copy in one move.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Blue band: the current window. Amber borders: the new character and its earlier copy. Red border: dropped from the left. Green dashed outline: the best window so far. The chips below are the set.</p>
     <div id="viz3"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(alphabet)</span><span class="meh">Checking every substring: O(n²) or worse</span></div>
+    <p class="slip">With the last-index speed-up, moving L backwards to an old copy that's already outside the window. Use L = max(L, last[c] + 1).</p>
   </section>
 
   <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Shortest subarray reaching a target" data-num="P4">
-    <span class="eyebrow">Problem 4 · Variable, shortest</span>
+    <span class="eyebrow">Problem 4 · Stretchy, shortest</span>
     <h2>Shortest subarray whose sum reaches a target</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given an array of positive integers and a target, return the length of the shortest run of consecutive elements whose sum is at least the target. Return 0 if no run gets there.</p>
       <div class="io"><div><span>Input</span>[2, 3, 1, 2, 4, 3], target 7</div><div><span>Output</span>2 ([4, 3])</div></div>
     </div>
-    <details class="hint"><summary>Think first: once the sum is big enough, what should you try?</summary><p>Grow R until the sum reaches the target. That window is valid, so record its length, then see whether it still works with the leftmost element removed. Keep shrinking while it stays valid. Because every number is positive, removing an element always lowers the sum, so once it drops below the target there is no point shrinking further.</p></details>
+    <p class="think">The sum just reached the target. What's the next thing worth trying?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For every start, keep adding numbers until the sum reaches the target. O(n²).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Once the window reaches the target, record its length and try dropping the leftmost number. Every number is positive, so dropping one always lowers the sum. Keep shrinking while it still reaches the target; once it falls short, grow on the right again.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>L = 0, sum = 0, best = infinity.</span></li>
+      <li><span>For each R: add a[R] to the sum.</span></li>
+      <li><span>While sum ≥ target: record R − L + 1, subtract a[L], move L right.</span></li>
+      <li><span>Return best, or 0 if it never changed.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Blue band: the current window. Green border: just came in. Red border: just dropped from the left. Green dashed outline: the shortest window so far.</p>
     <div id="viz4"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Trying every start: O(n²)</span></div>
+    <p class="slip">Shrinking with <span class="mono">if</span> instead of <span class="mono">while</span>. Dropping only one element per step can miss a much shorter window.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
-    <h2>Why the left edge never needs to go back</h2>
+    <h2>Why the left edge never goes back</h2>
+    <p>The whole argument fits in three sentences:</p>
     <div class="qa">
-      <div><span class="q">Monotone rule</span><p>The condition must behave well under growth: if <span class="mono">[L, R]</span> is invalid, then every window that contains it is invalid too. Repeats stay repeats, and with positive numbers a sum only grows.</p></div>
-      <div><span class="q">Invariant</span><p>After each step, L is the smallest start for which <span class="mono">[L, R]</span> is valid. Any start before L was ruled out for some earlier R, and by the rule above it stays ruled out for every larger R. So L only ever moves right.</p></div>
-      <div><span class="q">Cost</span><p>R moves n times. L moves at most n times in total, even though a single step can move it several places. The inner <span class="mono">while</span> loop looks like O(n²) but adds up to O(n) over the whole run.</p></div>
-      <div><span class="q">In an interview</span><p>State the window state, the shrink condition and why it is monotone. Then point out the amortized argument: each element enters once and leaves once.</p></div>
+      <div><span class="q">Always true</span><p>L is the earliest start that can still give a good window ending at R. Every start before L has already been shown to fail.</p></div>
+      <div><span class="q">Each step</span><p>When a window breaks the rule, every bigger window around it breaks it too: a repeat stays a repeat, and a sum of positives only grows. So a start that failed once fails for every later R, and L only moves right.</p></div>
+      <div><span class="q">It ends</span><p>R moves n times and L moves at most n times in total. The inner <span class="mono">while</span> looks like O(n²), but over the whole run it adds up to O(n).</p></div>
     </div>
+    <div class="aside"><p><b>In an interview:</b> name the summary you keep and the shrink rule, then say why the rule stays broken as the window grows. Finish with "each element enters once and leaves once", which is the O(n) argument.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Best sum of k</h3><p>Sum += new − old. Track the best.</p></div>
+      <div><h3>Anagrams</h3><p>Fixed window of letter counts. Match the pattern's counts.</p></div>
+      <div><h3>No repeats</h3><p>Repeat inside? Drop from the left until it's gone.</p></div>
+      <div><h3>Shortest to target</h3><p>While sum ≥ target: record, drop the left.</p></div>
+    </div>
+    <p>Next pattern: <a href="simultaneous-traversal.html">Simultaneous Traversal</a>, where each pointer walks its own sorted array and both move forward.</p>
   </section>
 </main>
 </div>
@@ -201,7 +302,6 @@ for R in range(len(a)):
     const H = top + cw + 10 + Math.max(1, ...Object.values(used)) * 22 + 4;
     return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Array with the current window highlighted">${s}</svg></div>`;
   }
-  const legend = `<p style="font-size:13px;color:var(--muted)">Blue band: the current window. Green border: just came in. Red border: just left. Green dashed outline: the best window so far.</p>`;
 
   // ---------- The idea: a static picture ----------
   document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawWindow([4, 2, 7, 1, 5, 3, 6], { L: 2, R: 5, mark: { 1: "out", 5: "in" } })}<p style="font-size:14px;color:var(--muted)">The window moved from [1..4] to [2..5]: 3 came in on the right, 2 left on the left. The sum goes from 15 to 15 + 3 − 2 = 16 without touching 7, 1 or 5.</p></div>`;
@@ -242,7 +342,7 @@ for R in range(len(a)):
       snap(6, `No more room to slide. <b class="ok">The largest sum is ${best}</b>${ops < (n - K + 1) * K ? `, using ${ops} additions instead of ${(n - K + 1) * K}` : `. With k = ${K} there is little to save; the gap grows with k`}.`);
       return { frames };
     },
-    draw(f) { return drawWindow(f.arr, f) + legend; }
+    draw(f) { return drawWindow(f.arr, f); }
   });
 
   // ---------- Problem 2: find all anagrams ----------
@@ -351,7 +451,7 @@ for R in range(len(a)):
     },
     draw(f) {
       return `<div class="stage-row">${drawWindow(f.a, f)}
-        <span class="stage-label">seen (characters in the window)</span><div class="chips">${f.seen.length ? f.seen.map(c => `<span>${c}</span>`).join("") : `<em>empty</em>`}</div></div>${legend}`;
+        <span class="stage-label">seen (characters in the window)</span><div class="chips">${f.seen.length ? f.seen.map(c => `<span>${c}</span>`).join("") : `<em>empty</em>`}</div></div>`;
     }
   });
 
@@ -398,7 +498,7 @@ for R in range(len(a)):
       snap(8, best === Infinity ? `<b class="bad">No run reaches ${target}. Return 0.</b>` : `<b class="ok">The shortest run reaching ${target} has length ${best}</b>.`);
       return { frames };
     },
-    draw(f) { return drawWindow(f.arr, f) + legend; }
+    draw(f) { return drawWindow(f.arr, f); }
   });
 </script>
 <script src="../shared/progress.js"></script>

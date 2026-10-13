@@ -263,7 +263,7 @@ window.QUESTIONS = [
 window.DSA = [
   { area: "Array", patterns: [
     { slug: "two-pointers", title: "Two Pointers", status: "ready",
-      blurb: "Direct, reduction and subproblem variants: palindromes, pair sums, the water container and three sum, stepped line by line.",
+      blurb: "Mirror, rule-one-out and fix-one variants: palindromes, pair sums, the water container and three sum, stepped line by line.",
       problems: ["Palindrome check", "Pair with target sum", "Container with most water", "Three sum"] },
     { slug: "sliding-window", title: "Sliding Window", status: "ready",
       blurb: "Fixed and variable windows grown and shrunk in one pass: best k-sum, anagrams, longest run without repeats and shortest sum.",
