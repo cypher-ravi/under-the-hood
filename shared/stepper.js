@@ -15,13 +15,6 @@
         ${cfg.presets ? `<div class="st-presets">${cfg.presets.map((p, k) => `<button type="button" data-preset="${k}">${esc(p.label)}</button>`).join("")}</div>` : ""}
       </form>
       <p class="st-error" role="alert" hidden></p>
-      <div class="st-main">
-        <div class="st-stage" aria-live="polite"></div>
-        <div class="st-side">
-          <pre class="st-code" aria-label="Code"></pre>
-          <div class="st-vars"></div>
-        </div>
-      </div>
       <div class="st-bar">
         <button type="button" data-a="first" aria-label="First step">⏮</button>
         <button type="button" data-a="prev" aria-label="Previous step">◀ Prev</button>
@@ -31,7 +24,17 @@
         <input type="range" class="st-scrub" min="0" value="0" aria-label="Step">
         <span class="st-count mono"></span>
       </div>
-      <p class="st-msg"></p>`;
+      <div class="st-main">
+        <div class="st-left">
+          <div class="st-stage" aria-live="polite"></div>
+          <p class="st-msg"></p>
+        </div>
+        <div class="st-side">
+          <pre class="st-code" aria-label="Code"></pre>
+          <div class="st-vars"></div>
+        </div>
+      </div>
+`;
     const $ = sel => root.querySelector(sel);
     const form = $(".st-inputs");
 
@@ -118,7 +121,8 @@
       s += `<path d="M${x} ${y} l-5 7 h10 z" fill="${c}"/>`;
       s += `<text x="${x}" y="${y + 19}" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="${c}">${esc(label)}</text>`;
     });
-    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Array">${s}</svg></div>`;
+    // shrink to fit narrow screens, but keep cells at least 24px wide (the row scrolls instead)
+    return `<div class="st-scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;min-width:${Math.min(W, Math.round(W * 24 / cw))}px;height:auto" role="img" aria-label="Array">${s}</svg></div>`;
   };
 
   // parse "1, 2, 3" into numbers
