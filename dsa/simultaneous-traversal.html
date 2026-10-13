@@ -31,35 +31,64 @@
 
   <header class="intro">
     <h1>Simultaneous Traversal</h1>
-    <p class="lede">Walk two sequences at the same time, one pointer in each. At every step you compare the two current elements, act on one (or both), and advance only the pointer you used. Two sorted arrays can be merged, intersected or matched in a single pass, without nested loops and without sorting again.</p>
+    <p class="lede">Walk two sorted sequences at once, one finger in each. Compare the two fronts, deal with the smaller one, and move only that finger, so two arrays are combined in a single pass.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> one pointer in each of two sequences, <span class="mono">i</span> in A and <span class="mono">j</span> in B, usually both moving forward.</li>
+        <li><b>When:</b> two sorted inputs you need to merge, compare, or check that one appears inside the other in order.</li>
+        <li><b>Why it's fast:</b> each comparison uses up at least one element, so it takes at most n + m steps instead of n × m.</li>
+        <li><b>The one thing to get right:</b> the leftovers. When one side runs out, decide what happens to the rest of the other.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>The smallest remaining element is always at a front</h2>
-    <p>Take two sorted piles of cards. The smallest card left anywhere must be on top of one of the two piles, because each pile is sorted. So you only ever need to compare two cards, the two tops, to know what comes next. Take that card, and the pile it came from shows a new top.</p>
-    <p>Each comparison uses up at least one element, so the whole walk takes at most <span class="mono">n + m</span> steps. The alternatives are slower. Comparing every element of one array with every element of the other takes <span class="mono">n × m</span> steps. Gluing the arrays together and sorting again takes <span class="mono">(n + m) log(n + m)</span> and throws away the order you already had.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Merge two sorted piles</h2>
+    <p>Picture two sorted piles of cards, smallest on top. The smallest card left anywhere must be on top of one of the piles. So to know what comes next, you only ever compare two cards: the two tops.</p>
     <div id="ideaViz"></div>
-    <h3>Four shapes of the same walk</h3>
+    <p>Let's merge <span class="mono">A = [1, 4, 7, 9]</span> and <span class="mono">B = [2, 3, 8]</span> by hand:</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>A[i]</th><th>B[j]</th><th>Take</th><th>Output so far</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>2</td><td>1</td><td>1</td></tr>
+        <tr><td>4</td><td>2</td><td>2</td><td>1, 2</td></tr>
+        <tr><td>4</td><td>3</td><td>3</td><td>1, 2, 3</td></tr>
+        <tr><td>4</td><td>8</td><td>4</td><td>1, 2, 3, 4</td></tr>
+        <tr><td>7</td><td>8</td><td>7</td><td>1, 2, 3, 4, 7</td></tr>
+        <tr><td>9</td><td>8</td><td>8</td><td>1, 2, 3, 4, 7, 8</td></tr>
+        <tr class="win"><td>9</td><td>–</td><td>9</td><td>B is empty, copy the rest of A. Done.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Six comparisons for seven numbers. Comparing every element of A with every element of B would take n × m. Gluing them together and sorting again takes (n + m) log(n + m) and throws away the order you already had.</p>
+    <p class="insight">Because both inputs are sorted, the answer to "what's next?" is always at one of the two fronts. One comparison, one element used up, never look back.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Four flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Four ways the pattern shows up</h2>
+    <p>It's always the same walk. What changes is what you do with the fronts, and which direction you walk.</p>
     <div class="variants">
       <div><h3>Merge</h3><p>Take the smaller front each time. Output everything, in order.</p><a href="#p1">Problem 1: Merge two sorted arrays</a></div>
-      <div><h3>Match</h3><p>One sequence must appear inside the other in order. Advance the pattern only on a match.</p><a href="#p2">Problem 2: Is it a subsequence?</a></div>
-      <div><h3>Intersect</h3><p>Equal fronts are a match and both advance. Otherwise drop the smaller front.</p><a href="#p3">Problem 3: Common elements</a></div>
-      <div><h3>Backwards</h3><p>Walk from the ends to fill a buffer in place without overwriting unread values.</p><a href="#p4">Problem 4: Merge in place</a></div>
+      <div><h3>Match</h3><p>One sequence must appear inside the other, in order. Move the short one only on a match.</p><a href="#p2">Problem 2: Is it a subsequence?</a></div>
+      <div><h3>Intersect</h3><p>Equal fronts are a match and both move. Otherwise drop the smaller front.</p><a href="#p3">Problem 3: Common elements</a></div>
+      <div><h3>Backwards</h3><p>Walk from the ends to fill spare space in place, without overwriting values you haven't read yet.</p><a href="#p4">Problem 4: Merge in place</a></div>
     </div>
   </section>
 
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for simultaneous traversal when you see one or more of these:</p>
     <ul class="signals">
-      <li>There are <b>two</b> inputs (arrays, strings or lists), and both are <b>sorted</b> or ordered.</li>
+      <li>There are <b>two</b> inputs (arrays, strings or lists), and both are <b>sorted</b> or have a fixed order.</li>
       <li>The task is to <b>combine</b> them (merge), <b>compare</b> them (common elements, differences) or check that one <b>follows</b> the other (subsequence).</li>
-      <li>The expected complexity is <b>O(n + m)</b>, or the statement says the inputs are already sorted, which is a hint not to sort again.</li>
-      <li>You must write into one of the inputs <b>in place</b>, and it has spare room at the end.</li>
+      <li>The statement says the inputs are <b>already sorted</b>. That's a hint not to sort again and to aim for O(n + m).</li>
+      <li>You must write into one input <b>in place</b>, and it has spare room at the end.</li>
     </ul>
-    <div class="aside"><p><b>Compared with Two Pointers:</b> there, both pointers live in the same array and usually move toward each other. Here each pointer owns its own sequence, and both usually move forward.</p></div>
+    <div class="aside"><p><b>When not to:</b> if the inputs aren't sorted and you only need "is x in both?", a hash set does it in O(n + m) without sorting. Also, don't confuse this with Two Pointers: there both pointers live in one array and move toward each other. Here each pointer owns its own sequence.</p></div>
   </section>
 
   <section class="panel article" id="template" data-nav="Template">
@@ -67,15 +96,20 @@
     <h2>The skeleton you adapt</h2>
 <pre class="tmpl">i, j = 0, 0
 while i &lt; len(A) and j &lt; len(B):
-    <span class="c"># look at A[i] and B[j]</span>
-    if they match:
+    if A[i] == B[j]:
         use both; i += 1; j += 1
     elif A[i] &lt; B[j]:
         use or skip A[i]; i += 1
     else:
         use or skip B[j]; j += 1
-<span class="c"># one side ran out: handle what's left of the other</span></pre>
-    <p>Problems differ only in what "use" means and in what to do with the leftovers once one side runs out. Forgetting the leftovers is the most common bug with this pattern.</p>
+<span class="c"># one side ran out:</span>
+<span class="c"># handle the other's leftovers</span></pre>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>What does "use" mean?</b> Append to an output, record a match, or just count.</span></li>
+      <li><span><b>When the fronts differ, which side moves?</b> Usually the smaller one, because it can't match anything later in the other array.</span></li>
+      <li><span><b>What happens to the leftovers?</b> Merge copies them. Intersect drops them. Subsequence checks which side ran out. Forgetting this is the most common bug.</span></li>
+    </ol>
   </section>
 
   <section class="panel article problem" id="p1" data-nav="Merge two sorted arrays" data-num="P1">
@@ -86,9 +120,23 @@ while i &lt; len(A) and j &lt; len(B):
       <p>Given two arrays, each sorted in increasing order, return a single array with every element from both, also sorted.</p>
       <div class="io"><div><span>Input</span>A = [1, 4, 7, 9], B = [2, 3, 8]</div><div><span>Output</span>[1, 2, 3, 4, 7, 8, 9]</div></div>
     </div>
-    <details class="hint"><summary>Think first: which element goes out next?</summary><p>The next output is the smaller of the two fronts, A[i] or B[j]. Take it and advance only that pointer. When one array runs out, the rest of the other is already sorted and larger than everything written, so copy it straight across.</p></details>
+    <p class="think">Of everything not yet written, where must the smallest value be?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Glue the two arrays together and sort. That's O((n + m) log(n + m)), and it ignores the fact that each half is already sorted.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The next output is the smaller of the two fronts, A[i] or B[j]. Take it and move only that pointer. When one array runs out, the rest of the other is sorted and larger than everything written, so copy it straight across.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>i = 0 in A, j = 0 in B, empty output.</span></li>
+      <li><span>Append the smaller of A[i] and B[j]. Move that pointer.</span></li>
+      <li><span>Repeat until one array runs out.</span></li>
+      <li><span>Copy whatever is left of the other array.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Press Next to step through, or try your own arrays. Green: the value just taken. Grey: already used. The bottom row is the output so far.</p>
     <div id="viz1"></div>
     <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(n + m) for the output</span><span class="meh">Concatenate and sort: O((n + m) log(n + m))</span></div>
+    <p class="slip">Stopping when one array runs out and losing the rest of the other. Always copy the leftovers.</p>
   </section>
 
   <section class="panel article problem" id="p2" data-nav="Is it a subsequence?" data-num="P2">
@@ -99,9 +147,23 @@ while i &lt; len(A) and j &lt; len(B):
       <p>Given a short string <span class="mono">s</span> and a longer string <span class="mono">t</span>, return <span class="mono">true</span> if you can delete some characters of <span class="mono">t</span> (possibly none), without reordering the rest, and get <span class="mono">s</span>.</p>
       <div class="io"><div><span>Input</span>s = "ace", t = "abcde"</div><div><span>Output</span>true (a, c, e appear in order)</div></div>
     </div>
-    <details class="hint"><summary>Think first: is it ever wrong to match early?</summary><p>No. If <span class="mono">s[i]</span> equals <span class="mono">t[j]</span>, matching it now leaves the most of <span class="mono">t</span> for the rest of <span class="mono">s</span>. So scan <span class="mono">t</span> once, and advance <span class="mono">i</span> only on a match. If <span class="mono">i</span> reaches the end of <span class="mono">s</span>, you're done.</p></details>
+    <p class="think">If s[i] matches t[j] right now, is there ever a reason to wait for a later match?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Try every way of choosing characters from t and see if any spells s. The number of choices grows exponentially with the length of t.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Matching early never hurts. If s[i] equals t[j], taking it now leaves the most of t for the rest of s. So one scan of t is enough, and i moves only on a match.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>i = 0 in s, j = 0 in t.</span></li>
+      <li><span>If s[i] equals t[j], move i.</span></li>
+      <li><span>Move j every time, match or not.</span></li>
+      <li><span>Stop when either runs out. Return whether i reached the end of s.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">In s, green means matched and blue is the character we're looking for. In t, green is a match and red is a character we skipped.</p>
     <div id="viz2"></div>
     <div class="cx"><span class="good">Time O(len t)</span><span class="good">Space O(1)</span></div>
+    <p class="slip">Returning true just because the loop finished. The loop also stops when t runs out, so check that i reached the end of s.</p>
   </section>
 
   <section class="panel article problem" id="p3" data-nav="Common elements" data-num="P3">
@@ -112,9 +174,23 @@ while i &lt; len(A) and j &lt; len(B):
       <p>Given two sorted arrays, return the elements they share. If a value appears twice in both, include it twice.</p>
       <div class="io"><div><span>Input</span>A = [1, 2, 2, 4, 6, 8], B = [2, 2, 3, 6, 9]</div><div><span>Output</span>[2, 2, 6]</div></div>
     </div>
-    <details class="hint"><summary>Think first: the fronts differ. Which one can go?</summary><p>If A[i] is smaller than B[j], then A[i] is smaller than everything left in B too, because B is sorted. It can't match anything, so skip it. Equal fronts are a match: record it and advance both.</p></details>
+    <p class="think">The fronts differ. Can the smaller one still match anything?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For each element of A, scan B for an unused equal value. Nested loops: O(n × m).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">If A[i] is smaller than B[j], it's smaller than everything left in B too, because B is sorted. It can't match anything, so skip it. Equal fronts are a match: record it and move both.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>i = 0 in A, j = 0 in B.</span></li>
+      <li><span>Equal? Record the value, move both.</span></li>
+      <li><span>Otherwise move the pointer on the smaller value.</span></li>
+      <li><span>Stop when either runs out. Nothing left can match.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Green: a matched pair. Grey: skipped, because it was too small to match anything left. The bottom row is the common elements found so far.</p>
     <div id="viz3"></div>
     <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(1) besides the output</span><span class="meh">Nested loops: O(n × m)</span></div>
+    <p class="slip">Moving only one pointer on a match. The same value then matches again and repeats get counted too many times.</p>
   </section>
 
   <section class="panel article problem" id="p4" data-nav="Merge in place" data-num="P4">
@@ -125,20 +201,48 @@ while i &lt; len(A) and j &lt; len(B):
       <p>Array A holds <span class="mono">m</span> sorted values followed by <span class="mono">n</span> empty slots. Array B holds <span class="mono">n</span> sorted values. Merge B into A so that A ends up fully sorted, without using another array.</p>
       <div class="io"><div><span>Input</span>A = [1, 4, 7, _, _, _], B = [2, 5, 6]</div><div><span>Output</span>A = [1, 2, 4, 5, 6, 7]</div></div>
     </div>
-    <details class="hint"><summary>Think first: why does merging from the front go wrong?</summary><p>Writing at the front of A would overwrite values of A you haven't placed yet. The empty space is at the <i>end</i>, so fill it from the end: compare the two largest remaining values and put the larger one in the last free slot. The write pointer can never overtake the read pointer in A.</p></details>
+    <p class="think">Where is the free space, and why does merging from the front go wrong?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Merge into a new array and copy it back. That works, but costs O(n + m) extra memory, which the question forbids.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Writing at the front would overwrite values of A you haven't placed yet. The empty space is at the end, so fill from the end: put the larger of the two last values into the last free slot. The write pointer can never overtake the read pointer in A.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>i on A's last value, j on B's last value, k on the last slot.</span></li>
+      <li><span>Write the larger of A[i] and B[j] into A[k]. Move that pointer left.</span></li>
+      <li><span>Move k left. Repeat while B has values left.</span></li>
+      <li><span>Once B is used up, A's remaining values are already in place.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The top row is A: its values, then the empty slots. Blue: the two values being compared. Green: slots holding their final value. Grey: old copies about to be overwritten.</p>
     <div id="viz4"></div>
     <div class="cx"><span class="good">Time O(n + m)</span><span class="good">Space O(1)</span></div>
+    <p class="slip">Stopping when A's values run out. B may still hold small values; keep going until j drops below 0.</p>
   </section>
 
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
     <h2>Why a single pass is enough</h2>
+    <p>The whole argument fits in three sentences:</p>
     <div class="qa">
-      <div><span class="q">Invariant</span><p>Everything before <span class="mono">i</span> in A and before <span class="mono">j</span> in B has already been handled correctly, and nothing after them has.</p></div>
-      <div><span class="q">Each step</span><p>Because both arrays are sorted, the front that is smaller can't pair with anything later in the other array. Handling it now keeps the invariant true.</p></div>
-      <div><span class="q">Termination</span><p>Every step advances at least one pointer, so the loop runs at most n + m times.</p></div>
-      <div><span class="q">History</span><p>This merge step is the heart of merge sort, which is usually credited to John von Neumann in 1945. External sorting on tape drives relied on it for decades, because tapes can only be read in order.</p></div>
+      <div><span class="q">Always true</span><p>Everything before i in A and before j in B has been handled correctly, and nothing after them has been touched.</p></div>
+      <div><span class="q">Each step</span><p>Both arrays are sorted, so the smaller front can't pair with anything later in the other array. Handling it now keeps the first sentence true.</p></div>
+      <div><span class="q">It ends</span><p>Every step moves at least one pointer forward, so there are at most n + m steps. That's the O(n + m).</p></div>
     </div>
+    <div class="aside"><p><b>In an interview:</b> say why the smaller front is safe to handle now, then say out loud what you do with the leftovers. Interviewers watch for that second part.</p></div>
+    <p class="note">This merge step is the heart of merge sort, usually credited to John von Neumann in 1945. Sorting on tape drives relied on it for decades, because tapes can only be read in order.</p>
+  </section>
+
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Merge</h3><p>Take the smaller front. Copy the leftovers.</p></div>
+      <div><h3>Subsequence</h3><p>j always moves; i moves on a match. True if i reaches the end.</p></div>
+      <div><h3>Common elements</h3><p>Equal → record, move both. Else move the smaller.</p></div>
+      <div><h3>Merge in place</h3><p>Fill from the back with the larger value.</p></div>
+    </div>
+    <p>Next pattern: <a href="intervals.html">Intervals</a>, where sorting ranges by their start lets you merge and compare them in one pass.</p>
   </section>
 </main>
 </div>

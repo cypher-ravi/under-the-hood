@@ -19,7 +19,6 @@
   .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
   .stack-empty { font: 500 13px/1 var(--mono); color: var(--muted); padding: 14px 10px; border: 1px dashed var(--line); border-radius: var(--radius); }
-  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -33,22 +32,51 @@
 
   <header class="intro">
     <h1>Monotonic Stack</h1>
-    <p class="lede">Walk the array once and keep a stack of indices whose values stay in sorted order from bottom to top. When a new value would break that order, pop until it doesn't. Every pop is a moment where one element meets its answer: the next bigger value, the previous bigger value, or the edge of a rectangle. Each index goes on once and comes off at most once, so the whole thing is O(n).</p>
+    <p class="lede">Walk the array once and keep a stack of elements still waiting for their answer, like "the next bigger value". When a new value arrives, it answers everyone on top it beats, and they leave for good.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> a stack of indices whose values stay sorted from bottom to top ("monotonic" means always going one way).</li>
+        <li><b>When:</b> for every element you need the nearest bigger or smaller element to its left or right.</li>
+        <li><b>Why it's fast:</b> each index is pushed once and popped at most once, so the whole run is at most 2n stack operations. O(n) instead of O(n²).</li>
+        <li><b>The one thing to get right:</b> what a pop means (who gets an answer) and whether ties pop (<span class="mono">&lt;</span> or <span class="mono">&lt;=</span>).</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>A waiting line that only keeps useful candidates</h2>
-    <p>Take the question "for each element, what is the first bigger element to its right?" The direct approach scans right from every position until it finds something bigger. On a falling array like 9, 8, 7, …, 1 each scan runs to the end, which is n(n−1)/2 comparisons.</p>
-    <p>Flip it around. Scan left to right and keep the elements that are <b>still waiting</b> for their answer. Notice that the waiting elements are always in decreasing order: if a bigger value arrived after a smaller one, it would already have answered it. So the waiting list is a stack whose values fall from bottom to top. When a new value x arrives, everything on top that is smaller than x gets its answer (x) and leaves. Then x joins the stack and waits too. The stack's order is the "monotonic" part; the pops are where the work happens.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Find the next bigger number for each one</h2>
+    <p>Take <span class="mono">[2, 7, 3, 5, 4, 6, 8]</span>. For each number we want the first bigger number to its right. The obvious way scans right from every position. On a falling list like 9, 8, 7, …, 1 every scan runs to the end: about n²/2 looks.</p>
+    <p>Flip it around. Walk left to right and keep a stack of numbers <b>still waiting</b> for their answer. When a new number arrives, it is the answer for every waiting number it beats.</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>New</th><th>Stack after</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>2</td><td>2</td><td>Nobody is waiting. 2 starts waiting.</td></tr>
+        <tr><td>7</td><td>7</td><td>7 beats 2: 2's answer is 7. Pop it. 7 waits.</td></tr>
+        <tr><td>3</td><td>7 3</td><td>3 doesn't beat 7. 3 waits on top.</td></tr>
+        <tr><td>5</td><td>7 5</td><td>5 beats 3: 3's answer is 5. It stops at 7.</td></tr>
+        <tr><td>4</td><td>7 5 4</td><td>4 beats nobody. 4 waits.</td></tr>
+        <tr><td>6</td><td>7 6</td><td>6 beats 4, then 5. Both get 6.</td></tr>
+        <tr><td>8</td><td>8</td><td>8 beats 6, then 7. Both get 8.</td></tr>
+        <tr class="win"><td>end</td><td>8</td><td>8 never got an answer: −1. Result [7, 8, 5, 6, 6, 8, −1].</td></tr>
+      </tbody>
+    </table></div>
+    <p>Look at the "stack after" column: the waiting numbers always <b>fall</b> from bottom to top. If a bigger number had come after a smaller one, it would already have answered it. Here is the moment just before 6 arrives:</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <p class="insight">Because the waiting numbers are sorted, a new number only needs to check the top of the stack. Every pop hands out one answer, and no number is ever looked at again after it leaves.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>The loop is always the same. What changes is who gets an answer at the moment of a pop.</p>
     <div class="variants">
-      <div><h3>Answer the popped</h3><p>The arriving element is the "next greater" for every index it pops. Whatever is left on the stack at the end has no answer.</p><a href="#p1">Problem 1: Next greater element</a><a href="#p2">Problem 2: Days until warmer</a></div>
-      <div><h3>Answer the arriving</h3><p>After popping, whatever sits on top is the nearest earlier element that survived: the "previous greater" for the new index.</p><a href="#p3">Problem 3: Stock price span</a></div>
-      <div><h3>Both sides at once</h3><p>When an index is popped, the arriving element is its right boundary and the new top is its left boundary. That gives the widest range it controls.</p><a href="#p4">Problem 4: Largest rectangle in a histogram</a></div>
+      <div><h3>Answer the popped</h3><p>The arriving element is the "next greater" for every index it pops. Whatever is left at the end has no answer.</p><a href="#p1">Problem 1: Next greater element</a><a href="#p2">Problem 2: Days until warmer</a></div>
+      <div><h3>Answer the arriving</h3><p>After the pops, whatever sits on top is the nearest earlier element that is bigger: the "previous greater" for the new index.</p><a href="#p3">Problem 3: Stock price span</a></div>
+      <div><h3>Both sides at once</h3><p>When an index is popped, the arriving element is its right wall and the new top is its left wall. That gives the widest range it controls.</p><a href="#p4">Problem 4: Largest rectangle in a histogram</a></div>
     </div>
   </section>
 
@@ -56,28 +84,34 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for a monotonic stack when you see one or more of these:</p>
     <ul class="signals">
       <li>For <b>every element</b>, you need the <b>nearest</b> element to the left or right that is bigger (or smaller).</li>
       <li>Phrases like "next warmer day", "how many days until", "how far back", "span", "visible", "blocked by".</li>
-      <li>You need, for each element, the widest range in which it is the <b>minimum</b> (or maximum): histogram rectangles, sums of subarray minimums.</li>
-      <li>The brute force is "for each i, scan outward until a condition fails", which is O(n²) on sorted or reversed input.</li>
+      <li>For each element, you need the widest range in which it is the <b>smallest</b> (or largest), as with histogram rectangles.</li>
+      <li>The brute force is "for each i, scan outward until something stops you", which is O(n²) on sorted or reversed input.</li>
     </ul>
-    <div class="aside"><p><b>Counter-signal:</b> if you need the maximum of a <i>sliding window</i> of fixed size, elements also leave from the front when they fall out of the window. That's a monotonic <i>deque</i>, a close cousin. And if the question is about the k-th largest overall, not the nearest, reach for a heap.</p></div>
+    <div class="aside"><p><b>When not to:</b> for the maximum of a <i>sliding window</i>, elements also leave from the front as the window moves, so you need a monotonic <i>deque</i> (a queue open at both ends). And for "the k-th largest overall" rather than "the nearest bigger", use a heap.</p></div>
   </section>
 
   <!-- Template -->
   <section class="panel article" id="template" data-nav="Template">
     <span class="eyebrow">Template</span>
     <h2>The skeleton you adapt</h2>
-<pre class="tmpl">stack = []                         <span class="c"># indices; their values stay sorted</span>
+<pre class="tmpl">stack = []   <span class="c"># indices still waiting</span>
 for i, x in enumerate(a):
-    while stack and breaks_order(a[stack[-1]], x):
+    while stack and a[stack[-1]] &lt; x:
         j = stack.pop()
-        <span class="c"># x is the next greater/smaller element for j</span>
-    <span class="c"># stack[-1], if any, is the previous greater/smaller for i</span>
+        <span class="c"># x is j's next greater</span>
+    <span class="c"># stack[-1] is i's prev greater</span>
     stack.append(i)
-<span class="c"># indices still on the stack never found an answer</span></pre>
-    <p>Two choices make each problem. <b>Which order</b> the stack keeps: pop smaller values to find greater ones (a decreasing stack), or pop larger values to find smaller ones (an increasing stack). And <b>strict or not</b>: <span class="mono">&lt;</span> versus <span class="mono">&lt;=</span> decides what happens with equal values, which is where most bugs hide. Store indices, not values: you can always look the value up, but you can't recover a distance from a value.</p>
+<span class="c"># leftovers never got an answer</span></pre>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>Bigger or smaller?</b> To find greater values, pop smaller ones (the stack falls bottom to top). To find smaller values, flip the comparison (the stack rises).</span></li>
+      <li><span><b>Who gets the answer?</b> The popped index ("next" questions), the arriving index ("previous" questions), or both (ranges).</span></li>
+      <li><span><b>Do ties pop?</b> <span class="mono">&lt;</span> or <span class="mono">&lt;=</span> decides what happens with equal values. Most bugs hide here. And store indices, not values: an index gives you both the value and the distance.</span></li>
+    </ol>
   </section>
 
   <!-- Problem 1 -->
@@ -89,10 +123,23 @@ for i, x in enumerate(a):
       <p>Given an array of integers, build an array of the same length where position i holds the first value to the right of i that is strictly larger than <span class="mono">a[i]</span>, or −1 if there isn't one.</p>
       <div class="io"><div><span>Input</span>[4, 2, 6, 3, 1, 5, 7]</div><div><span>Output</span>[6, 6, 7, 5, 5, 7, -1]</div></div>
     </div>
-    <details class="hint"><summary>Think first: who is still waiting when 6 arrives?</summary><p>Before 6 arrives, 4 and 2 haven't seen anything bigger. 6 is the first bigger value for both, so it answers them at once. After that they're done and never need to be looked at again. Keep the unanswered indices on a stack; the newest one is always the smallest, so it's the first one a new value can answer.</p></details>
+    <p class="think">When 6 arrives, which earlier numbers are still waiting for something bigger?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For each index, scan right until you find a bigger value. On a falling array every scan runs to the end, so it's O(n²).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Before 6 arrives, 4 and 2 are both waiting, and 6 is the first bigger value for both. Keep waiting indices on a stack. The newest waiter is always the smallest, so it's the first one a new value can answer. Once answered, an index is never needed again.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Fill res with −1. Start with an empty stack.</span></li>
+      <li><span>For each x: while the top's value is smaller than x, pop index j and set res[j] = x.</span></li>
+      <li><span>Push the current index. It waits for something bigger.</span></li>
+      <li><span>Indices left at the end keep −1.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Top row is the array: blue is the current element, amber outline means waiting on the stack, green was just answered, grey was answered earlier. The bottom row fills in as answers arrive.</p>
     <div id="viz1"></div>
-    <p class="legend">Array: blue = current element, amber outline = waiting on the stack, green = just answered, grey = answered earlier.</p>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n) for the stack</span><span class="meh">Scan right from each index: O(n²)</span></div>
+    <p class="slip">Pushing values instead of indices. You learn that a value got its answer, but not which position in res to write it to.</p>
   </section>
 
   <!-- Problem 2 -->
@@ -104,10 +151,23 @@ for i, x in enumerate(a):
       <p>You get a list of daily temperatures. For each day, report how many days you'd wait until a strictly warmer day. If no warmer day ever comes, report 0.</p>
       <div class="io"><div><span>Input</span>[71, 69, 68, 72, 70, 74, 73]</div><div><span>Output</span>[3, 2, 1, 2, 1, 0, 0]</div></div>
     </div>
-    <details class="hint"><summary>Think first: what do you need to remember about a waiting day?</summary><p>This is Problem 1 asking for a distance instead of a value. The answer for day j is <span class="mono">i − j</span>, where i is the warmer day that pops it. That's why the stack stores indices: a temperature alone can't tell you how long ago it was.</p></details>
+    <p class="think">This is Problem 1 with a different answer. What do you need to know about a waiting day to compute it?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>From each day, scan ahead until a warmer day appears. A long cold spell makes every scan long: O(n²).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">It's next greater element, but the answer is a distance. When warmer day i pops waiting day j, day j waited <span class="mono">i − j</span> days. That's why the stack holds indices: a temperature alone can't tell you how long ago it was.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Fill wait with 0. Start with an empty stack of days.</span></li>
+      <li><span>For each day i: while the top day is colder, pop j and set wait[j] = i − j.</span></li>
+      <li><span>Push day i.</span></li>
+      <li><span>Days left on the stack keep 0.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The result row fills in out of order: a day gets its answer when a warmer day pops it, not when you walk past it.</p>
     <div id="viz2"></div>
-    <p class="legend">The result row fills in out of order: a day gets its answer when a warmer day pops it, not when you pass it.</p>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Scan ahead from each day: O(n²)</span></div>
+    <p class="slip">Popping on equal temperatures (<span class="mono">&lt;=</span>). A day just as warm isn't warmer, so for 65, 65, 66 the first day must wait 2, not 1.</p>
   </section>
 
   <!-- Problem 3 -->
@@ -119,10 +179,23 @@ for i, x in enumerate(a):
       <p>You get a stock's closing price for each day. The span of a day is the number of consecutive days, ending with that day and counting backwards, on which the price was less than or equal to that day's price. Return the span of every day.</p>
       <div class="io"><div><span>Input</span>[100, 80, 60, 70, 60, 75, 85]</div><div><span>Output</span>[1, 1, 1, 2, 1, 4, 6]</div><div><span>Why day 5</span>75 ≥ 60, 70, 60 before it; 80 stops the run, so span = 4</div></div>
     </div>
-    <details class="hint"><summary>Think first: which earlier days can ever stop a later run?</summary><p>The span stops at the nearest earlier day with a strictly <i>higher</i> price. Once today's price is at least as high as some earlier day, that earlier day can never be the stopper for anyone later: today is closer and just as tall. So pop it for good. After popping, the top of the stack is the stopper, and the span is the distance to it.</p></details>
+    <p class="think">Today's price is 75. Can an earlier day priced 70 ever stop a later day's run?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>From each day, walk back while the price is no higher. On a rising price list every walk goes all the way back: O(n²).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">A run stops at the nearest earlier day with a strictly higher price. Once today is at least as high as an earlier day, that earlier day can never stop anyone later: today is closer and just as tall. So pop it for good. After popping, the top of the stack is the day that stops today's run.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Start with an empty stack of days.</span></li>
+      <li><span>For each day i: pop while the top day's price is ≤ today's.</span></li>
+      <li><span>left = the top day, or −1 if the stack is empty. Span = i − left.</span></li>
+      <li><span>Push day i.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Here the answer goes to the arriving day, worked out from whatever is left on top after the pops. The line under the picture names the day that stopped the run.</p>
     <div id="viz3"></div>
-    <p class="legend">Here the answer goes to the arriving day, computed from whatever is left on top after the pops.</p>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Walk back from each day: O(n²)</span></div>
+    <p class="slip">Forgetting the empty stack. If no earlier day was higher, the span is i + 1 (left = −1), not 1.</p>
   </section>
 
   <!-- Problem 4 -->
@@ -134,24 +207,49 @@ for i, x in enumerate(a):
       <p>A histogram has bars of width 1 with the given heights, standing side by side. Find the area of the largest rectangle that fits entirely inside the bars.</p>
       <div class="io"><div><span>Input</span>[2, 1, 5, 6, 2, 3]</div><div><span>Output</span>10 (height 5 across the bars 5 and 6)</div></div>
     </div>
-    <details class="hint"><summary>Think first: if bar j is the shortest bar of the rectangle, how wide can it be?</summary><p>The best rectangle has some shortest bar j, and it stretches from the nearest shorter bar on the left to the nearest shorter bar on the right. Keep an <i>increasing</i> stack. When a shorter bar arrives at i, it is the right wall for the bar it pops; the new top of the stack is the left wall. Width = <span class="mono">i − left − 1</span>. A height-0 bar at the end flushes everything left on the stack.</p></details>
+    <p class="think">If bar j is the shortest bar in the rectangle, how far left and right can the rectangle stretch?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For each bar, spread left and right while the bars are at least as tall, then compute height × width. O(n²).</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The best rectangle has some shortest bar j, and it stretches from the nearest shorter bar on the left to the nearest shorter bar on the right. Keep a stack whose heights rise. When a shorter bar arrives at i, it's the right wall for each bar it pops, and the new top is the left wall. Width = <span class="mono">i − left − 1</span>.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Pretend there's an extra bar of height 0 at the end.</span></li>
+      <li><span>For each bar i: while the top bar is at least as tall, pop j.</span></li>
+      <li><span>left = the new top, or −1. Area = h[j] × (i − left − 1). Keep the best.</span></li>
+      <li><span>Push bar i. Return the best.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Amber bars are on the stack (heights rise from bottom to top). The red bar is being popped and the blue box is the rectangle it measures. The green dashed outline is the best so far.</p>
     <div id="viz4"></div>
-    <div class="aside"><p><b>Read the picture:</b> amber bars are on the stack (heights rise from bottom to top). The red bar is being popped and the blue shaded box is the rectangle it measures. The green dashed outline is the best rectangle so far.</p></div>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Try every pair of walls: O(n²)</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n)</span><span class="meh">Spread out from every bar: O(n²)</span></div>
+    <p class="slip">Leaving out the height-0 bar at the end. Bars still on the stack never get measured, so a rising histogram like 1, 2, 3, 4, 5 returns 0 instead of 9.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
-    <h2>Why one pass is enough, and why it's linear</h2>
+    <h2>Why one pass is enough</h2>
+    <p>Here is the argument for next greater element (Problem 1). The others follow the same shape.</p>
     <div class="qa">
-      <div><span class="q">Invariant</span><p>For next greater (Problem 1), the stack holds exactly the indices seen so far that haven't met a bigger value, and their values never increase from bottom to top. A new value pops only from the top, so the order survives every push.</p></div>
-      <div><span class="q">Pops are correct</span><p>When x pops index j, everything pushed between j and now was either popped by something no bigger than a[j] or still sits above j, so nothing in between was bigger than a[j]. x is the <i>first</i> bigger value. That is the answer, not just an answer.</p></div>
-      <div><span class="q">Pops are safe</span><p>For "previous greater" (Problem 3), a popped index j has a[j] ≤ x. Any later element that would stop at j would stop at i first, because i is closer and at least as tall. So j can be thrown away forever.</p></div>
-      <div><span class="q">Amortized O(n)</span><p>The inner <span class="mono">while</span> loop can run many times for one i, which looks quadratic. But each index is pushed exactly once and popped at most once, so across the whole run there are at most n pushes and n pops: at most 2n stack operations in total. The steppers above count them for you.</p></div>
-      <div><span class="q">In an interview</span><p>Name the stack's order ("values decreasing from bottom to top"), say what a pop means ("the arriving element answers the popped one"), and give the push-once, pop-once argument for O(n). Then mention how ties are handled (<span class="mono">&lt;</span> or <span class="mono">&lt;=</span>).</p></div>
+      <div><span class="q">Always true</span><p>The stack holds exactly the indices seen so far that haven't met a bigger value, and their values never rise from bottom to top.</p></div>
+      <div><span class="q">Each step</span><p>When x pops index j, nothing between j and x was bigger than a[j]: anything bigger would have popped j already. So x is the <i>first</i> bigger value, not just a bigger one. Pushing x after the pops keeps the stack falling.</p></div>
+      <div><span class="q">It's linear</span><p>The inner loop can pop many times for one x, which looks quadratic. But each index is pushed once and popped at most once, so the whole run has at most n pushes and n pops: 2n operations. The steppers count them for you.</p></div>
     </div>
-    <p class="formula">pushes ≤ n,  pops ≤ pushes  ⇒  total work ≤ 2n = O(n)</p>
+    <div class="aside"><p><b>In an interview:</b> name the stack's order ("values fall from bottom to top"), say what a pop means ("the arriving value answers the popped one"), and give the push-once, pop-once argument for O(n). Then say how you handle ties.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Next greater</h3><p>Pop smaller tops; the arriving value answers them.</p></div>
+      <div><h3>Days until warmer</h3><p>Same loop; the answer is i − j, so store indices.</p></div>
+      <div><h3>Stock span</h3><p>Pop tops ≤ today; span = i − top (or i + 1).</p></div>
+      <div><h3>Largest rectangle</h3><p>Rising stack; a pop's width is i − left − 1. Add a 0 bar.</p></div>
+    </div>
+    <p>Next pattern: <a href="binary-search.html">Binary Search on the Answer</a>, where one yes/no question throws away half of what's left.</p>
   </section>
 </main>
 </div>

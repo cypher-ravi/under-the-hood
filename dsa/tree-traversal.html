@@ -17,8 +17,6 @@
   .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
   .stage-row { display: grid; gap: 8px; }
   .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
-  .note { font-size: 14px; color: var(--muted); }
   .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
   .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
   .tv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: start; }
@@ -35,8 +33,6 @@
   .tv-chips span.new { background: var(--ok); color: var(--panel); border-color: var(--ok); }
   .tv-chips em, .tv-stack em { font-size: 13px; color: var(--muted); }
   .tv-chips .lvl { display: inline-flex; gap: 4px; padding: 3px; border: 1px dashed var(--line); border-radius: var(--radius); }
-  .orders { display: grid; gap: 4px; font: 500 13px/1.5 var(--mono); }
-  .orders b { color: var(--accent); display: inline-block; min-width: 7.5em; }
 </style>
 </head>
 <body>
@@ -50,22 +46,48 @@
 
   <header class="intro">
     <h1>DFS and BFS on Trees</h1>
-    <p class="lede">A tree problem almost always comes down to visiting every node once in a sensible order. Depth-first search follows one branch all the way down before backing up, and the call stack remembers the way back. Breadth-first search sweeps the tree one level at a time with a queue. Pick the order that hands each node the information it needs, and most tree questions turn into a few lines of code.</p>
+    <p class="lede">Almost every tree question is "visit each node once, in a useful order". Go deep down one branch first (DFS), or sweep across one level at a time (BFS), and pick the order that hands each node what it needs.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> a function that handles one node and calls itself on the left and right children (DFS), or a queue that hands out nodes row by row (BFS).</li>
+        <li><b>When:</b> the input is a tree, or anything tree-shaped like folders or an org chart.</li>
+        <li><b>Why it's fast:</b> every node is visited exactly once, so n nodes take O(n) time. Extra memory is the height of the tree (DFS) or its widest row (BFS).</li>
+        <li><b>The one thing to get right:</b> <i>when</i> you do the work for a node: before its children, between them, after them, or row by row.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>A tree is a node plus two smaller trees</h2>
-    <p>A binary tree is either empty or a node with a value, a left subtree and a right subtree. That definition is recursive, so the natural way to process a tree is too: handle the node, and ask the same function to handle each subtree. The empty tree is the base case, where there is nothing to do.</p>
-    <p>That leaves one real decision: <b>when</b> you do the work for a node relative to its children. Before both (preorder), between them (inorder), or after both (postorder). Or forget about subtrees and go level by level from the top (level order). Every node is visited exactly once in all four, so each runs in O(n). What changes is what you know at the moment you handle a node.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>One tree, four orders</h2>
+    <p>A binary tree is either empty, or a node with a value and two smaller trees hanging off it: a left subtree and a right subtree. Here is one with six nodes.</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <p>Because a tree is "a node plus two smaller trees", the natural way to walk it is the same: handle the node, then ask the same function to handle each subtree. An empty tree is where it stops. Walking down one branch before trying the next is called <b>depth-first search</b> (DFS).</p>
+    <p>The walk itself never changes. The only choice is <b>when you write the node down</b>:</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>Order</th><th>Write the node</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Pre</td><td>before its children</td><td>1 2 4 5 3 6</td></tr>
+        <tr><td>In</td><td>between left and right</td><td>4 2 5 1 3 6</td></tr>
+        <tr><td>Post</td><td>after both children</td><td>4 5 2 6 3 1</td></tr>
+        <tr><td>Level</td><td>row by row, top down</td><td>1 | 2 3 | 4 5 6</td></tr>
+      </tbody>
+    </table></div>
+    <p>The last row is <b>breadth-first search</b> (BFS). It ignores subtrees and sweeps across each row before going lower.</p>
+    <p class="insight">Pick the order by asking what a node needs. Needs its children's answers? Do the work after them (post). Needs something from above? Pass it down before the children (pre). Needs rows? Use BFS.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>Every problem on this page is one of these. Knowing which one you're in tells you where the work goes.</p>
     <div class="variants">
-      <div><h3>Order matters</h3><p>The output is the visiting order itself, or the order is what makes the answer easy, like the sorted order an inorder walk gives on a search tree.</p><a href="#p1">Problem 1: Traversal orders</a></div>
-      <div><h3>Level by level</h3><p>Anything about depth from the top, rows, "the first node at each level" or the shortest path down: use a queue.</p><a href="#p2">Problem 2: Level order</a></div>
-      <div><h3>Bottom-up or top-down</h3><p>Children return facts to their parent (heights, sizes, sums), or the parent passes facts down (bounds, the path so far).</p><a href="#p3">Problem 3: Maximum depth</a><a href="#p4">Problem 4: Validate a search tree</a></div>
+      <div><h3>Order is the answer</h3><p>You output the visiting order itself, or the order makes the answer easy, like the sorted list an inorder walk gives on a search tree.</p><a href="#p1">Problem 1: Traversal orders</a></div>
+      <div><h3>Level by level</h3><p>Anything about rows, depth from the top, or the nearest node to the root. Use a queue.</p><a href="#p2">Problem 2: Level order</a></div>
+      <div><h3>Facts flow up or down</h3><p>Children return facts to their parent (height, size, sum), or the parent passes facts down (allowed range, path so far).</p><a href="#p3">Problem 3: Maximum depth</a><a href="#p4">Problem 4: Validate a search tree</a></div>
     </div>
   </section>
 
@@ -73,70 +95,81 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for a tree walk when you see one or more of these:</p>
     <ul class="signals">
-      <li>The input is a <b>tree</b> (or something tree-shaped: folders, an org chart, a parsed expression) and the answer needs every node or every root-to-leaf path.</li>
-      <li>The answer for a node can be built from the answers for its children: <b>height, size, sum, balanced or not</b>. That's a postorder DFS that returns values.</li>
-      <li>Each node needs something from <b>above</b>: the path so far, a running sum, the range its value must fall in. Pass it down as an argument (preorder style).</li>
-      <li>The words <b>level, row, depth from the top, closest to the root</b>, or "the view from the right side". That's BFS with a queue.</li>
-      <li>The tree is a <b>binary search tree</b> and you need values in sorted order, the k-th smallest, or neighbours in value. That's inorder.</li>
+      <li>The input is a <b>tree</b>, or tree-shaped (folders, an org chart, a parsed expression), and the answer needs every node or every root-to-leaf path.</li>
+      <li>A node's answer is built from its children's answers: <b>height, size, sum, balanced or not</b>. Postorder, returning a value.</li>
+      <li>A node needs something from <b>above</b>: the path so far, a running sum, a range its value must fit. Pass it down as an argument.</li>
+      <li>The words <b>level, row, depth from the top, closest to the root</b>, or "the view from the right side". BFS with a queue.</li>
+      <li>A <b>binary search tree</b> and you need values in sorted order, or the k-th smallest. Inorder.</li>
     </ul>
-    <div class="aside"><p><b>Watch the depth:</b> recursion uses one stack frame per level. A balanced tree of a million nodes is about 20 levels deep, but a tree that is really a linked list is a million levels deep, and Python stops at about 1,000 by default. If the input can be that lopsided, use the iterative version with an explicit stack.</p></div>
+    <div class="aside"><p><b>When not to recurse:</b> each recursive call waits on a stack, one per level. A balanced tree of a million nodes is about 20 levels deep, but a lopsided tree shaped like a list can be a million deep, and Python stops at about 1,000. For inputs like that, use the loop version with your own stack.</p></div>
   </section>
 
   <!-- Template -->
   <section class="panel article" id="template" data-nav="Template">
     <span class="eyebrow">Template</span>
-    <h2>Three skeletons: recursive DFS, iterative DFS, BFS</h2>
+    <h2>Two skeletons</h2>
+    <p>Start with the DFS one. Reach for BFS when the question talks about levels.</p>
     <div class="tmpl-pair">
       <div>
-        <h3>DFS, recursive</h3>
+        <h3>DFS (recursive)</h3>
 <pre class="tmpl">def dfs(node):
     if node is None:
-        return            <span class="c"># empty tree: base case</span>
-    <span class="c"># preorder work here</span>
+        return    <span class="c"># empty: stop</span>
+    <span class="c"># pre: work here</span>
     dfs(node.left)
-    <span class="c"># inorder work here</span>
+    <span class="c"># in: work here</span>
     dfs(node.right)
-    <span class="c"># postorder work here</span></pre>
-        <h3>DFS, iterative (preorder)</h3>
-<pre class="tmpl">stack = [root] if root else []
-while stack:
-    node = stack.pop()
-    visit(node)
-    if node.right: stack.append(node.right)
-    if node.left:  stack.append(node.left)
-<span class="c"># left pushed last, so popped first</span></pre>
+    <span class="c"># post: work here</span></pre>
       </div>
       <div>
-        <h3>BFS, one level at a time</h3>
-<pre class="tmpl">from collections import deque
-q = deque([root]) if root else deque()
+        <h3>BFS (one level at a time)</h3>
+<pre class="tmpl">q = deque([root])
 while q:
-    <span class="c"># the queue now holds exactly one level</span>
+    <span class="c"># q holds exactly one level</span>
     for _ in range(len(q)):
         node = q.popleft()
         visit(node)
-        if node.left:  q.append(node.left)
-        if node.right: q.append(node.right)</pre>
+        for c in (node.left, node.right):
+            if c: q.append(c)</pre>
       </div>
     </div>
-    <p>The recursive DFS is the one to reach for first: put the work where the node has what it needs. The iterative version does the same walk with a list you manage yourself, which is exactly what the call stack does for you in the recursive one. BFS swaps the stack for a queue: first in, first out, so nodes come out in order of depth.</p>
-    <p>Two habits prevent most bugs. Handle the empty tree first, both at the top and as the base case. And for BFS, read <span class="mono">len(q)</span> <i>before</i> the inner loop, so the children you add during this level wait for the next one.</p>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>What does the empty tree return?</b> 0 for a height, True for "is it valid", nothing for a list. Get this first; it stops the recursion.</span></li>
+      <li><span><b>Which way does the information flow?</b> Up from the children means work after the calls. Down from the parent means extra arguments.</span></li>
+      <li><span><b>DFS or BFS?</b> Rows or "nearest to the root" means BFS. For BFS, read <span class="mono">len(q)</span> before the inner loop so children added now wait for the next level.</span></li>
+    </ol>
+    <p class="note">The recursive DFS can also be written as a loop with your own list as a stack. It does exactly what the call stack does for you.</p>
   </section>
 
   <!-- Problem 1 -->
   <section class="panel article problem" id="p1" data-nav="Traversal orders" data-num="P1">
-    <span class="eyebrow">Problem 1 · Order matters</span>
+    <span class="eyebrow">Problem 1 · Order is the answer</span>
     <h2>Preorder, inorder and postorder</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given the root of a binary tree, return its node values in preorder (node, then left subtree, then right subtree), inorder (left, node, right) and postorder (left, right, node).</p>
       <div class="io"><div><span>Input</span>[1, 2, 3, 4, 5, null, 6]</div><div><span>Preorder</span>[1, 2, 4, 5, 3, 6]</div><div><span>Inorder</span>[4, 2, 5, 1, 3, 6]</div><div><span>Postorder</span>[4, 5, 2, 6, 3, 1]</div></div>
     </div>
-    <details class="hint"><summary>Think first: do you need three different functions?</summary><p>No. All three make the same calls in the same order: the node, then everything on its left, then everything on its right. The only difference is which line appends the value: before the left call, between the two calls, or after the right call. Step through and watch the call stack: it is identical for all three orders.</p></details>
+    <p class="think">Do you need three different functions, or one function with the "write it down" line in three places?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Write three separate functions and learn each one by heart. It works, but you end up memorising three things when there is really one.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">All three orders make the same calls in the same sequence: the node, then everything on its left, then everything on its right. Only the line that records the value moves: before the left call, between the calls, or after the right call.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>If the node is empty, return.</span></li>
+      <li><span>Preorder: record the node now.</span></li>
+      <li><span>Walk the left subtree. Inorder: record the node now.</span></li>
+      <li><span>Walk the right subtree. Postorder: record the node now.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Switch between the presets and watch the call stack: it is identical for all three orders, only the output changes. Blue is the running call, amber calls are paused waiting for a child, a green ring means finished, and a dashed ∅ is a call on an empty child.</p>
     <div id="viz1"></div>
-    <p class="legend">Blue = the running call. Amber = paused on the call stack, waiting for a child. Green ring = call finished. Dashed ∅ = a call on an empty child.</p>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h) for the stack</span><span class="meh">Skewed tree: h = n</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h), h = height</span><span class="meh">Lopsided tree: h = n</span></div>
+    <p class="slip">Forgetting the empty-tree check, so the code reads <span class="mono">node.left</span> on None and crashes at the first leaf.</p>
   </section>
 
   <!-- Problem 2 -->
@@ -148,53 +181,106 @@ while q:
       <p>Given the root of a non-empty binary tree, return its values level by level: a list of lists where the first list holds the root, the next holds its children from left to right, and so on.</p>
       <div class="io"><div><span>Input</span>[3, 9, 20, null, null, 15, 7]</div><div><span>Output</span>[[3], [9, 20], [15, 7]]</div></div>
     </div>
-    <details class="hint"><summary>Think first: how do you know where one level ends?</summary><p>Use a queue. When you start a level, the queue holds exactly the nodes of that level and nothing else, so its current length is the size of the level. Pop that many nodes, adding their children to the back. The children pile up behind the current level and become the next one.</p></details>
+    <p class="think">If you line nodes up in a queue, how can you tell where one level ends and the next begins?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Run a DFS that also passes down the depth, and append each value to <span class="mono">levels[depth]</span>. That works too, but it's easy to get wrong, and it doesn't extend to "stop at the first level where X happens".</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">A queue is first in, first out. When you start a level, the queue holds exactly that level's nodes and nothing else, so its length is the level's size. Pop that many; their children pile up behind and become the next level.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Put the root in a queue.</span></li>
+      <li><span>Read the queue's length: that's the size of this level.</span></li>
+      <li><span>Pop that many nodes. Record each, and push its children to the back.</span></li>
+      <li><span>Save the level. Repeat until the queue is empty.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Blue is the node just popped, amber nodes are waiting in the queue, and a green ring means the node is already in a level. Watch the queue between levels: it holds exactly the next row.</p>
     <div id="viz2"></div>
-    <p class="legend">Blue = the node just popped. Amber = waiting in the queue. Green ring = already added to a level.</p>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(w), w = widest level</span><span class="meh">Full tree: w ≈ n / 2</span></div>
+    <p class="slip">Using <span class="mono">while q:</span> as the inner loop instead of <span class="mono">range(len(q))</span>. The children you just added get popped too, and every level merges into one.</p>
   </section>
 
   <!-- Problem 3 -->
   <section class="panel article problem" id="p3" data-nav="Maximum depth" data-num="P3">
-    <span class="eyebrow">Problem 3 · Bottom-up DFS</span>
+    <span class="eyebrow">Problem 3 · Facts flow up</span>
     <h2>Maximum depth of a binary tree</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Return the number of nodes on the longest path from the root down to a leaf. An empty tree has depth 0 and a single node has depth 1.</p>
       <div class="io"><div><span>Input</span>[3, 9, 20, null, null, 15, 7]</div><div><span>Output</span>3 (3 → 20 → 15)</div></div>
     </div>
-    <details class="hint"><summary>Think first: if you knew the depths of both subtrees, what is the answer?</summary><p>One more than the deeper of the two. So ask each child for its depth, wait for both answers, then return <span class="mono">1 + max(left, right)</span>. The work happens after both calls, which makes this a postorder walk. The empty tree answers 0, and that stops the recursion.</p></details>
+    <p class="think">If someone told you the depths of the left and right subtrees, what would the answer be?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>List every root-to-leaf path and measure each. That repeats the top part of the tree for every leaf, and storing all the paths costs memory too.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The depth of a tree is one more than the deeper of its two subtrees. So ask each child for its depth, wait for both answers, then return <span class="mono">1 + max(left, right)</span>. The work comes after both calls: a postorder walk.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Empty tree: return 0. This stops the recursion.</span></li>
+      <li><span>Ask the left child for its depth.</span></li>
+      <li><span>Ask the right child for its depth.</span></li>
+      <li><span>Return 1 + the larger of the two.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The number under a finished node is the depth its call returned. Answers travel up the tree one node at a time. At the end, filled green nodes mark one deepest path.</p>
     <div id="viz3"></div>
-    <p class="legend">The number under a finished node is the depth its call returned. At the end, filled green nodes mark one deepest path.</p>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h)</span><span class="meh">BFS also works: count the levels</span></div>
+    <p class="slip">Returning 1 for an empty tree, which counts a phantom node under every leaf and makes every answer one too big.</p>
   </section>
 
   <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Validate a search tree" data-num="P4">
-    <span class="eyebrow">Problem 4 · Top-down DFS</span>
+    <span class="eyebrow">Problem 4 · Facts flow down</span>
     <h2>Is it a valid binary search tree?</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Decide whether a binary tree is a binary search tree: for every node, all values in its left subtree are strictly smaller than it and all values in its right subtree are strictly larger. Duplicates are not allowed.</p>
       <div class="io"><div><span>Input</span>[8, 4, 12, 2, 9, 10, 14]</div><div><span>Output</span>false</div><div><span>Why</span>9 sits in 8's left subtree but is bigger than 8</div></div>
     </div>
-    <details class="hint"><summary>Think first: why isn't checking each node against its children enough?</summary><p>In the example, 9 is a fine right child of 4, yet it breaks the rule for 8, two levels up. Each node must fall inside a range set by <i>all</i> its ancestors. Pass that range down: going left, the parent's value becomes the new upper bound; going right, it becomes the new lower bound. The root starts with (−∞, ∞).</p></details>
+    <p class="think">In the example, 9 is a fine right child of 4. So why is the tree still wrong?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For every node, scan its whole left subtree for a bigger value and its whole right subtree for a smaller one. Each scan can touch most of the tree, so it's O(n²) on a lopsided tree.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">A node isn't just limited by its parent but by <i>every</i> ancestor. Those limits add up to one allowed range (lo, hi). Pass it down: going left, the parent's value becomes the new upper limit; going right, it becomes the new lower limit.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Start at the root with the range (−∞, ∞).</span></li>
+      <li><span>Empty tree: valid.</span></li>
+      <li><span>If the node's value is not strictly inside (lo, hi), return False.</span></li>
+      <li><span>Check the left child with (lo, value) and the right child with (value, hi).</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Each stack frame shows the node and its allowed range (lo, hi). Watch the range tighten as you go down. A red ring means the value fell outside its range.</p>
     <div id="viz4"></div>
-    <p class="legend">Each stack frame shows the node and its allowed range (lo, hi). Red ring = the value falls outside its range.</p>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h)</span><span class="meh">Comparing only with children: wrong answer</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(h)</span><span class="meh">Scan each subtree: O(n²)</span></div>
+    <p class="slip">Only comparing each node with its two children. That passes the example above, which is not a search tree.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
     <h2>Why every node is handled once, in the right order</h2>
+    <p>The whole argument fits in four short claims:</p>
     <div class="qa">
-      <div><span class="q">Induction</span><p>Assume dfs handles every node of any tree smaller than the current one correctly. The left and right subtrees are smaller, so the two calls cover them, and the node itself is handled by the one line of work. The empty tree is the base case. So every node is visited exactly once: O(n) time.</p></div>
-      <div><span class="q">The stack</span><p>At any moment the call stack holds exactly the path from the root to the current node: each frame is paused, waiting for a child to finish. So the extra memory is the height h, which is about log₂ n for a balanced tree and n for a chain.</p></div>
-      <div><span class="q">Inorder sorts a BST</span><p>Inorder lists the left subtree, then the node, then the right subtree. In a search tree the left values are all smaller and the right ones all larger, and by induction each subtree is listed in sorted order. So the whole list is sorted.</p></div>
-      <div><span class="q">BFS goes by depth</span><p>The queue always holds nodes from at most two neighbouring depths d and d + 1, the d ones in front. A node at depth d only adds children at depth d + 1 to the back, so all of depth d leaves the queue before any of depth d + 1. That is why the first time BFS reaches something is along a shortest path from the root.</p></div>
-      <div><span class="q">In an interview</span><p>Say which direction the information flows. "The answer needs both children's results, so postorder and return a value" or "each node needs a bound from above, so pass it down." Then name the base case and the stack depth.</p></div>
+      <div><span class="q">Always true</span><p>If the function handles any smaller tree correctly, it handles this one: the two subtrees are smaller, so the two calls cover them, and the node gets its one line of work. The empty tree is where it starts.</p></div>
+      <div><span class="q">Each step</span><p>At any moment the paused calls on the stack are exactly the path from the root to where you are. So the extra memory is the height h: about log₂ n for a balanced tree, n for a lopsided one.</p></div>
+      <div><span class="q">It ends</span><p>Every call moves to a smaller tree, and each node is called once. n nodes, O(n) time.</p></div>
+      <div><span class="q">BFS goes by depth</span><p>A node only adds children one level lower, to the back of the queue. So a whole level leaves the queue before any of the next level. That's why BFS reaches each node along the shortest path from the root.</p></div>
     </div>
+    <div class="aside"><p><b>In an interview:</b> say which way the information flows. "The answer needs both children's results, so I do the work after the calls" or "each node needs a range from above, so I pass it down". Then name the base case and the stack depth.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Traversal orders</h3><p>Same walk. Record before (pre), between (in) or after (post) the calls.</p></div>
+      <div><h3>Level order</h3><p>Queue. Pop len(q) nodes per level, push their children.</p></div>
+      <div><h3>Maximum depth</h3><p>Empty is 0. Return 1 + max(left, right).</p></div>
+      <div><h3>Valid search tree</h3><p>Pass (lo, hi) down. Left tightens hi, right tightens lo.</p></div>
+    </div>
+    <p>Next pattern: <a href="top-k.html">Top K and Two Heaps</a>, where a heap keeps the best k items seen so far.</p>
   </section>
 </main>
 </div>
@@ -289,15 +375,12 @@ while q:
     return st;
   }
 
-  // ---------- The idea: one tree, four orders, computed ----------
+  // ---------- The idea: the example tree ----------
   (function () {
-    const T = parseTree("1, 2, 3, 4, 5, null, 6"), pre = [], ino = [], post = [];
-    (function d(n) { if (!n) return; pre.push(n.val); d(n.left); ino.push(n.val); d(n.right); post.push(n.val); })(T.root);
-    const lv = []; let q = [T.root];
-    while (q.length) { lv.push(q.map(n => n.val)); q = q.flatMap(n => [n.left, n.right].filter(Boolean)); }
+    const T = parseTree("1, 2, 3, 4, 5, null, 6");
+    const vals = n => n ? [n.val, ...vals(n.left), ...vals(n.right)] : [];
     document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawTree(T)}
-      <div class="orders"><div><b>Preorder</b>${pre.join(" ")}</div><div><b>Inorder</b>${ino.join(" ")}</div><div><b>Postorder</b>${post.join(" ")}</div><div><b>Level order</b>${lv.map(l => "[" + l.join(" ") + "]").join(" ")}</div></div>
-      <p class="note">Same ${T.nodes.length} nodes, four orders. Preorder puts every parent before its children, postorder puts it after them, inorder puts it between its left and right subtrees, and level order lists row by row.</p></div>`;
+      <p class="note">The root is ${T.root.val}. Its left subtree holds ${vals(T.root.left).join(", ")}; its right subtree holds ${vals(T.root.right).join(", ")}.</p></div>`;
   })();
 
   // ---------- Problem 1: the three DFS orders ----------

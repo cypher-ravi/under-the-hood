@@ -18,7 +18,6 @@
   .stage-row { display: grid; gap: 8px; }
   .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
-  .formula { font: 500 14px/1.6 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -32,22 +31,48 @@
 
   <header class="intro">
     <h1>In-place Reversal</h1>
-    <p class="lede">Reverse a linked list, or a piece of one, by turning each <span class="mono">next</span> arrow around as you walk past it. Three pointers do the whole job: the node behind you, the node you're on, and the node ahead that you must remember before you cut its link. No new nodes, no array copy, O(1) extra memory.</p>
+    <p class="lede">Reverse a linked list by turning each arrow around as you walk past it. Three pointers do the whole job in one pass, with no new nodes and no copy.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> three pointers, <span class="mono">prev</span>, <span class="mono">curr</span> and <span class="mono">nxt</span>, walk the list and flip each <span class="mono">next</span> arrow backwards.</li>
+        <li><b>When:</b> a singly linked list needs to be reversed, whole or in pieces, without extra memory.</li>
+        <li><b>Why it's fast:</b> each node is visited once and flipped once. O(n) time, O(1) extra memory.</li>
+        <li><b>The one thing to get right:</b> save <span class="mono">curr.next</span> before you overwrite it. For a piece of the list, also reconnect both ends.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>Flip one arrow at a time, without losing the rest</h2>
-    <p>In a singly linked list each node knows only its successor. To reverse the list, every arrow must point the other way: node 2 should point to node 1, node 3 to node 2, and the old head to nothing. You could copy the values into an array and rebuild, but that costs O(n) memory, and the question usually forbids it.</p>
-    <p>The catch with flipping in place is that the moment you set <span class="mono">curr.next = prev</span>, you've cut the only link to the rest of the list. So save it first: <span class="mono">nxt = curr.next</span>. Then flip, then slide both <span class="mono">prev</span> and <span class="mono">curr</span> one node forward. Every node is visited once, and at any moment the list is two clean pieces: an already-reversed piece headed by <span class="mono">prev</span>, and an untouched piece headed by <span class="mono">curr</span>.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Reverse 4 → 9 → 2 → 7 → 5</h2>
+    <p>In a linked list each node only knows the node after it (its <span class="mono">next</span> arrow). To reverse the list, every arrow must point the other way: 9 should point to 4, 2 to 9, and so on.</p>
+    <p>The danger: once you point 4's arrow somewhere else, you've lost the only way to reach 9. So before each flip, <b>save the next node</b>. Then flip, then step forward.</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>curr</th><th>Reversed so far</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td>4</td><td>Save 9. Point 4 at nothing. Step to 9.</td></tr>
+        <tr><td>9</td><td>9 → 4</td><td>Save 2. Point 9 at 4. Step to 2.</td></tr>
+        <tr><td>2</td><td>2 → 9 → 4</td><td>Save 7. Point 2 at 9. Step to 7.</td></tr>
+        <tr><td>7</td><td>7 → 2 → 9 → 4</td><td>Save 5. Point 7 at 2. Step to 5.</td></tr>
+        <tr class="win"><td>5</td><td>5 → 7 → 2 → 9 → 4</td><td>Point 5 at 7. Nothing left: 5 is the new head.</td></tr>
+      </tbody>
+    </table></div>
+    <p>At every moment the list is two clean pieces. Here it is after two rows: the reversed piece 9 → 4 (shaded) and the untouched piece 2 → 7 → 5.</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <p class="insight">Reversing is easy. Not losing the rest of the list is the whole trick: save the next node, flip one arrow, slide forward. Each node moves from the untouched piece to the reversed piece exactly once.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>Every problem on this page runs the same flip loop. What changes is where it starts, how long it runs, and what you do with the result.</p>
     <div class="variants">
-      <div><h3>Whole list</h3><p>Run the three-pointer loop from head to null. The last node becomes the head.</p><a href="#p1">Problem 1: Reverse a list</a></div>
-      <div><h3>A segment</h3><p>Walk to the node before the segment, reverse exactly its length, then stitch both ends back on.</p><a href="#p2">Problem 2: Reverse positions left to right</a><a href="#p3">Problem 3: Reverse every k nodes</a></div>
-      <div><h3>As a helper</h3><p>Reverse half of a list so you can walk it backwards, then compare or weave the halves.</p><a href="#p4">Problem 4: Is the list a palindrome?</a></div>
+      <div><h3>Whole list</h3><p>Run the loop from the head until you fall off the end. The old last node is the new head.</p><a href="#p1">Problem 1: Reverse a list</a></div>
+      <div><h3>A piece</h3><p>Walk to the node before the piece, run the loop for exactly its length, then reconnect both ends.</p><a href="#p2">Problem 2: Reverse positions left to right</a><a href="#p3">Problem 3: Reverse every k nodes</a></div>
+      <div><h3>As a helper</h3><p>Reverse half of a list so you can walk it backwards, then compare it with the front half.</p><a href="#p4">Problem 4: Is the list a palindrome?</a></div>
     </div>
   </section>
 
@@ -55,13 +80,14 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for in-place reversal when you see one or more of these:</p>
     <ul class="signals">
-      <li>The input is a <b>singly linked list</b> and the answer needs it (or part of it) in <b>reverse order</b>.</li>
-      <li>The problem says "<b>in place</b>", "without extra memory" or "<b>O(1) space</b>", ruling out a stack or an array copy.</li>
-      <li>It talks about <b>positions or groups</b>: "from position m to n", "every k nodes", "pairs".</li>
-      <li>You need to read a list <b>back to front</b> (compare ends, interleave first and last), and a stack isn't allowed.</li>
+      <li>The input is a <b>singly linked list</b> and the answer needs it, or part of it, in <b>reverse order</b>.</li>
+      <li>The problem says "<b>in place</b>", "without extra memory" or "<b>O(1) space</b>", which rules out an array copy or a stack.</li>
+      <li>It talks about <b>positions or groups</b>: "from position 2 to 5", "every k nodes", "swap pairs".</li>
+      <li>You need to read a list <b>back to front</b>, for example to compare its two ends.</li>
     </ul>
-    <div class="aside"><p><b>Counter-signal:</b> if you only need to <i>print</i> or <i>read</i> values backwards and memory is fine, recursion or a stack is simpler and leaves the list intact. Reversing in place modifies the input; say so in an interview, and restore it if the caller still needs it.</p></div>
+    <div class="aside"><p><b>When not to:</b> if you only need to read values backwards and memory is fine, a stack or recursion is simpler and leaves the list alone. Reversing in place changes the input. Say so in an interview, and put it back if the caller still needs it.</p></div>
   </section>
 
   <!-- Template -->
@@ -69,13 +95,18 @@
     <span class="eyebrow">Template</span>
     <h2>The skeleton you adapt</h2>
 <pre class="tmpl">prev, curr = None, head
-while curr:                   <span class="c"># or: for _ in range(segment_length)</span>
-    nxt = curr.next           <span class="c"># 1. remember the rest of the list</span>
-    curr.next = prev          <span class="c"># 2. flip this arrow</span>
-    prev = curr               <span class="c"># 3. the reversed part grows by one</span>
-    curr = nxt                <span class="c"># 4. step into the untouched part</span>
-return prev                   <span class="c"># new head of the reversed part</span></pre>
-    <p>For a segment, add two things. A <b>dummy node</b> in front of the head, so "the node before the segment" always exists, even when the segment starts at position 1. And a <b>stitch</b> after the loop: the node before the segment must point to <span class="mono">prev</span> (the segment's new first node), and the segment's old first node, now its last, must point to <span class="mono">curr</span> (the first node after it).</p>
+while curr:
+    nxt = curr.next   <span class="c"># save the rest</span>
+    curr.next = prev  <span class="c"># flip</span>
+    prev = curr       <span class="c"># grow reversed</span>
+    curr = nxt        <span class="c"># step on</span>
+return prev           <span class="c"># new head</span></pre>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>Where does the reversal start?</b> At the head, or right after a node <span class="mono">before</span>. Put a <b>dummy node</b> in front of the head so <span class="mono">before</span> always exists, even when the piece starts at the head.</span></li>
+      <li><span><b>How long does the loop run?</b> Until <span class="mono">curr</span> is None for the whole list, or exactly k times for a piece of length k.</span></li>
+      <li><span><b>How do you reconnect the ends?</b> After the loop, <span class="mono">prev</span> is the piece's new first node and <span class="mono">curr</span> is the node after it. Point <span class="mono">before</span> at <span class="mono">prev</span>, and the piece's old first node (now its last) at <span class="mono">curr</span>.</span></li>
+    </ol>
   </section>
 
   <!-- Problem 1 -->
@@ -87,66 +118,136 @@ return prev                   <span class="c"># new head of the reversed part</s
       <p>Given the head of a singly linked list, reverse it by changing the links between nodes, and return the new head. Don't create new nodes or copy the values elsewhere.</p>
       <div class="io"><div><span>Input</span>4 → 9 → 2 → 7 → 5</div><div><span>Output</span>5 → 7 → 2 → 9 → 4</div><div><span>Edge case</span>an empty list or one node comes back unchanged</div></div>
     </div>
-    <details class="hint"><summary>Think first: what do you lose if you flip before saving?</summary><p>Setting <span class="mono">curr.next = prev</span> overwrites the only reference to the rest of the list. Store <span class="mono">curr.next</span> in a temporary first; then the flip is safe. When <span class="mono">curr</span> runs off the end, <span class="mono">prev</span> is on the old last node, the new head.</p></details>
+    <p class="think">If you set <span class="mono">curr.next = prev</span> right away, how do you get to the next node?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Copy the values into an array, then write them back in reverse order (or build a new list). It works, but it costs O(n) extra memory, which the question rules out.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Flipping an arrow cuts the only link to the rest of the list, so store <span class="mono">curr.next</span> in <span class="mono">nxt</span> first. When <span class="mono">curr</span> finally runs off the end, <span class="mono">prev</span> sits on the old last node, which is the new head.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Start with prev = None and curr = head.</span></li>
+      <li><span>Save nxt = curr.next.</span></li>
+      <li><span>Flip: curr.next = prev.</span></li>
+      <li><span>Slide: prev = curr, curr = nxt. Repeat while curr exists.</span></li>
+      <li><span>Return prev.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Press Next to step through, or type your own list. P, C and N mark prev, curr and nxt. Blue arrows have been flipped; shaded nodes are the reversed piece.</p>
     <div id="viz1"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Recursive version: O(n) call stack</span></div>
+    <p class="slip">Returning <span class="mono">head</span> at the end. The old head is now the tail and points to nothing; the new head is <span class="mono">prev</span>.</p>
   </section>
 
   <!-- Problem 2 -->
   <section class="panel article problem" id="p2" data-nav="Reverse a segment" data-num="P2">
-    <span class="eyebrow">Problem 2 · A segment</span>
+    <span class="eyebrow">Problem 2 · A piece</span>
     <h2>Reverse positions left to right</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given the head of a linked list and two positions <span class="mono">left ≤ right</span> (counting from 1), reverse only the nodes from position <span class="mono">left</span> through <span class="mono">right</span>, leaving the rest in place. Do it in one pass.</p>
       <div class="io"><div><span>Input</span>1 → 2 → 3 → 4 → 5 → 6, left = 2, right = 5</div><div><span>Output</span>1 → 5 → 4 → 3 → 2 → 6</div></div>
     </div>
-    <details class="hint"><summary>Think first: which two links change at the edges?</summary><p>Reverse the segment with the usual loop, run exactly <span class="mono">right − left + 1</span> times. Afterwards <span class="mono">prev</span> is the segment's new first node and <span class="mono">curr</span> is the node just after it. The node before the segment must now point to <span class="mono">prev</span>, and the old first node of the segment (now its last) must point to <span class="mono">curr</span>. A dummy node in front handles <span class="mono">left = 1</span>.</p></details>
+    <p class="think">After the piece 2 → 3 → 4 → 5 is reversed, which two arrows still point the wrong way?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Copy the values in the piece into an array, reverse the array, and write the values back. That's two passes and O(k) extra memory for a piece of k nodes.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Run the usual flip loop exactly <span class="mono">right − left + 1</span> times. The piece comes out reversed but detached: the node before it still points at its old first node, and that node now points at nothing useful. Two stitches fix it. A dummy node in front makes <span class="mono">left = 1</span> work like any other case.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Put a dummy in front of head. Walk before from the dummy left − 1 steps.</span></li>
+      <li><span>Run the flip loop right − left + 1 times, starting at before.next.</span></li>
+      <li><span>tail = before.next: the piece's old first node, now its last.</span></li>
+      <li><span>Stitch: before.next = prev and tail.next = curr.</span></li>
+      <li><span>Return dummy.next.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">D is the dummy. B marks before, T the tail, and P, C, N are prev, curr and nxt. The shaded nodes are the piece being reversed. Watch the two stitch steps near the end.</p>
     <div id="viz2"></div>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Copy segment to an array: O(k) space</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Copy the piece to an array: O(k) space</span></div>
+    <p class="slip">Skipping the dummy node. When left = 1 there is no node before the piece, so the code crashes or returns the old head.</p>
   </section>
 
   <!-- Problem 3 -->
   <section class="panel article problem" id="p3" data-nav="Reverse every k" data-num="P3">
-    <span class="eyebrow">Problem 3 · Repeated segments</span>
+    <span class="eyebrow">Problem 3 · A piece, repeated</span>
     <h2>Reverse every group of k nodes</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given a linked list and a whole number <span class="mono">k</span>, reverse the nodes in consecutive groups of <span class="mono">k</span>. If the last group has fewer than <span class="mono">k</span> nodes, leave it as it is. Use constant extra memory.</p>
       <div class="io"><div><span>Input</span>1 → 2 → 3 → 4 → 5 → 6 → 7 → 8, k = 3</div><div><span>Output</span>3 → 2 → 1 → 6 → 5 → 4 → 7 → 8</div></div>
     </div>
-    <details class="hint"><summary>Think first: what does Problem 2 give you for free?</summary><p>Each group is a Problem 2 segment. Before reversing, check that k nodes remain ahead; if not, stop. After stitching a group, its old first node is now its last, which makes it the "node before" the next group. Move <span class="mono">before</span> there and repeat.</p></details>
+    <p class="think">Each group is one Problem 2. After you finish a group, which node is "before" the next one?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Copy each group's values into an array, reverse them, write them back. That needs O(k) memory. A recursive version uses a call stack that grows with the number of groups.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Treat each group as a Problem 2 piece. Before flipping anything, send a probe k steps ahead to check the group is full. After stitching, the group's old first node is now its last, so it becomes <span class="mono">before</span> for the next group.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Dummy in front; before = dummy.</span></li>
+      <li><span>Probe k nodes ahead. If the list runs out, return dummy.next.</span></li>
+      <li><span>Reverse those k nodes and stitch both ends, as in Problem 2.</span></li>
+      <li><span>Move before to the group's new last node. Repeat.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">B is before and Z is the probe that checks k nodes remain. P, C, N are prev, curr, nxt; T is the tail. The shaded nodes are the current group.</p>
     <div id="viz3"></div>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Each node is counted once and flipped once: about 2n steps</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Each node is probed once and flipped once: about 2n steps</span></div>
+    <p class="slip">Reversing the short last group too. Probe first, and stop before flipping anything if fewer than k nodes remain.</p>
   </section>
 
   <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Palindrome list" data-num="P4">
-    <span class="eyebrow">Problem 4 · Reversal as a helper</span>
+    <span class="eyebrow">Problem 4 · As a helper</span>
     <h2>Is the linked list a palindrome?</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Given the head of a singly linked list of numbers, decide whether the values read the same forwards and backwards. Use O(1) extra memory, so no copying the values into an array.</p>
       <div class="io"><div><span>Input</span>3 → 1 → 4 → 1 → 3</div><div><span>Output</span>true</div><div><span>Input</span>3 → 1 → 4 → 4 → 2</div><div><span>Output</span>false</div></div>
     </div>
-    <details class="hint"><summary>Think first: how do you walk the back half backwards?</summary><p>Find the middle with fast and slow pointers. Reverse the list from the middle to the end. Now one pointer from the head and one from the old tail walk toward each other, comparing values. The back half is never longer than the front, so stop when the back pointer runs out.</p></details>
+    <p class="think">A palindrome check compares the two ends. How do you walk a singly linked list from the back?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Copy the values into an array and run the two-pointer palindrome check. Simple, but O(n) extra memory.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Make the back half walkable from the end by reversing it. Find the middle with slow and fast pointers, reverse from the middle to the end, then walk one pointer from the head and one from the old tail, comparing as you go.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Move slow one step and fast two steps until fast can't go on. slow is at the middle.</span></li>
+      <li><span>Reverse the list from slow to the end.</span></li>
+      <li><span>Walk a from the head and b from the new back head. Any mismatch: return false.</span></li>
+      <li><span>When b runs out, return true. If the caller still needs the list, reverse the back half again first.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Three phases. S and F are slow and fast; P and C reverse the back half; A and Z walk from the front and back, green when they match.</p>
     <div id="viz4"></div>
-    <div class="aside"><p><b>Be a polite caller:</b> this modifies the input list. Reverse the back half again before returning if anyone else holds the list. It's one more O(n) pass and keeps the O(1) memory.</p></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Copy into an array: O(n) space</span></div>
+    <p class="slip">Looping while the front walker exists. On an even-length list the front half is one node longer, so loop until the back walker runs out.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
-    <h2>One invariant carries every variant</h2>
+    <h2>Why no node gets lost</h2>
+    <p>The whole argument is about the two pieces from the idea section:</p>
     <div class="qa">
-      <div><span class="q">Invariant</span><p>Before each pass of the loop, <span class="mono">prev</span> heads the nodes already visited, linked in reverse order, and <span class="mono">curr</span> heads the nodes not yet visited, still in their original order. No node is in both pieces and none is lost.</p></div>
-      <div><span class="q">Step</span><p>Saving <span class="mono">nxt</span>, flipping <span class="mono">curr.next</span> to <span class="mono">prev</span> and sliding both pointers moves exactly one node from the front of the untouched piece to the front of the reversed piece. The invariant still holds.</p></div>
-      <div><span class="q">End</span><p>The untouched piece shrinks by one each pass, so the loop ends after n passes (or k for a segment). Then the reversed piece is everything, in reverse, headed by <span class="mono">prev</span>.</p></div>
-      <div><span class="q">Segments</span><p>For a segment, the invariant holds inside it, and the two stitches reconnect the three pieces: before → reversed segment → after. Getting those two links right is the whole difference between Problems 1 and 2.</p></div>
-      <div><span class="q">In an interview</span><p>Draw three boxes and say the invariant out loud. Then mention the dummy node for segments that start at the head, and that the input is modified.</p></div>
+      <div><span class="q">Always true</span><p><span class="mono">prev</span> heads the nodes already visited, linked in reverse. <span class="mono">curr</span> heads the nodes not yet visited, still in order. Every node is in exactly one piece. At the start the reversed piece is empty, so this holds.</p></div>
+      <div><span class="q">Each step</span><p>Save, flip, slide moves exactly one node from the front of the untouched piece to the front of the reversed piece. Nothing else changes, so the statement above still holds.</p></div>
+      <div><span class="q">It ends</span><p>The untouched piece loses one node per step, so the loop stops after n steps (or k for a piece). Then everything is in the reversed piece, headed by <span class="mono">prev</span>.</p></div>
+      <div><span class="q">For a piece</span><p>The same holds inside the piece. The two stitches then reconnect three parts: before → reversed piece → rest of the list.</p></div>
     </div>
-    <p class="formula">before: [reversed ← prev]  [curr → … → null]<br>after one pass: the node at curr has moved to the left piece</p>
+    <div class="aside"><p><b>In an interview:</b> draw the two pieces and say the "always true" line out loud. Then mention the dummy node for pieces that start at the head, and that the input list is changed.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Reverse a list</h3><p>Save next, flip, slide. Return prev.</p></div>
+      <div><h3>Reverse left to right</h3><p>Dummy, walk to before, flip k times, two stitches.</p></div>
+      <div><h3>Every k nodes</h3><p>Probe k ahead first. Old first node becomes the next before.</p></div>
+      <div><h3>Palindrome list</h3><p>Find the middle, reverse the back half, compare inward.</p></div>
+    </div>
+    <p>Next pattern: <a href="monotonic-stack.html">Monotonic Stack</a>, where a stack that stays in sorted order finds every element's next bigger neighbour in one pass.</p>
   </section>
 </main>
 </div>
@@ -217,7 +318,7 @@ return prev                   <span class="c"># new head of the reversed part</s
     const v = [4, 9, 2, 7, 5], nx = [-1, 0, 3, 4, -1];   // after two passes: 9 → 4 → null, 2 → 7 → 5 → null
     document.getElementById("ideaViz").innerHTML = `<div class="st-stage">${drawLinks(v, nx, { ptr: { P: 1, C: 2, N: 3 }, mark: { 0: "seg", 1: "seg" } })}
       <p class="legend">P prev · C curr · N nxt · blue arrows are flipped</p>
-      <p style="font-size:14px;color:var(--muted)">Two passes in: 9 → 4 → null is the reversed piece (shaded), 2 → 7 → 5 is untouched. Next, C's arrow flips to point at P, and all three pointers slide right.</p></div>`;
+      <p style="font-size:14px;color:var(--muted)">Next, C's arrow flips to point at P, and all three pointers slide right.</p></div>`;
   })();
 
   // ---------- Problem 1: reverse whole list ----------

@@ -17,7 +17,6 @@
   .signals { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
   .stage-row { display: grid; gap: 10px; }
   .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .legend { font: 500 12px/1.5 var(--mono); color: var(--muted); }
   .tmpl-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
   .tmpl-pair > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
   .hv { display: grid; gap: 6px; align-content: start; min-width: 0; }
@@ -35,6 +34,7 @@
   .hp-chips em { font-size: 13px; color: var(--muted); }
   .hp-chips b { font: 600 12px/1 var(--mono); color: var(--muted); min-width: 2.2em; }
   .lists { display: grid; gap: 6px; }
+  table.trace td:nth-child(2) { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -48,26 +48,62 @@
 
   <header class="intro">
     <h1>Top K and Two Heaps</h1>
-    <p class="lede">Many problems never need everything in sorted order. They need the biggest few, the smallest of several candidates, or the value in the middle, and they need it again after every new number arrives. A heap gives you the smallest (or largest) item in O(1) and lets you add or remove one in O(log n). Keep a small heap of size k, or two heaps that split the data in half, and a full sort turns into a cheap running summary.</p>
+    <p class="lede">You rarely need everything sorted. Often you just need the biggest few, or the middle value, and you need it again after every new number. A small heap keeps exactly that, cheaply.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> a heap is a structure that always hands you its smallest (or largest) item. Keep one of size k, or two that split the data in half.</li>
+        <li><b>When:</b> "top k", "kth largest", "k most frequent", merging sorted lists, or a median that must update as numbers arrive.</li>
+        <li><b>Why it's fast:</b> reading the top is O(1), adding or removing is O(log k). n items cost O(n log k) instead of O(n log n) for a full sort.</li>
+        <li><b>The one thing to get right:</b> the root must be the item you'd throw away next. So for the k <i>largest</i>, use a <i>min</i>-heap.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Keep the 3 biggest numbers you've seen</h2>
+    <p>Numbers arrive one by one: 4, 9, 1, 7, 3, 8. At every moment we want the 3 biggest so far. We don't sort anything. We just keep a small group of 3 and always know who its <b>weakest member</b> is.</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>New</th><th>Group</th><th>Weakest</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>4</td><td>4</td><td>4</td><td>Room left. Add it.</td></tr>
+        <tr><td>9</td><td>4 9</td><td>4</td><td>Room left. Add it.</td></tr>
+        <tr><td>1</td><td>1 4 9</td><td>1</td><td>Room left. Add it. The group is now full.</td></tr>
+        <tr><td>7</td><td>4 7 9</td><td>4</td><td>7 beats the weakest (1). Kick 1 out, let 7 in.</td></tr>
+        <tr><td>3</td><td>4 7 9</td><td>4</td><td>3 doesn't beat 4. It can't be in the top 3. Ignore it.</td></tr>
+        <tr class="win"><td>8</td><td>7 8 9</td><td>7</td><td>8 beats 4. Kick 4 out. The 3rd largest is 7.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Each new number is compared with one value only: the weakest of the group. We need a container that hands us its smallest item instantly and lets us swap it out quickly. That container is a <b>min-heap</b>.</p>
+    <p class="insight">To keep the best k, you only need to know the worst of them. A min-heap of size k keeps that worst one at the top, ready to be compared or kicked out.</p>
+  </section>
+
+  <section class="panel article" id="heap" data-nav="Inside a heap">
+    <span class="eyebrow">The idea, continued</span>
     <h2>A heap is a tree packed into an array</h2>
-    <p>A <b>binary min-heap</b> is a binary tree with two rules. Its shape is <b>complete</b>: every level is full except maybe the last, which fills from the left. And it is <b>ordered</b>: every parent is no larger than its children. Nothing is said about left versus right, so a heap is far from sorted, but the smallest item is always at the root.</p>
-    <p>Because the shape has no gaps, the tree fits in a plain array, level by level. The node at index <span class="mono">i</span> has children at <span class="mono">2i + 1</span> and <span class="mono">2i + 2</span>, and its parent is at <span class="mono">(i − 1) // 2</span>. No pointers needed.</p>
-    <p>Two repairs keep the order rule true. <b>Push</b>: put the new item in the next free slot (the end of the array), then <b>sift it up</b>, swapping with its parent while it is smaller. <b>Pop</b>: take the root, move the last item into the root's place, then <b>sift it down</b>, swapping with its smaller child while that child is smaller. A complete tree with n nodes has about log₂ n levels, and each repair walks one path, so both cost <b>O(log n)</b>. Peeking at the root is O(1).</p>
-    <p>A <b>max-heap</b> is the same with the comparison flipped. Python's <span class="mono">heapq</span> only gives a min-heap, so the usual trick is to store <span class="mono">-x</span>.</p>
-    <p>Below, the values are pushed one by one, then popped until the heap is empty. Watch them come out in sorted order: that is heap sort.</p>
+    <p>A <b>min-heap</b> is a binary tree with two rules. Every level is full except maybe the last, which fills from the left. And every parent is no larger than its children. Left versus right doesn't matter, so it is far from sorted, but the smallest item is always at the top (the <b>root</b>).</p>
+    <p>Because there are no gaps, it fits in a plain array, row by row. The children of index <span class="mono">i</span> sit at <span class="mono">2i + 1</span> and <span class="mono">2i + 2</span>.</p>
+    <p>Two repairs keep the parent rule true:</p>
+    <ol class="plan">
+      <li><span><b>Push:</b> put the new item at the end, then swap it with its parent while it's smaller ("sift up").</span></li>
+      <li><span><b>Pop:</b> take the root, move the last item to the top, then swap it with its smaller child while that child is smaller ("sift down").</span></li>
+    </ol>
+    <p>Each repair walks one path from top to bottom, and a heap of n items has about log₂ n rows. So push and pop are O(log n). A <b>max-heap</b> flips the comparison. Python's <span class="mono">heapq</span> only has a min-heap, so store <span class="mono">-x</span> to fake a max-heap.</p>
+    <p class="note">Below, the values are pushed one by one, then popped until the heap is empty; they come out sorted. Blue is the item being moved, amber is the item it is compared with, green is settled, and [i] under a node is its array index.</p>
     <div id="viz0"></div>
-    <p class="legend">Blue = the item being sifted. Amber = the item it is compared with. Green = settled. [i] under a node is its array index.</p>
-    <h3>Three ways the pattern shows up</h3>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>Every problem on this page is one of these. Spotting which one tells you what goes in the heap.</p>
     <div class="variants">
-      <div><h3>Keep the best k</h3><p>A min-heap of size k holds the k largest seen so far. Its root is the weakest member, the one to evict.</p><a href="#p1">Problem 1: Kth largest</a><a href="#p2">Problem 2: K most frequent</a></div>
-      <div><h3>Smallest of k candidates</h3><p>Several sorted sources; the next item overall is the smallest of their fronts. The heap holds one front per source.</p><a href="#p3">Problem 3: Merge k sorted lists</a></div>
-      <div><h3>Two heaps</h3><p>A max-heap for the lower half and a min-heap for the upper half. The middle sits on their two roots.</p><a href="#p4">Problem 4: Running median</a></div>
+      <div><h3>Keep the best k</h3><p>A min-heap of size k holds the k largest so far. Its root is the weakest member, the one to kick out.</p><a href="#p1">Problem 1: Kth largest</a><a href="#p2">Problem 2: K most frequent</a></div>
+      <div><h3>Smallest of k fronts</h3><p>Several sorted sources. The next item overall is the smallest of their fronts, so the heap holds one front per source.</p><a href="#p3">Problem 3: Merge k sorted lists</a></div>
+      <div><h3>Two heaps</h3><p>A max-heap for the lower half, a min-heap for the upper half. The middle sits on their two roots.</p><a href="#p4">Problem 4: Running median</a></div>
     </div>
   </section>
 
@@ -75,49 +111,54 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for a heap when you see one or more of these:</p>
     <ul class="signals">
-      <li>The words <b>k largest, k smallest, kth, top k, k closest, k most frequent</b>. Keep a heap of size k, with the comparison set so that the item you would throw away first sits at the root.</li>
-      <li>You must answer <b>after every new item</b> (a stream), so sorting once at the end is not an option, and sorting again each time is too slow.</li>
-      <li>You repeatedly need <b>the smallest of several candidates</b> that keep changing: the fronts of k sorted lists, the earliest finishing meeting, the cheapest next node in Dijkstra's algorithm.</li>
-      <li>The answer lives <b>in the middle</b> (median, balance point), or you need the largest of one group and the smallest of another at the same time. That is two heaps.</li>
-      <li>k is much smaller than n. A size-k heap costs O(n log k), which beats sorting's O(n log n) and uses only O(k) memory.</li>
+      <li>The words <b>k largest, k smallest, kth, top k, k closest, k most frequent</b>.</li>
+      <li>You must answer <b>after every new item</b> (a stream), so sorting once at the end isn't an option.</li>
+      <li>You keep needing <b>the smallest of several candidates</b> that change: the fronts of k sorted lists, the meeting that ends first.</li>
+      <li>The answer lives <b>in the middle</b> (a median), or you need the largest of one group and the smallest of another. Two heaps.</li>
+      <li>k is much smaller than n. A size-k heap costs O(n log k) time and O(k) memory.</li>
     </ul>
-    <div class="aside"><p><b>Opposite heap for "largest":</b> to keep the k <i>largest</i>, use a <i>min</i>-heap. It sounds backwards, but the root must be the item you would drop next, and among the k largest that is the smallest one. For the k smallest, use a max-heap.</p></div>
-    <p>The same idea scales up to a whole system. When the stream is too big for one machine to count exactly, see the design question <a href="../questions/top-k.html">Top K at scale</a>, and the <a href="../topics/count-min-sketch.html">count-min sketch</a> that estimates counts in a fixed amount of memory.</p>
+    <div class="aside"><p><b>When not to:</b> if you need the answer once and k is close to n, just sort. If you need it once and memory is tight, quickselect finds the kth largest in O(n) on average, but it can't handle a stream.</p></div>
+    <p>The same idea scales up to a whole system. When the stream is too big for one machine to count exactly, see the design question <a href="../questions/top-k.html">Top K at scale</a> and the <a href="../topics/count-min-sketch.html">count-min sketch</a>.</p>
   </section>
 
   <!-- Template -->
   <section class="panel article" id="template" data-nav="Template">
     <span class="eyebrow">Template</span>
-    <h2>Two skeletons: a bounded heap and a pair of heaps</h2>
+    <h2>Two skeletons</h2>
+    <p>The first covers most problems. The second is for "the middle".</p>
     <div class="tmpl-pair">
       <div>
-        <h3>Keep the k best (here: largest)</h3>
-<pre class="tmpl">import heapq
-heap = []                      <span class="c"># min-heap, size ≤ k</span>
-for item in stream:
-    heapq.heappush(heap, key(item))
-    if len(heap) > k:
-        heapq.heappop(heap)    <span class="c"># evict the weakest</span>
-<span class="c"># heap holds the k best; heap[0] is the kth best</span></pre>
+        <h3>Keep the k largest</h3>
+<pre class="tmpl">heap = []           <span class="c"># min-heap</span>
+for x in stream:
+    heappush(heap, x)
+    if len(heap) &gt; k:
+        heappop(heap)  <span class="c"># drop weakest</span>
+<span class="c"># heap[0] is the kth largest</span></pre>
       </div>
       <div>
         <h3>Two heaps around the middle</h3>
-<pre class="tmpl">low, high = [], []   <span class="c"># low: max-heap via -x</span>
+<pre class="tmpl">low, high = [], []  <span class="c"># low stores -x</span>
 def add(x):
     if not low or x &lt;= -low[0]:
-        heapq.heappush(low, -x)
+        heappush(low, -x)
     else:
-        heapq.heappush(high, x)
-    <span class="c"># rebalance: len(low) is len(high) or one more</span>
+        heappush(high, x)
+    <span class="c"># low may be 1 bigger, no more</span>
     if len(low) &gt; len(high) + 1:
-        heapq.heappush(high, -heapq.heappop(low))
+        heappush(high, -heappop(low))
     elif len(high) &gt; len(low):
-        heapq.heappush(low, -heapq.heappop(high))</pre>
+        heappush(low, -heappop(high))</pre>
       </div>
     </div>
-    <p>In the first skeleton the heap never grows past k + 1, so each push and pop is O(log k). Pick the key so that the item you want to <i>lose</i> is the smallest: the value itself for "largest", the count for "most frequent", minus the distance for "closest". When items carry extra data, push tuples like <span class="mono">(count, value)</span>: Python compares tuples left to right, so the first field decides and later fields break ties.</p>
-    <p>In the second, every value in <span class="mono">low</span> is at most every value in <span class="mono">high</span>, and the sizes differ by at most one. Both roots are then the one or two middle values, readable in O(1).</p>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>What should sit at the root?</b> The item you'd throw away next (top k), or the item you need next (merging). That picks min-heap or max-heap.</span></li>
+      <li><span><b>What do you rank by?</b> The value, its count, or minus its distance. Push tuples like <span class="mono">(count, value)</span>: Python compares the first field first.</span></li>
+      <li><span><b>One heap or two?</b> One for "best k" or "next smallest". Two when the answer is in the middle.</span></li>
+    </ol>
   </section>
 
   <!-- Problem 1 -->
@@ -129,10 +170,23 @@ def add(x):
       <p>Given a list of integers and a number k, return the kth largest value in the list, counting duplicates separately (so in [5, 5, 4] the 2nd largest is 5). Try to do better than sorting the whole list.</p>
       <div class="io"><div><span>Input</span>nums = [3, 2, 1, 5, 6, 4], k = 2</div><div><span>Output</span>5</div></div>
     </div>
-    <details class="hint"><summary>Think first: what do you need to remember while scanning?</summary><p>Only the k largest values seen so far. The kth largest of those is the smallest of them, so keep them in a min-heap of size k. A new value either loses to the root (it can't be in the top k, skip it) or beats it (the root is pushed out of the top k; replace it). At the end the root is the answer.</p></details>
+    <p class="think">While scanning, what is the least you need to remember?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Sort the list from largest to smallest and take position k. That's O(n log n), and it sorts thousands of values you never look at.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Only the k largest values so far matter, and the kth largest is the smallest of them. Keep them in a min-heap of size k. A new value either loses to the root (it can't be in the top k) or beats it (the root drops out). At the end, the root is the answer.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>While the heap has fewer than k items, push.</span></li>
+      <li><span>After that, compare each new value with the root.</span></li>
+      <li><span>Bigger? Replace the root with it. Otherwise skip it.</span></li>
+      <li><span>Return the root.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The top row is the input, with x on the current value. Below it is the heap, drawn both as an array and as a tree. The root is always the current kth largest.</p>
     <div id="viz1"></div>
-    <p class="legend">The top row is the input, with x on the current value. Below: the heap as an array and as a tree.</p>
-    <div class="cx"><span class="good">Time O(n log k)</span><span class="good">Space O(k)</span><span class="meh">Quickselect: O(n) average, but not for streams</span></div>
+    <div class="cx"><span class="good">Time O(n log k)</span><span class="good">Space O(k)</span><span class="meh">Sort everything: O(n log n)</span></div>
+    <p class="slip">Using a max-heap of size k for the k largest. Its root is the biggest value, so you'd kick out the best item instead of the weakest.</p>
   </section>
 
   <!-- Problem 2 -->
@@ -144,26 +198,51 @@ def add(x):
       <p>Given a list of integers and k, return the k values that appear most often, most frequent first. When two values have the same count, either may be chosen; this version keeps the larger value, because it compares (count, value) pairs.</p>
       <div class="io"><div><span>Input</span>nums = [1, 1, 1, 2, 2, 3], k = 2</div><div><span>Output</span>[1, 2]</div></div>
     </div>
-    <details class="hint"><summary>Think first: what is the "size" you rank by?</summary><p>Not the value, its count. First count every value with a hash map in one pass. Then it is Problem 1 again over the (count, value) pairs: a min-heap of size k keyed on count, so the rarest of the current top k is at the root, ready to be evicted.</p></details>
+    <p class="think">This time, what makes a value "big"?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Count each value, then sort all the distinct values by count. With d distinct values that's O(d log d), even when k is 2.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Rank by count, not by value. Count everything with a hash map in one pass, then it's Problem 1 again on (count, value) pairs: a min-heap of size k, so the rarest of the current top k sits at the root, ready to be kicked out.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Count each value with a hash map.</span></li>
+      <li><span>Push each (count, value) pair onto a min-heap.</span></li>
+      <li><span>If the heap grows past k, pop the root (the rarest).</span></li>
+      <li><span>Return the heap's values, most frequent first.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">In the heap, the big number is the value and ×c under it is its count. The heap is ordered by count first, then value.</p>
     <div id="viz2"></div>
-    <p class="legend">In the heap, the big number is the value and ×c under it is its count. The heap is ordered by (count, value).</p>
-    <p>Counting exactly needs one map entry per distinct value. For a huge stream (say every search query of the day) that is too much memory, which is where approximate counters such as the <a href="../topics/count-min-sketch.html">count-min sketch</a> come in.</p>
     <div class="cx"><span class="good">Time O(n + d log k), d = distinct values</span><span class="good">Space O(d)</span><span class="meh">Bucket sort by count: O(n)</span></div>
+    <p class="slip">Pushing (value, count) instead of (count, value). Python compares the first field first, so the heap ranks by value and returns the wrong items.</p>
   </section>
 
   <!-- Problem 3 -->
   <section class="panel article problem" id="p3" data-nav="Merge k sorted lists" data-num="P3">
-    <span class="eyebrow">Problem 3 · Smallest of k candidates</span>
+    <span class="eyebrow">Problem 3 · Smallest of k fronts</span>
     <h2>Merge k sorted lists</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>You are given k lists, each already sorted from small to large (some may be empty). Combine them into one sorted list.</p>
       <div class="io"><div><span>Input</span>[[1, 4, 5], [1, 3, 4], [2, 6]]</div><div><span>Output</span>[1, 1, 2, 3, 4, 4, 5, 6]</div></div>
     </div>
-    <details class="hint"><summary>Think first: where can the next smallest value be?</summary><p>Only at the front of some list: every list is sorted, so anything behind a front is at least as big as that front. So you only ever compare k values. Keep the fronts in a min-heap as (value, list number, position). Pop the smallest, output it, and push the next value from the same list.</p></details>
+    <p class="think">Where can the next smallest value possibly be?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Glue all the lists together and sort. O(N log N) for N values in total, and it throws away the fact that each list is already sorted.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The next smallest value is always at the front of some list, because everything behind a front is at least as big. So you only ever compare k fronts. Keep them in a min-heap; pop the smallest and replace it with the next value from the same list.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Push the first value of every non-empty list, as (value, list, position).</span></li>
+      <li><span>Pop the smallest and add it to the output.</span></li>
+      <li><span>If its list has a next value, push that.</span></li>
+      <li><span>Repeat until the heap is empty.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">In the lists, amber is a front waiting in the heap and crossed out means already output. In the heap, L0, L1, … under a value says which list it came from.</p>
     <div id="viz3"></div>
-    <p class="legend">Lists: amber = the front waiting in the heap, crossed out = already output. In the heap, L0, L1, … under a value says which list it came from.</p>
-    <div class="cx"><span class="good">Time O(N log k), N = total values</span><span class="good">Space O(k) for the heap</span><span class="meh">Concatenate and sort: O(N log N)</span></div>
+    <div class="cx"><span class="good">Time O(N log k), N = total values</span><span class="good">Space O(k) for the heap</span><span class="meh">Glue and sort: O(N log N)</span></div>
+    <p class="slip">Pushing only the value. When it pops, you no longer know which list to take the next value from. Push (value, list, position).</p>
   </section>
 
   <!-- Problem 4 -->
@@ -175,24 +254,50 @@ def add(x):
       <p>Numbers arrive one at a time. After each one, report the median of everything so far: the middle value when the count is odd, the average of the two middle values when it is even.</p>
       <div class="io"><div><span>Input</span>5, 15, 1, 3</div><div><span>Output</span>5, 10, 5, 4</div></div>
     </div>
-    <details class="hint"><summary>Think first: what do you need to see at any moment?</summary><p>Only the one or two values in the middle. Split the numbers into a lower half and an upper half. The middle is the largest of the lower half and the smallest of the upper half, so store the lower half in a max-heap and the upper half in a min-heap. After each insert, move one root across if the sizes drift more than one apart.</p></details>
+    <p class="think">To report the median, which values do you actually need to see?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Keep a sorted list and insert each number in its place. Finding the spot is fast, but shifting everything after it is O(n) per number.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Only the one or two middle values matter. Split the numbers into a lower half and an upper half. The middle is the largest of the lower half and the smallest of the upper half, so keep the lower half in a max-heap and the upper half in a min-heap.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>If x is at most low's top, push it to low. Otherwise push it to high.</span></li>
+      <li><span>If low is more than one bigger than high, move low's top across.</span></li>
+      <li><span>If high is bigger than low, move high's top across.</span></li>
+      <li><span>Odd count: the median is low's top. Even: average the two tops.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">low is a max-heap (largest on top) and high is a min-heap (smallest on top). The median is read from their two roots after each number.</p>
     <div id="viz4"></div>
-    <p class="legend">low is a max-heap (largest on top), high is a min-heap (smallest on top). The median is read from their two roots.</p>
-    <div class="cx"><span class="good">add: O(log n)</span><span class="good">median: O(1)</span><span class="meh">Re-sorting each time: O(n log n) per number</span></div>
+    <div class="cx"><span class="good">add: O(log n)</span><span class="good">median: O(1)</span><span class="meh">Sorted list: O(n) per number</span></div>
+    <p class="slip">Putting a new number into whichever heap is smaller just to keep the sizes even. Compare it with low's top first, then rebalance; otherwise a big number can end up in the lower half.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
-    <h2>The invariants behind each heap</h2>
+    <h2>Why the heap always holds the right items</h2>
+    <p>For the "keep the best k" heap, the whole argument fits in three sentences:</p>
     <div class="qa">
-      <div><span class="q">Root is the minimum</span><p>Every parent is no larger than its children, so by following parents upward from any node the values only shrink until the root. Nothing is smaller than the root. A sift only swaps a node with a parent or child that is out of order, and stops once the one moving node fits, so the rule holds everywhere again after each push or pop.</p></div>
-      <div><span class="q">Size-k heap</span><p>Invariant: after reading some prefix of the input, the heap holds exactly the k largest values of that prefix (or all of them, if fewer than k). A new value bigger than the root belongs in the top k and pushes the root out; a value no bigger than the root does not belong. So at the end the heap is the top k, and its root, the smallest of them, is the kth largest.</p></div>
-      <div><span class="q">Merging</span><p>The heap holds the front of every list that still has values. Each list is sorted, so the smallest remaining value overall is one of those fronts: the heap's root. Popping it and pushing its successor keeps the invariant, so values come out in sorted order.</p></div>
-      <div><span class="q">Two heaps</span><p>Two invariants: everything in low is ≤ everything in high, and len(low) is len(high) or len(high) + 1. Moving a root across keeps the first, because it is the boundary value. With both true, low's root is the middle value for an odd count, and the two roots are the middle pair for an even count.</p></div>
-      <div><span class="q">Cost</span><p>Each push or pop on a heap of size k is O(log k), and each input value causes a constant number of them: O(n log k) in total. Sorting is O(n log n). With n = 1,000,000 and k = 10, log₂ k ≈ 3.3 against log₂ n ≈ 20, about six times fewer steps, and the heap needs room for only 10 values. When k approaches n, the two converge.</p></div>
-      <div><span class="q">In an interview</span><p>Name what sits at the root and why it is the item to evict or return. "Min-heap of size k, because its root is the weakest of the current top k." Then give O(n log k) and mention the alternatives: sorting, and quickselect for a one-off answer.</p></div>
+      <div><span class="q">Always true</span><p>After reading some of the input, the heap holds exactly the k largest values seen so far, and its root is the smallest of them.</p></div>
+      <div><span class="q">Each step</span><p>A new value bigger than the root belongs in the top k and pushes the root out. A value no bigger than the root doesn't belong. Either way, the claim above still holds.</p></div>
+      <div><span class="q">It ends</span><p>Each value causes at most one push and one pop on a heap of size k, each O(log k). n values, O(n log k). With n = 1,000,000 and k = 10 that's about 3 steps per value instead of 20.</p></div>
+      <div><span class="q">Two heaps</span><p>Everything in low is at most everything in high, and low has the same size as high or one more. Moving a top across keeps both true, since it's the boundary value. So the tops are always the middle.</p></div>
     </div>
+    <div class="aside"><p><b>In an interview:</b> say what sits at the root and why. "Min-heap of size k, because its root is the weakest of the current top k." Then give O(n log k) and mention sorting and quickselect as the alternatives.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Kth largest</h3><p>Min-heap of size k. Beat the root or skip. Root is the answer.</p></div>
+      <div><h3>K most frequent</h3><p>Count first, then keep the best k by (count, value).</p></div>
+      <div><h3>Merge k lists</h3><p>Heap of fronts. Pop the smallest, push its next.</p></div>
+      <div><h3>Running median</h3><p>Max-heap low, min-heap high. Rebalance; read the tops.</p></div>
+    </div>
+    <p>Next up: graph patterns (BFS, topological sort and union-find) are coming soon.</p>
   </section>
 </main>
 </div>

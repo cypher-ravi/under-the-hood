@@ -33,22 +33,49 @@
 
   <header class="intro">
     <h1>Fast and Slow Pointers</h1>
-    <p class="lede">Send two pointers down the same linked list, one moving one node per step and the other moving two. When the fast one reaches the end, the slow one is halfway. If there is no end because the list loops, the fast one laps the slow one and they land on the same node. Both facts come with O(1) extra memory.</p>
+    <p class="lede">Send two runners down a linked list, one taking one step at a time and the other two. If the list ends, the slow one is at the middle when the fast one finishes; if the list loops, the fast one laps the slow one and they meet.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> two pointers on the same list, <span class="mono">slow</span> moving 1 node per step and <span class="mono">fast</span> moving 2.</li>
+        <li><b>When:</b> a linked list (or any "next" rule) where you need the middle, or need to know whether it loops and where.</li>
+        <li><b>Why it's fast:</b> one pass, O(n) time, and only two pointers of memory. No array copy, no set of visited nodes.</li>
+        <li><b>The one thing to get right:</b> the loop condition <span class="mono">fast and fast.next</span>, so the double step never steps off a null.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
   <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>Two speeds turn distance into information</h2>
-    <p>A singly linked list only lets you walk forward, one <span class="mono">next</span> at a time. You don't know its length, and you can't jump to the middle. The obvious fixes cost memory: copy the nodes into an array to find the middle, or keep a set of visited nodes to spot a loop. Both are O(n) extra space.</p>
-    <p>Run two walkers instead. After k steps the slow one has moved k nodes and the fast one 2k. That fixed ratio is the whole trick. If the list ends, the fast pointer gets there when the slow one is at the halfway mark. If the list loops, both end up circling, and the fast one gains exactly one node per step, so the gap between them shrinks by one each step until it hits zero. They must meet; the fast one can't jump over the slow one.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Two runners on a looping track</h2>
+    <p>A linked list only lets you walk forward, one <span class="mono">next</span> at a time. You don't know its length. Here is a list of seven nodes whose last node points back to node 2, so it never ends.</p>
     <div id="ideaViz"></div>
-    <h3>Three ways the pattern shows up</h3>
+    <p>Put slow (S) and fast (F) on the head. Each step, S moves one node and F moves two. Watch the gap between them once both are in the loop. The S and F columns are node indices, the small numbers under each node.</p>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>Step</th><th>S</th><th>F</th><th>What it tells us</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>0</td><td>0</td><td>Both start at the head.</td></tr>
+        <tr><td>1</td><td>1</td><td>2</td><td>F pulls ahead and enters the loop.</td></tr>
+        <tr><td>2</td><td>2</td><td>4</td><td>S enters the loop too. F is 3 nodes behind S, going round.</td></tr>
+        <tr><td>3</td><td>3</td><td>6</td><td>F gains one node per step. Now 2 behind.</td></tr>
+        <tr><td>4</td><td>4</td><td>3</td><td>F wrapped round to node 3. 1 behind.</td></tr>
+        <tr class="win"><td>5</td><td>5</td><td>5</td><td>Gap 0. Same node: there's a loop.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Now take the loop away. F reaches the end after about n/2 steps, and S, having gone half as far, is standing on the middle node. Same code, a different fact.</p>
+    <p class="insight">Fast gains exactly one node per step. A gap that shrinks by one can't jump over zero, so in a loop they must meet. Without a loop, fast hits the end when slow is halfway.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Three flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Three ways the pattern shows up</h2>
+    <p>Every problem on this page is one of these. They all use the same two speeds; what differs is the question you ask when the race ends.</p>
     <div class="variants">
-      <div><h3>Find a position</h3><p>When fast reaches the end, slow marks a fraction of the length: the middle for speeds 1 and 2.</p><a href="#p1">Problem 1: Middle of the list</a></div>
-      <div><h3>Detect a loop</h3><p>If fast ever lands on slow, there's a cycle. If fast falls off the end, there isn't.</p><a href="#p2">Problem 2: Does the list loop?</a><a href="#p3">Problem 3: Where does the loop start?</a></div>
-      <div><h3>Implicit lists</h3><p>Any rule "x → next(x)" is a linked list in disguise. Run the same two pointers over the values it produces.</p><a href="#p4">Problem 4: Happy numbers</a></div>
+      <div><h3>Find a position</h3><p>When fast reaches the end, slow marks a fraction of the length: the middle, for speeds 1 and 2.</p><a href="#p1">Problem 1: Middle of the list</a></div>
+      <div><h3>Detect a loop</h3><p>If fast ever lands on slow, there's a cycle. If fast falls off the end, there isn't. A second walk finds where the loop starts.</p><a href="#p2">Problem 2: Does the list loop?</a><a href="#p3">Problem 3: Where does the loop start?</a></div>
+      <div><h3>Hidden lists</h3><p>Any rule "x → next(x)" is a linked list in disguise. Run the same two pointers over the values it produces.</p><a href="#p4">Problem 4: Happy numbers</a></div>
     </div>
   </section>
 
@@ -56,13 +83,14 @@
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for fast and slow pointers when you see one or more of these:</p>
     <ul class="signals">
-      <li>The input is a <b>linked list</b> (or something you can only step through with a "next" function) and you don't know its length.</li>
-      <li>The question asks about the <b>middle</b>, or a point a fixed fraction of the way along, in one pass.</li>
+      <li>The input is a <b>linked list</b>, or something you can only step through with a "next" rule, and you don't know its length.</li>
+      <li>The question asks for the <b>middle</b>, or a point a fixed fraction of the way along, in one pass.</li>
       <li>It asks whether a sequence <b>loops</b>, repeats or "eventually reaches" something, or where a loop begins.</li>
       <li>It demands <b>O(1) extra memory</b>, which rules out a visited set or copying into an array.</li>
     </ul>
-    <div class="aside"><p><b>Counter-signal:</b> "the k-th node from the end" also uses two pointers, but they move at the <i>same</i> speed with a head start of k. That's a fixed gap, not two speeds. And if you can afford O(n) memory and want the simplest code, a hash set of visited nodes detects a cycle too.</p></div>
+    <div class="aside"><p><b>When not to:</b> "the k-th node from the end" also uses two pointers, but at the <i>same</i> speed with a head start of k. That's a fixed gap, not two speeds. And if memory is no concern, a set of visited nodes finds a loop with simpler code.</p></div>
   </section>
 
   <!-- Template -->
@@ -70,13 +98,18 @@
     <span class="eyebrow">Template</span>
     <h2>The skeleton you adapt</h2>
 <pre class="tmpl">slow = fast = head
-while fast and fast.next:        <span class="c"># fast needs two more nodes to move</span>
-    slow = slow.next             <span class="c"># 1 step</span>
-    fast = fast.next.next        <span class="c"># 2 steps</span>
-    if slow is fast:             <span class="c"># only possible inside a cycle</span>
+while fast and fast.next:
+    slow = slow.next       <span class="c"># 1 step</span>
+    fast = fast.next.next  <span class="c"># 2 steps</span>
+    if slow is fast:       <span class="c"># a loop</span>
         return "cycle"
-return slow                      <span class="c"># fast hit the end: slow is the middle</span></pre>
-    <p>Two details decide most bugs. The loop condition must check <span class="mono">fast</span> <i>and</i> <span class="mono">fast.next</span>, or the double step crashes on the last node. And compare nodes by identity (<span class="mono">is</span>), not by value: two different nodes can hold the same number.</p>
+return slow  <span class="c"># no loop: the middle</span></pre>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>What is "next"?</b> A node's <span class="mono">next</span> pointer, or a rule like "sum of squared digits" that turns one value into the next.</span></li>
+      <li><span><b>When does the race stop?</b> Fast runs out (no loop), or the two land on the same node (a loop).</span></li>
+      <li><span><b>What do you read off at the end?</b> Slow's position (the middle), true/false (is there a loop), or a second walk to find where the loop starts.</span></li>
+    </ol>
   </section>
 
   <!-- Problem 1 -->
@@ -88,9 +121,22 @@ return slow                      <span class="c"># fast hit the end: slow is the
       <p>Given the head of a singly linked list, return its middle node. If the list has an even number of nodes there are two middles; return the second one. Walk the list only once.</p>
       <div class="io"><div><span>Input</span>3 → 8 → 1 → 6 → 4</div><div><span>Output</span>the node holding 1 (index 2)</div><div><span>Even length</span>3 → 8 → 1 → 6 gives 1 (index 2)</div></div>
     </div>
-    <details class="hint"><summary>Think first: where is slow when fast runs out?</summary><p>After k steps slow is at index k and fast at index 2k. The loop stops when fast can't take two more steps, which happens when 2k is the last index (odd length) or one past it (even length). Either way k is n ÷ 2 rounded down, the second middle.</p></details>
+    <p class="think">If fast has covered the whole list, how far has slow gone?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Walk the list once to count n nodes, then walk again n/2 steps. That's two passes, or an O(n) array if you copy the nodes to jump straight to the middle.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">After k steps, slow is at index k and fast at index 2k. Fast runs out when 2k reaches the last index (odd length) or one past it (even length). Either way slow sits at n ÷ 2 rounded down, which is the second middle.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Put slow and fast on the head.</span></li>
+      <li><span>While fast and fast.next both exist, move slow one node and fast two.</span></li>
+      <li><span>When the loop stops, return slow.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">S (blue) is slow and F (amber) is fast; the number under each node is its index. Try the even-length preset to see which middle you get.</p>
     <div id="viz1"></div>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Count first, then walk again: two passes</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Count, then walk again: two passes</span></div>
+    <p class="slip">Writing <span class="mono">while fast.next</span>. On an even-length list fast becomes null, and <span class="mono">null.next</span> crashes. Check <span class="mono">fast</span> first.</p>
   </section>
 
   <!-- Problem 2 -->
@@ -101,11 +147,24 @@ return slow                      <span class="c"># fast hit the end: slow is the
       <h3>Question</h3>
       <p>Given the head of a linked list, return <span class="mono">true</span> if following <span class="mono">next</span> pointers ever brings you back to a node you've already visited, and <span class="mono">false</span> if you reach the end. Use constant extra memory.</p>
       <div class="io"><div><span>Input</span>2 → 7 → 4 → 9 → 5 → 1, last node links back to index 2</div><div><span>Output</span>true</div></div>
-      <p style="font-size:14px;color:var(--muted)">In the visualizer, "tail links to" is the index the last node points back to, or −1 for no loop.</p>
     </div>
-    <details class="hint"><summary>Think first: why can't fast skip over slow?</summary><p>Once both are in the loop, measure how far fast is behind slow along the loop. Each step slow adds 1 and fast adds 2, so that gap drops by exactly 1. A gap that drops by 1 each step reaches 0; it can't go from 1 to −1.</p></details>
+    <p class="think">Once both pointers are going round the loop, why can't fast jump over slow?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Keep a set of every node you've visited. If you reach a node already in the set, there's a loop. It works in O(n) time but needs O(n) extra memory.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Inside the loop, measure how far fast is behind slow. Each step slow adds 1 and fast adds 2, so the gap drops by exactly 1. A gap that drops by 1 each step reaches 0; it can't go from 1 to −1. So they always meet.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Put slow and fast on the head.</span></li>
+      <li><span>While fast and fast.next exist, move slow one node and fast two.</span></li>
+      <li><span>After each move, if they're on the same node, return true.</span></li>
+      <li><span>If fast runs off the end, return false.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The red arrow under the list is the tail's link back. "Tail links to" is the index it points to, or −1 for no loop. Once both pointers are in the loop, the "gap in loop" counter drops by one each step.</p>
     <div id="viz2"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Visited set: O(n) space</span></div>
+    <p class="slip">Comparing values instead of nodes. Two different nodes can hold the same number; use <span class="mono">is</span> (same node), not <span class="mono">==</span> on the values.</p>
   </section>
 
   <!-- Problem 3 -->
@@ -117,37 +176,79 @@ return slow                      <span class="c"># fast hit the end: slow is the
       <p>Given the head of a linked list, return the first node of its cycle (the node the tail points back to), or <span class="mono">null</span> if there is no cycle. Don't modify the list, and use constant extra memory.</p>
       <div class="io"><div><span>Input</span>2 → 7 → 4 → 9 → 5 → 1, tail links to index 2</div><div><span>Output</span>the node holding 4 (index 2)</div></div>
     </div>
-    <details class="hint"><summary>Think first: what do you know at the meeting point?</summary><p>Let a be the distance from the head to the loop start and b from the loop start to the meeting point. Fast walked twice as far as slow, and the extra distance is a whole number of laps. That forces a to equal "some laps minus b". So a pointer from the head and a pointer from the meeting point, both moving one step at a time, arrive at the loop start together.</p></details>
+    <p class="think">Slow and fast have just met. What do you know about how far each has walked?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Walk with a visited set; the first node you see twice is the loop start. Easy, but O(n) extra memory.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Call a the distance from the head to the loop start, and b from the loop start to the meeting point. Fast walked twice as far as slow, and the extra is whole laps. That makes a equal to "some laps minus b". So one pointer from the head and one from the meeting point, both at speed 1, reach the loop start together.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Run Problem 2. If fast runs off the end, return null.</span></li>
+      <li><span>When they meet, put a new pointer p on the head. Leave slow at the meeting point.</span></li>
+      <li><span>Move p and slow one node at a time until they're on the same node.</span></li>
+      <li><span>That node is the loop start. Return it.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Phase 1 is the race from Problem 2; the amber-outlined node is where they meet. In phase 2, H is p walking from the head and S is slow walking on from the meeting point. Compare the "Long tail" and "Short tail" presets.</p>
     <div id="viz3"></div>
     <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(1)</span><span class="meh">Visited set: O(n) space</span></div>
+    <p class="slip">Keeping a double step in phase 2. The second walk only works if both pointers move one node at a time.</p>
   </section>
 
   <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Happy numbers" data-num="P4">
-    <span class="eyebrow">Problem 4 · Implicit list</span>
+    <span class="eyebrow">Problem 4 · Hidden list</span>
     <h2>Is it a happy number?</h2>
     <div class="qbox">
       <h3>Question</h3>
       <p>Start from a positive whole number. Replace it with the sum of the squares of its digits, and keep going. If you eventually reach 1, the number is <i>happy</i>. Otherwise the values repeat forever without reaching 1. Decide which, without storing the values you've seen.</p>
       <div class="io"><div><span>Input</span>19</div><div><span>Output</span>true: 19 → 82 → 68 → 100 → 1</div><div><span>Input</span>2</div><div><span>Output</span>false: it falls into 4 → 16 → 37 → 58 → 89 → 145 → 42 → 20 → 4</div></div>
     </div>
-    <details class="hint"><summary>Think first: where is the linked list?</summary><p>Each number has exactly one "next" number, so the values form a linked list that must eventually repeat (the values quickly drop below a few hundred). 1 maps to itself, a cycle of length one. Run slow and fast on the values; when they meet, check whether the meeting value is 1.</p></details>
+    <p class="think">There are no nodes here. Where is the linked list?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Keep a set of every value you've produced. Stop when you hit 1 (happy) or a value you've seen before (a loop). It works, but the set is extra memory.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Each number has exactly one "next" number, so the values form a linked list. The values soon drop below a few hundred, so the list must repeat. 1 maps to itself, a loop of length one. Run slow and fast on the values; when they stop, check whether fast is on 1.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Write step(x): the sum of the squares of x's digits.</span></li>
+      <li><span>Start slow at n and fast at step(n), one step ahead.</span></li>
+      <li><span>While fast isn't 1 and slow ≠ fast: slow takes one step, fast takes two.</span></li>
+      <li><span>Return whether fast is 1.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Each circle is a distinct value in the order step() produces it, and the red arrow shows where the values start repeating. The real algorithm never builds this list; it's drawn so you can see the shape.</p>
     <div id="viz4"></div>
-    <div class="aside"><p><b>Read the picture:</b> each box is a distinct value in the order it's produced, and the curved arrow shows where the sequence starts repeating. The pointers walk this "list" without ever building it in the real algorithm; it's drawn only so you can see the shape.</p></div>
     <div class="cx"><span class="good">Time O(log n) per step, few steps</span><span class="good">Space O(1)</span><span class="meh">Set of seen values: extra memory</span></div>
+    <p class="slip">Starting slow and fast both at n with the check <span class="mono">slow != fast</span>. They're equal before the first move, so the loop never runs.</p>
   </section>
 
   <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
     <h2>Why they meet, and why the second walk finds the start</h2>
+    <p>Three plain sentences, then one line of algebra:</p>
     <div class="qa">
-      <div><span class="q">No cycle</span><p>Fast moves two nodes per step, so it reaches the end after about n/2 steps, and the loop stops. Slow has moved half as far: the middle.</p></div>
-      <div><span class="q">Meeting</span><p>Once slow enters the loop, fast is somewhere in it, d nodes behind (d less than the loop length c). Each step closes the gap by exactly 1, so they meet within c steps. Total time is O(n).</p></div>
-      <div><span class="q">Loop start</span><p>Let a = head to loop start, b = loop start to meeting point. Slow walked a + b; fast walked 2(a + b), which is a + b plus k full laps. So a + b = kc, which means a = kc − b. Walking a steps from the meeting point is k laps minus b: you land exactly on the loop start, at the same moment as a pointer that walked a steps from the head.</p></div>
-      <div><span class="q">In an interview</span><p>State the gap argument for meeting ("closes by one per step, can't skip") and write out a = kc − b for the start. Then mention that the same code works on any function x → f(x), not just node pointers.</p></div>
+      <div><span class="q">Always true</span><p>After k steps, slow has walked k nodes and fast has walked 2k. Fast is never behind slow on the way in.</p></div>
+      <div><span class="q">Each step</span><p>Once both are in the loop, fast is d nodes behind slow, with d less than the loop length c. Each step closes the gap by exactly 1, so they meet within c steps.</p></div>
+      <div><span class="q">It ends</span><p>With no loop, fast reaches the end after about n/2 steps, and slow is at the middle. With a loop, they meet within one lap. Either way O(n).</p></div>
+      <div><span class="q">Loop start</span><p>Slow walked a + b. Fast walked 2(a + b), which is a + b plus k full laps. So a = kc − b: walking a steps from the meeting point lands exactly on the loop start, the same moment a pointer from the head gets there.</p></div>
     </div>
     <p class="formula">2(a + b) = a + b + k·c  ⇒  a = k·c − b</p>
+    <div class="aside"><p><b>In an interview:</b> state the gap argument ("closes by one per step, can't skip") and write out a = kc − b for the start. Then mention that the same code works on any rule x → f(x), not just node pointers.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Middle</h3><p>1 step and 2 steps. When fast runs out, slow is the middle.</p></div>
+      <div><h3>Has a loop?</h3><p>Same race. Same node → true. Fast hits null → false.</p></div>
+      <div><h3>Loop start</h3><p>After they meet, p from head and slow from the meeting point, both speed 1.</p></div>
+      <div><h3>Happy number</h3><p>step(x) is "next". Race on values; happy if fast reaches 1.</p></div>
+    </div>
+    <p>Next pattern: <a href="reversal.html">In-place Reversal</a>, where you rewire a linked list's next pointers as you walk it.</p>
   </section>
 </main>
 </div>

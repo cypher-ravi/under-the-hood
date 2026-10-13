@@ -19,6 +19,7 @@
   .stage-label { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .empty { font-size: 13px; color: var(--muted); font-style: italic; }
   .tl svg { width: 100%; height: auto; display: block; }
+  table.trace td:not(:last-child) { white-space: nowrap; }
   .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 </style>
 </head>
@@ -33,58 +34,94 @@
 
   <header class="intro">
     <h1>Interval Merging and Overlap</h1>
-    <p class="lede">An interval is a start and an end: a meeting, a booking, a range of pages. Problems about many intervals look tangled until you sort them. Once they're in order of start time, each interval can only collide with the one just before it, and a single left-to-right pass answers merge, insert and overlap questions. Turn starts and ends into events and the same pass counts how many intervals are open at once.</p>
+    <p class="lede">An interval is a start and an end, like a meeting from 2 to 6. Sort a pile of them by start time and each one can only collide with the block just before it, so one left-to-right pass untangles them.</p>
+    <div class="tldr">
+      <b>In 30 seconds</b>
+      <ul>
+        <li><b>What:</b> sort intervals (by start, or by end), then walk them once, comparing each with the last block you kept.</li>
+        <li><b>When:</b> the input is a list of start/end pairs and the question says overlap, merge, conflict, free time or "how many at once".</li>
+        <li><b>Why it's fast:</b> after sorting, overlap is a one-number check against the last block. Sorting costs O(n log n), the pass O(n), instead of comparing every pair.</li>
+        <li><b>The one thing to get right:</b> the edge case. Do <span class="mono">[1, 3]</span> and <span class="mono">[3, 5]</span> overlap? Decide, then pick <span class="mono">≤</span> or <span class="mono">&lt;</span> to match.</li>
+      </ul>
+    </div>
     <p class="sources">Pattern-first structure inspired by Codeintuition's curriculum. Problems, explanations and visualizations on this page are our own.</p>
   </header>
 
+  <!-- The idea -->
   <section class="panel article" id="idea" data-nav="The idea">
-    <span class="eyebrow">The idea, from first principles</span>
-    <h2>Sorted by start, overlap is a local question</h2>
-    <p>Two intervals <span class="mono">[a, b]</span> and <span class="mono">[c, d]</span> overlap when each starts before the other ends: <span class="mono">a ≤ d</span> and <span class="mono">c ≤ b</span>. Checking every pair takes <span class="mono">n²</span> comparisons. Sorting removes most of that work.</p>
-    <p>If the intervals are sorted by start, then <span class="mono">a ≤ c</span> is already known, so overlap shrinks to one check: <span class="mono">c ≤ b</span>, "does the next one start before the current one ends?" And if the next interval doesn't overlap the block you've built so far, no later interval can either, because later ones start even further right. So you only ever compare the next interval with the last block. Sorting costs <span class="mono">n log n</span>, and the pass costs <span class="mono">n</span>.</p>
+    <span class="eyebrow">The idea, by example</span>
+    <h2>Merge four meetings into blocks</h2>
+    <p>Here are four intervals: <span class="mono">[8, 10]</span>, <span class="mono">[1, 3]</span>, <span class="mono">[2, 6]</span>, <span class="mono">[15, 18]</span>. Some overlap. We want the busy blocks you'd get if you shaded them all on one line.</p>
+    <p>First, sort them by start. Now walk left to right and keep a list of blocks. For each interval, ask one question: <b>does it start before the last block ends?</b></p>
     <div id="ideaViz"></div>
-    <h3>Four shapes of the same pass</h3>
+    <div class="trace-wrap"><table class="trace">
+      <thead><tr><th>Next</th><th>Last block</th><th>What it tells us</th></tr></thead>
+      <tbody>
+        <tr><td>[1, 3]</td><td>none</td><td>Nothing yet. It starts the first block.</td></tr>
+        <tr><td>[2, 6]</td><td>[1, 3]</td><td>2 ≤ 3, so it overlaps. Stretch the block's end to 6: [1, 6].</td></tr>
+        <tr><td>[8, 10]</td><td>[1, 6]</td><td>8 &gt; 6, a gap. Start a new block [8, 10].</td></tr>
+        <tr><td>[15, 18]</td><td>[8, 10]</td><td>15 &gt; 10, a gap. Start a new block.</td></tr>
+        <tr class="win"><td colspan="2">3 blocks</td><td>[1, 6], [8, 10], [15, 18]</td></tr>
+      </tbody>
+    </table></div>
+    <p>Why only the last block? Every interval after [8, 10] starts at 8 or later. The block [1, 6] ended at 6, so nothing that comes next can reach back to it. Once a gap opens, it stays open.</p>
+    <p class="insight">Sorting by start turns "does this overlap anything?" into "does this overlap the last block?", one comparison instead of n.</p>
+  </section>
+
+  <section class="panel article" id="flavours" data-nav="Four flavours">
+    <span class="eyebrow">The idea, continued</span>
+    <h2>Four ways the pattern shows up</h2>
+    <p>Every problem on this page is the same sorted pass. What changes is the sort key and what you do when two intervals clash.</p>
     <div class="variants">
-      <div><h3>Merge</h3><p>Sort by start. Extend the last block or start a new one.</p><a href="#p1">Problem 1: Merge overlapping intervals</a></div>
-      <div><h3>Insert</h3><p>Already sorted: copy what ends before, absorb what overlaps, copy the rest.</p><a href="#p2">Problem 2: Insert an interval</a></div>
-      <div><h3>Sweep</h3><p>Split into +1 at each start and −1 at each end, sort, and keep a running count.</p><a href="#p3">Problem 3: How many rooms?</a></div>
-      <div><h3>Greedy by end</h3><p>Sort by end. Keep whatever finishes first; drop what clashes with it.</p><a href="#p4">Problem 4: Fewest to remove</a></div>
+      <div><h3>Merge</h3><p>Sort by start. Overlap? Stretch the last block. Gap? Start a new one.</p><a href="#p1">Problem 1: Merge overlapping intervals</a></div>
+      <div><h3>Insert</h3><p>The list is already sorted: copy what ends before, swallow what overlaps, copy the rest. No sort needed.</p><a href="#p2">Problem 2: Insert an interval</a></div>
+      <div><h3>Sweep</h3><p>Split each interval into a +1 at its start and a −1 at its end. Sort these events and keep a running count.</p><a href="#p3">Problem 3: How many rooms?</a></div>
+      <div><h3>Greedy by end</h3><p>Sort by end. Keep whatever finishes first and drop what clashes with it.</p><a href="#p4">Problem 4: Fewest to remove</a></div>
     </div>
   </section>
 
+  <!-- Spot it -->
   <section class="panel article" id="spot" data-nav="How to spot it">
     <span class="eyebrow">Recognizing the pattern</span>
     <h2>Signals in the problem statement</h2>
+    <p>Reach for intervals when you see one or more of these:</p>
     <ul class="signals">
-      <li>The input is a list of <b>pairs</b> with a start and an end: times, dates, ranges, segments on a line.</li>
-      <li>The question uses words like <b>overlap</b>, <b>conflict</b>, <b>merge</b>, <b>free time</b>, <b>at the same time</b> or <b>how many at once</b>.</li>
-      <li>A brute force compares every pair, and the expected answer is <b>O(n log n)</b>: a strong hint that sorting comes first.</li>
-      <li>You must pick the <b>most</b> non-clashing intervals or remove the <b>fewest</b>: sort by end and be greedy.</li>
+      <li>The input is a list of <b>pairs</b> with a start and an end: times, dates, page ranges, segments on a line.</li>
+      <li>The question says <b>overlap</b>, <b>conflict</b>, <b>merge</b>, <b>free time</b> or <b>how many at once</b>.</li>
+      <li>Brute force compares every pair, but the expected answer is <b>O(n log n)</b>. That hints that sorting comes first.</li>
+      <li>You must keep the <b>most</b> non-clashing intervals or remove the <b>fewest</b>. Sort by end and be greedy.</li>
     </ul>
-    <h3>The three cases for two intervals, once sorted by start</h3>
+    <div class="aside"><p><b>Watch the edges:</b> for ranges of numbers, [1, 3] and [3, 5] usually overlap (both contain 3). For meetings, they usually don't (one ends as the other starts). Ask, then use <span class="mono">≤</span> or <span class="mono">&lt;</span> to match. Each problem below says which it uses.</p></div>
+    <div class="aside"><p><b>When not to:</b> if intervals keep arriving and you must answer after each one, re-sorting every time is slow. Keep them in an ordered structure instead, like a balanced tree or a heap of end times.</p></div>
+  </section>
+
+  <!-- Template -->
+  <section class="panel article" id="template" data-nav="Template">
+    <span class="eyebrow">Template</span>
+    <h2>The skeleton you adapt</h2>
+<pre class="tmpl">iv.sort(key=lambda x: x[0])  <span class="c"># by start</span>
+out = [iv[0]]
+for s, e in iv[1:]:
+    last = out[-1]
+    if s &lt;= last[1]:     <span class="c"># overlaps</span>
+        last[1] = max(last[1], e)
+    else:                <span class="c"># a gap</span>
+        out.append([s, e])</pre>
+    <p>Once sorted, the next interval and the last block can only sit in three ways. The if/else above handles all three:</p>
     <div class="cases">
       <div class="tl" id="case1"></div>
       <div class="tl" id="case2"></div>
       <div class="tl" id="case3"></div>
     </div>
-    <div class="aside"><p><b>Watch the edges:</b> do <span class="mono">[1, 3]</span> and <span class="mono">[3, 5]</span> overlap? For merging ranges of numbers, usually yes (they share 3). For meetings, usually no (one ends as the other starts). Ask, then pick <span class="mono">≤</span> or <span class="mono">&lt;</span> to match. The problems below say which they use.</p></div>
+    <p>To adapt it to a new problem, answer three questions:</p>
+    <ol class="plan">
+      <li><span><b>What do you sort by?</b> Start, to build blocks. End, to keep as many as possible. Or turn everything into events for counting.</span></li>
+      <li><span><b>When do two intervals clash?</b> Decide whether touching ends count, and write <span class="mono">≤</span> or <span class="mono">&lt;</span> accordingly.</span></li>
+      <li><span><b>What happens on a clash?</b> Stretch the block (merge), add to a count (rooms), or throw one away (removals).</span></li>
+    </ol>
   </section>
 
-  <section class="panel article" id="template" data-nav="Template">
-    <span class="eyebrow">Template</span>
-    <h2>The skeleton you adapt</h2>
-<pre class="tmpl">intervals.sort(key=lambda x: x[0])       <span class="c"># by start (by end for greedy)</span>
-out = [intervals[0]]
-for start, end in intervals[1:]:
-    last = out[-1]
-    if start &lt;= last[1]:                  <span class="c"># overlaps the last block</span>
-        last[1] = max(last[1], end)      <span class="c"># combine</span>
-    else:
-        out.append([start, end])         <span class="c"># a gap: start a new block</span>
-<span class="c"># sweep variant: events = (start, +1) and (end, -1), sort, running sum</span></pre>
-    <p>Problems differ in the sort key and in what "combine" means: extend the block (merge), count it (rooms), or throw one away (removals). The most common bug is <span class="mono">last[1] = end</span> instead of <span class="mono">max(last[1], end)</span>, which breaks when one interval sits entirely inside another.</p>
-  </section>
-
+  <!-- Problem 1 -->
   <section class="panel article problem" id="p1" data-nav="Merge overlapping intervals" data-num="P1">
     <span class="eyebrow">Problem 1 · Merge</span>
     <h2>Merge overlapping intervals</h2>
@@ -93,11 +130,26 @@ for start, end in intervals[1:]:
       <p>Given a list of intervals in any order, combine every group that overlaps or touches, and return the resulting intervals sorted by start.</p>
       <div class="io"><div><span>Input</span>[[8, 10], [1, 3], [2, 6], [15, 18]]</div><div><span>Output</span>[[1, 6], [8, 10], [15, 18]]</div></div>
     </div>
-    <details class="hint"><summary>Think first: after sorting, who can the next interval collide with?</summary><p>Only the last block in the output. Every earlier block ends before the last one starts, and the next interval starts after the last one starts. So compare its start with the last block's end: extend if it's not past it, otherwise start a new block.</p></details>
+    <p class="think">After sorting, which earlier interval can the next one possibly collide with?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Compare every pair, merge any two that overlap, and repeat until nothing changes. Each round is O(n²), and one merge can create a new overlap, so you may need several rounds.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">After sorting by start, the next interval can only touch the last block in the output. Every earlier block ended before the last one began, and the next interval starts even later.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Sort by start. The first interval is the first block.</span></li>
+      <li><span>For each next interval, compare its start with the last block's end.</span></li>
+      <li><span>Start ≤ end: overlap. Set the block's end to the larger of the two ends.</span></li>
+      <li><span>Start &gt; end: a gap. Append the interval as a new block.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The top chart is the input sorted by start; the bar being handled is coloured, and dashed bars are done. The bottom row is the output so far, with the block that can still grow in amber.</p>
     <div id="viz1"></div>
-    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the output</span><span class="meh">Compare all pairs: O(n²), and still needs repeated passes</span></div>
+    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the output</span><span class="meh">Every pair, repeated: O(n²) or worse</span></div>
+    <p class="slip">Writing <span class="mono">last[1] = e</span> instead of <span class="mono">max(last[1], e)</span>. When one interval sits fully inside another, like [3, 6] inside [1, 9], the block shrinks by mistake.</p>
   </section>
 
+  <!-- Problem 2 -->
   <section class="panel article problem" id="p2" data-nav="Insert an interval" data-num="P2">
     <span class="eyebrow">Problem 2 · Insert</span>
     <h2>Insert an interval</h2>
@@ -106,11 +158,26 @@ for start, end in intervals[1:]:
       <p>You have a calendar of busy intervals that are already sorted and don't overlap. Add one new interval, merging wherever needed, and return the calendar still sorted and non-overlapping.</p>
       <div class="io"><div><span>Input</span>busy = [[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], new = [4, 8]</div><div><span>Output</span>[[1, 2], [3, 10], [12, 16]]</div></div>
     </div>
-    <details class="hint"><summary>Think first: do you need to sort again?</summary><p>No. The list splits into three runs: intervals that end before the new one starts (copy them), intervals that overlap it (absorb them by widening the new interval), and intervals that start after it ends (copy them). One pass, O(n).</p></details>
+    <p class="think">The list is already sorted. Do you really need to sort again?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Append the new interval and run Problem 1 on the whole list. It works, but the sort costs O(n log n) when the list was already in order.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The busy list splits into three runs: blocks that end before the new interval starts, blocks that overlap it, and blocks that start after it ends. Only the middle run needs any work, and you can find all three in one pass.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Copy every block that ends before the new interval starts.</span></li>
+      <li><span>While a block starts at or before the new interval's end, swallow it: widen the new interval to cover both.</span></li>
+      <li><span>Place the widened interval.</span></li>
+      <li><span>Copy everything that's left unchanged.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The amber bar is the new interval; watch it widen as it swallows blocks. Green blocks were swallowed, dashed blocks were copied unchanged. The bottom row is the output.</p>
     <div id="viz2"></div>
-    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n) for the output</span><span class="meh">Append and re-run merge: O(n log n)</span></div>
+    <div class="cx"><span class="good">Time O(n)</span><span class="good">Space O(n) for the output</span><span class="meh">Append and re-merge: O(n log n)</span></div>
+    <p class="slip">Widening only the end. A swallowed block can start before the new interval does, so take the smaller start too.</p>
   </section>
 
+  <!-- Problem 3 -->
   <section class="panel article problem" id="p3" data-nav="How many rooms?" data-num="P3">
     <span class="eyebrow">Problem 3 · Sweep</span>
     <h2>How many meeting rooms?</h2>
@@ -119,11 +186,26 @@ for start, end in intervals[1:]:
       <p>Each interval is a meeting <span class="mono">[start, end)</span>. A room is free again the moment a meeting ends, so <span class="mono">[1, 4)</span> and <span class="mono">[4, 6)</span> can share. What's the smallest number of rooms that fits every meeting?</p>
       <div class="io"><div><span>Input</span>[[0, 30], [5, 10], [15, 20], [10, 15]]</div><div><span>Output</span>2</div></div>
     </div>
-    <details class="hint"><summary>Think first: what's the answer, in terms of a single moment?</summary><p>The rooms needed equals the most meetings running at the same instant. Walk through time: each start opens a room (+1), each end frees one (−1). Sort these events, and at equal times put ends before starts so a freed room can be reused. The highest running total is the answer.</p></details>
+    <p class="think">Freeze time at one moment. How many rooms do you need right then?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>For every time point, count how many meetings are running, and take the largest count. That's O(n × range), and the range of times can be huge.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">The rooms you need equals the most meetings running at the same moment. That count only changes when a meeting starts (+1) or ends (−1), so you only need to look at those moments, in time order.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Turn each meeting into two events: (start, +1) and (end, −1).</span></li>
+      <li><span>Sort the events by time. At a tie, put the −1 first so a freed room can be reused.</span></li>
+      <li><span>Walk the events, adding each one to a running count.</span></li>
+      <li><span>The highest the count ever reaches is the answer.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">The red line sweeps left to right through time. Blue meetings are running at the line, dashed ones have ended. The counters below show rooms in use now and the most so far.</p>
     <div id="viz3"></div>
-    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the events</span><span class="meh">Check every time point against every meeting: O(n × range)</span></div>
+    <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(n) for the events</span><span class="meh">Check every time point: O(n × range)</span></div>
+    <p class="slip">Putting starts before ends at the same time. Then [1, 4) and [4, 6) look like they overlap at 4, and you count one room too many.</p>
   </section>
 
+  <!-- Problem 4 -->
   <section class="panel article problem" id="p4" data-nav="Fewest to remove" data-num="P4">
     <span class="eyebrow">Problem 4 · Greedy by end</span>
     <h2>Fewest intervals to remove</h2>
@@ -132,21 +214,50 @@ for start, end in intervals[1:]:
       <p>Remove as few intervals as possible so that the rest don't overlap. Intervals that only touch, like <span class="mono">[1, 2]</span> and <span class="mono">[2, 3]</span>, are fine. Return how many you removed.</p>
       <div class="io"><div><span>Input</span>[[1, 2], [2, 3], [3, 4], [1, 3]]</div><div><span>Output</span>1 (remove [1, 3])</div></div>
     </div>
-    <details class="hint"><summary>Think first: which interval is always safe to keep?</summary><p>The one that ends earliest. Whatever the best answer keeps first, swapping it for the earliest-ending interval can't cause a new clash, because it ends no later. So sort by end, keep an interval if it starts at or after the last kept end, and remove it otherwise.</p></details>
+    <p class="think">Of all the intervals, which one is always safe to keep?</p>
+    <h3 class="sub">The obvious way</h3>
+    <p>Try every subset, keep the ones with no overlaps, and pick the largest. There are 2ⁿ subsets, so this is hopeless past about 20 intervals.</p>
+    <h3 class="sub">Key insight</h3>
+    <p class="insight">Keep the interval that ends earliest. It leaves the most room for everything after it. Whatever a best answer keeps first, swapping in the earliest-ending one can't cause a new clash, because it ends no later.</p>
+    <h3 class="sub">The plan</h3>
+    <ol class="plan">
+      <li><span>Sort by end. The last kept end starts at −∞.</span></li>
+      <li><span>If the next interval starts at or after the last kept end, keep it and update the end.</span></li>
+      <li><span>Otherwise it clashes: remove it and add one to the count.</span></li>
+    </ol>
+    <h3 class="sub">Watch it run</h3>
+    <p class="note">Bars are sorted by end. Green bars are kept, red is the one being removed now, dashed bars were removed. The red line marks the last kept end.</p>
     <div id="viz4"></div>
     <div class="cx"><span class="good">Time O(n log n)</span><span class="good">Space O(1) besides sorting</span><span class="meh">Try every subset: O(2ⁿ)</span></div>
+    <p class="slip">Sorting by start instead of end. A long interval that starts early, like [1, 10], gets kept and blocks everything else.</p>
   </section>
 
+  <!-- Why it works -->
   <section class="panel article" id="why" data-nav="Why it works">
     <span class="eyebrow">Correctness</span>
     <h2>Why one pass after sorting is enough</h2>
+    <p>For the merge pass, the argument fits in three sentences:</p>
     <div class="qa">
-      <div><span class="q">Invariant</span><p>After handling the first k intervals in sorted order, the output holds the correct merged blocks for those k, and only the last block can still grow.</p></div>
-      <div><span class="q">Each step</span><p>The next interval starts at or after every earlier start. If it starts after the last block ends, a gap separates them, and since later intervals start even further right, nothing can ever bridge that gap.</p></div>
-      <div><span class="q">Sweep</span><p>The count of open intervals only changes at a start or an end, so checking just those event times finds the true maximum. Ends sort first at ties because a half-open interval has already finished.</p></div>
-      <div><span class="q">Greedy</span><p>An exchange argument: replacing the first interval of any best answer with the earliest-ending one keeps it valid and the same size. Repeat on what's left.</p></div>
-      <div><span class="q">History</span><p>Sweeping a line across a set of objects, handling them as events in sorted order, was popularized by Michael Shamos and Dan Hoey's 1976 work on geometric intersection problems. The rooms problem is that sweep in one dimension.</p></div>
+      <div><span class="q">Always true</span><p>After handling the first k intervals in sorted order, the output holds the right blocks for those k, and only the last block can still grow.</p></div>
+      <div><span class="q">Each step</span><p>The next interval starts at or after every earlier start. If it starts after the last block ends, there's a gap, and later intervals start even further right, so nothing can ever close it.</p></div>
+      <div><span class="q">It ends</span><p>Each interval is looked at once, so the pass is O(n). The sort before it is the O(n log n).</p></div>
+      <div><span class="q">Sweep</span><p>The number of running meetings only changes at a start or an end, so checking just those moments finds the true maximum. Ends go first at a tie because a half-open meeting has already finished.</p></div>
+      <div><span class="q">Greedy</span><p>Swap the first interval of any best answer for the earliest-ending one. The answer stays valid and the same size. Repeat on what's left.</p></div>
     </div>
+    <div class="aside"><p><b>In an interview:</b> say why you sort, and by what, before writing code. Then state your edge rule out loud ("touching counts as overlap"). The idea of sweeping a line across objects as sorted events goes back to Michael Shamos and Dan Hoey's 1976 work on geometric intersection; the rooms problem is that sweep in one dimension.</p></div>
+  </section>
+
+  <!-- Recap -->
+  <section class="panel article" id="recap" data-nav="Recap">
+    <span class="eyebrow">Recap</span>
+    <h2>Cheat sheet</h2>
+    <div class="recap">
+      <div><h3>Merge</h3><p>Sort by start. Start ≤ last end → stretch with max(). Else new block.</p></div>
+      <div><h3>Insert</h3><p>Copy before, swallow overlaps (min start, max end), copy after.</p></div>
+      <div><h3>Meeting rooms</h3><p>+1 at starts, −1 at ends, ends first at ties. Answer = peak count.</p></div>
+      <div><h3>Fewest removals</h3><p>Sort by end. Keep if it starts at or after the last kept end.</p></div>
+    </div>
+    <p>Next pattern: <a href="fast-slow.html">Fast and Slow Pointers</a>, where two pointers race through a linked list at different speeds.</p>
   </section>
 </main>
 </div>
